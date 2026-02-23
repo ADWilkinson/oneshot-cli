@@ -17,6 +17,12 @@ laptop --ssh--> your server --runs--> Claude (plan) -> Codex (execute) -> Codex 
 ### 2. Install (both laptop and server)
 
 ```bash
+bun install -g oneshot-ship
+```
+
+Or from source:
+
+```bash
 git clone https://github.com/ADWilkinson/oneshot-cli.git
 cd oneshot-cli && bun install && bun link
 ```
