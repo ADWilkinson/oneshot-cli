@@ -16,6 +16,12 @@ export interface OneshotConfig {
     reasoningEffort: string;
     timeoutMinutes: number;
   };
+  stepTimeouts?: {
+    planMinutes?: number;
+    executeMinutes?: number;
+    reviewMinutes?: number;
+    prMinutes?: number;
+  };
 }
 
 export interface OneshotOptions {
@@ -77,4 +83,18 @@ export const loadConfig = async (): Promise<OneshotConfig> => {
 export const saveConfig = (config: OneshotConfig): void => {
   mkdirSync(CONFIG_DIR, { recursive: true });
   writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n");
+};
+
+const DEFAULT_STEP_TIMEOUTS = {
+  planMinutes: 10,
+  executeMinutes: 30,
+  reviewMinutes: 10,
+  prMinutes: 10,
+};
+
+export type StepTimeoutKey = keyof typeof DEFAULT_STEP_TIMEOUTS;
+
+export const getStepTimeout = (config: OneshotConfig, step: StepTimeoutKey): number => {
+  const minutes = config.stepTimeouts?.[step] ?? DEFAULT_STEP_TIMEOUTS[step];
+  return minutes * 60 * 1000;
 };

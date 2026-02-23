@@ -4,6 +4,29 @@ export interface ExecResult {
   exitCode: number;
 }
 
+const killProcessTree = (pid: number): void => {
+  try {
+    // Kill entire process group (negative PID) to catch child processes
+    process.kill(-pid, "SIGTERM");
+  } catch {
+    // Process group kill failed, fall back to direct kill
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // Already dead
+    }
+  }
+
+  // Follow up with SIGKILL after 5s in case SIGTERM is ignored
+  setTimeout(() => {
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch {
+      // Already dead
+    }
+  }, 5_000).unref();
+};
+
 export const exec = async (
   command: string,
   options: { timeoutMs?: number; stream?: boolean } = {}
@@ -34,21 +57,27 @@ export const exec = async (
     }
   };
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
   const timeout = new Promise<never>((_, reject) => {
-    setTimeout(() => {
-      proc.kill();
+    timer = setTimeout(() => {
+      killProcessTree(proc.pid);
       reject(new Error(`command timed out after ${timeoutMs / 1000}s`));
     }, timeoutMs);
   });
 
-  await Promise.race([
-    Promise.all([
-      readStream(proc.stdout, stdoutChunks, stream),
-      readStream(proc.stderr, stderrChunks, false),
-      proc.exited,
-    ]),
-    timeout,
-  ]);
+  try {
+    await Promise.race([
+      Promise.all([
+        readStream(proc.stdout, stdoutChunks, stream),
+        readStream(proc.stderr, stderrChunks, false),
+        proc.exited,
+      ]),
+      timeout,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 
   return {
     stdout: stdoutChunks.join(""),

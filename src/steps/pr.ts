@@ -3,6 +3,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import type { PipelineContext } from "../config";
 import { execOrThrow } from "../exec";
+import { getStepTimeout } from "../config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -24,7 +25,7 @@ export const createPr = async (ctx: PipelineContext): Promise<string> => {
     .replace("{{branchName}}", branchName);
 
   const escapedPrompt = prompt.replace(/'/g, "'\\''");
-  const timeoutMs = config.claude.timeoutMinutes * 60 * 1000;
+  const timeoutMs = getStepTimeout(config, "prMinutes");
 
   const result = await execOrThrow(
     `cd "${worktreePath}" && claude -p '${escapedPrompt}' --dangerously-skip-permissions --model ${model} --no-session-persistence`,
