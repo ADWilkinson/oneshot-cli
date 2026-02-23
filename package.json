@@ -1,0 +1,22 @@
+{
+  "name": "oneshot-cli",
+  "version": "0.0.1",
+  "description": "Ship code autonomously via SSH -- plan, execute, review, PR in one shot",
+  "type": "module",
+  "bin": {
+    "oneshot": "src/cli.ts"
+  },
+  "scripts": {
+    "build": "bun build src/cli.ts --outdir dist --target bun",
+    "dev": "bun run src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.0"
+  },
+  "files": [
+    "dist",
+    "prompts"
+  ]
+}

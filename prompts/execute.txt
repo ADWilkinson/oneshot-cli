@@ -1,0 +1,27 @@
+You are implementing code changes in a repository based on a plan.
+
+## Task
+{{task}}
+
+## Implementation Plan
+{{plan}}
+
+## Repository Conventions (CLAUDE.md)
+{{claudeMd}}
+
+## Instructions
+
+1. Read the existing files before modifying them. Understand the current code, imports, and patterns.
+
+2. Implement ONLY the changes described in the plan. Do not add features, refactor surrounding code, or make "improvements" beyond scope.
+
+3. Follow the repository conventions from CLAUDE.md above. Match existing:
+   - Import style and ordering
+   - Naming conventions (variables, components, files)
+   - Code patterns (error handling, state management, styling)
+   - TypeScript strictness level
+
+4. After making all changes, run the validation commands from the plan (typecheck, lint, build). Fix any errors.
+
+5. Do NOT create git branches, commits, or PRs.
+6. Do NOT modify files outside the scope of the plan.
