@@ -24,6 +24,7 @@
   },
   "files": [
     "src",
-    "prompts"
+    "prompts",
+    "skills"
   ]
 }

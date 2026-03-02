@@ -6,6 +6,8 @@ One command to ship code. Give it a repo and a task -- it plans, executes, revie
 laptop --ssh--> your server --runs--> Claude (plan) -> Codex (execute) -> Codex (review) -> Claude (PR)
 ```
 
+Or run locally with `--local` -- no SSH needed.
+
 ## Quick start
 
 ### 1. Prerequisites
@@ -57,6 +59,7 @@ oneshot <repo> <linear-url> [flags]    # fetches ticket as context, updates stat
 oneshot <repo> "<task>" --bg           # fire and forget, runs detached on server
 oneshot <repo> --dry-run               # validate repo exists without running
 oneshot <repo> "<task>" --model sonnet # override claude model
+oneshot <repo> "<task>" --local        # run locally, no SSH
 oneshot init                           # configure ~/.oneshot/config.json
 ```
 
@@ -64,7 +67,8 @@ oneshot init                           # configure ~/.oneshot/config.json
 |------|-------|-------------|
 | `--model` | `-m` | Override Claude model |
 | `--dry-run` | `-d` | Validate only |
-| `--bg` | | Run in background |
+| `--local` | | Run locally instead of over SSH |
+| `--bg` | | Run in background (SSH mode only) |
 | `--help` | `-h` | Help |
 | `--version` | `-v` | Version |
 
@@ -90,7 +94,13 @@ Worktree is cleaned up after every run.
   "anthropicApiKey": "sk-ant-...",
   "linearApiKey": "lin_api_...",
   "claude": { "model": "opus", "timeoutMinutes": 180 },
-  "codex": { "model": "gpt-5.3-codex", "reasoningEffort": "xhigh", "timeoutMinutes": 180 }
+  "codex": { "model": "gpt-5.3-codex", "reasoningEffort": "xhigh", "timeoutMinutes": 180 },
+  "stepTimeouts": {
+    "planMinutes": 20,
+    "executeMinutes": 60,
+    "reviewMinutes": 20,
+    "prMinutes": 20
+  }
 }
 ```
 
@@ -101,6 +111,24 @@ Only `host` is required. Everything else has defaults.
 Drop a `CLAUDE.md` in any repo root to enforce conventions -- oneshot passes it as context to both Claude and Codex.
 
 Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipeline behavior.
+
+## Agent skill
+
+oneshot CLI is available as an [Agent Skill](https://agentskills.io) for Claude Code, Codex CLI, Cursor, and other skills-compatible agents.
+
+### Install the skill
+
+```bash
+npx skills add ADWilkinson/oneshot-cli
+```
+
+Or via [ClawHub](https://clawhub.ai):
+
+```bash
+clawhub install oneshot-ship
+```
+
+Once installed, your agent can use it automatically when relevant, or you can invoke it directly with `/oneshot-ship`.
 
 ## License
 

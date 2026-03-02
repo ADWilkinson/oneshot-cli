@@ -61,6 +61,7 @@ Commands:
 
 Options:
   --model, -m <model>     Override Claude model (default: from config)
+  --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
   --bg                    Run on server in background (fire and forget)
   --help, -h              Show this help
