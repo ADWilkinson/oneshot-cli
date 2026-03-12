@@ -1,0 +1,7 @@
+docs/
+.github/
+.gitignore
+bun.lock
+tsconfig.json
+dist/
+*.tsbuildinfo

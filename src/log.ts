@@ -10,7 +10,7 @@ const STEPS_TOTAL = 6;
 
 export const log = {
   header: () => {
-    console.log(`\n${BOLD}${CYAN}oneshot${RESET} ${DIM}v0.0.1${RESET}\n`);
+    console.log(`\n${BOLD}${CYAN}oneshot${RESET} ${DIM}v0.1.0${RESET}\n`);
   },
 
   stepStart: (step: number, message: string) => {

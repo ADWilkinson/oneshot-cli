@@ -4,7 +4,7 @@ description: Ship code autonomously with oneshot CLI -- a single command that pl
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "0.0.1"
+  version: "0.1.0"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, Claude Code CLI, Codex CLI, and GitHub CLI. SSH access to a server optional (can run locally with --local)
 ---

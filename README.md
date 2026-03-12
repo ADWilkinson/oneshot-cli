@@ -8,59 +8,42 @@ laptop --ssh--> your server --runs--> Claude (plan) -> Codex (execute) -> Codex 
 
 Or run locally with `--local` -- no SSH needed.
 
-## Quick start
+**[Read the docs](https://adwilkinson.github.io/oneshot-cli)**
 
-### 1. Prerequisites
-
-**Laptop:** [Bun](https://bun.sh), SSH access to your server
-
-**Server:** [Bun](https://bun.sh), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex CLI](https://github.com/openai/codex), [GitHub CLI](https://cli.github.com) (authenticated), `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` in environment
-
-### 2. Install (both laptop and server)
+## Install
 
 ```bash
 bun install -g oneshot-ship
 ```
 
-Or from source:
+## Quick start
 
 ```bash
-git clone https://github.com/ADWilkinson/oneshot-cli.git
-cd oneshot-cli && bun install && bun link
+oneshot init                                    # configure
+oneshot my-org/my-app "fix the login timeout"   # ship
 ```
 
-### 3. Configure
+## What it does
 
-```bash
-oneshot init
-```
+1. **Validate** -- checks the repo exists, fetches latest from origin
+2. **Worktree** -- creates a temp worktree from `origin/main`, installs deps
+3. **Plan** -- Claude reads the codebase + `CLAUDE.md` conventions, outputs a plan
+4. **Execute** -- Codex implements the plan
+5. **Review** -- Codex reviews its own diff for bugs, types, security
+6. **PR** -- Claude creates a branch, commits, pushes, opens a PR
 
-Walks you through setting your SSH host, workspace path, API keys, and model preferences. Saves to `~/.oneshot/config.json`.
-
-Your repos on the server should be organized as `<org>/<repo>` under your workspace path:
-
-```
-~/projects/
-  my-org/my-app/
-  my-org/my-api/
-```
-
-### 4. Ship
-
-```bash
-oneshot my-org/my-app "fix the login timeout bug"
-```
+Worktree is cleaned up after every run.
 
 ## Usage
 
 ```bash
-oneshot <repo> "<task>" [flags]
-oneshot <repo> <linear-url> [flags]    # fetches ticket as context, updates status after PR
-oneshot <repo> "<task>" --bg           # fire and forget, runs detached on server
-oneshot <repo> --dry-run               # validate repo exists without running
-oneshot <repo> "<task>" --model sonnet # override claude model
+oneshot <repo> "<task>"                 # ship a task
+oneshot <repo> <linear-url>            # fetch ticket as context
+oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
-oneshot init                           # configure ~/.oneshot/config.json
+oneshot <repo> "<task>" --model sonnet # override model
+oneshot <repo> --dry-run               # validate only
+oneshot init                           # configure
 ```
 
 | Flag | Short | Description |
@@ -69,19 +52,9 @@ oneshot init                           # configure ~/.oneshot/config.json
 | `--dry-run` | `-d` | Validate only |
 | `--local` | | Run locally instead of over SSH |
 | `--bg` | | Run in background (SSH mode only) |
+| `--branch` | `-b` | Base branch (default: main) |
 | `--help` | `-h` | Help |
 | `--version` | `-v` | Version |
-
-## What it does
-
-1. **Validate** -- checks the repo exists, fetches latest from origin
-2. **Worktree** -- creates a temp worktree from `origin/main`, installs deps (auto-detects bun/pnpm/yarn/npm)
-3. **Plan** -- Claude reads the codebase + `CLAUDE.md` conventions, outputs an implementation plan
-4. **Execute** -- Codex implements the plan
-5. **Review** -- Codex reviews its own diff for bugs, types, security
-6. **PR** -- Claude creates a branch, commits, pushes, opens a PR
-
-Worktree is cleaned up after every run.
 
 ## Config
 
@@ -114,9 +87,7 @@ Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipelin
 
 ## Agent skill
 
-oneshot CLI is available as an [Agent Skill](https://agentskills.io) for Claude Code, Codex CLI, Cursor, and other skills-compatible agents.
-
-### Install the skill
+Available as an [Agent Skill](https://agentskills.io) for Claude Code, Codex CLI, Cursor, and other skills-compatible agents.
 
 ```bash
 npx skills add ADWilkinson/oneshot-cli
@@ -127,8 +98,6 @@ Or via [ClawHub](https://clawhub.ai):
 ```bash
 clawhub install oneshot-ship
 ```
-
-Once installed, your agent can use it automatically when relevant, or you can invoke it directly with `/oneshot-ship`.
 
 ## License
 
