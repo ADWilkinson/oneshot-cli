@@ -20,9 +20,11 @@ export const createPr = async (ctx: PipelineContext): Promise<string> => {
   const branchName = `oneshot/${branchSlug}-${Date.now()}`;
   const model = options.model ?? config.claude.model;
 
+  const baseBranch = options.branch ?? "main";
   const prompt = loadPromptTemplate()
     .replace("{{task}}", options.taskSummary ?? options.task)
-    .replace("{{branchName}}", branchName);
+    .replace("{{branchName}}", branchName)
+    .replace(/\{\{baseBranch\}\}/g, baseBranch);
 
   const escapedPrompt = prompt.replace(/'/g, "'\\''");
   const timeoutMs = getStepTimeout(config, "prMinutes");
