@@ -5,7 +5,7 @@ import type { OneshotConfig, OneshotOptions } from "./config";
 import { runPipeline } from "./pipeline";
 import { log } from "./log";
 import { isLinearUrl, extractIssueId, fetchIssue, formatIssueAsTask } from "./linear";
-import { existsSync } from "fs";
+import { existsSync, openSync } from "fs";
 
 interface ParsedArgs extends OneshotOptions {
   local: boolean;
@@ -20,6 +20,7 @@ const parseArgs = (args: string[]): ParsedArgs => {
 
   const positional: string[] = [];
   let model: string | undefined;
+  let branch: string | undefined;
   let dryRun = false;
   let local = false;
   let bg = false;
@@ -32,6 +33,8 @@ const parseArgs = (args: string[]): ParsedArgs => {
       dryRun = true;
     } else if (arg === "--local") {
       local = true;
+    } else if (arg === "--branch" || arg === "-b") {
+      branch = args[++i];
     } else if (arg === "--bg") {
       bg = true;
     } else if (arg === "--help" || arg === "-h") {
@@ -48,7 +51,7 @@ const parseArgs = (args: string[]): ParsedArgs => {
   if (positional.length < 1) { log.error("missing repo argument"); printUsage(); process.exit(1); }
   if (positional.length < 2 && !dryRun) { log.error("missing task description or Linear URL"); printUsage(); process.exit(1); }
 
-  return { repo: positional[0], task: positional[1] ?? "", model, dryRun, local, bg };
+  return { repo: positional[0], task: positional[1] ?? "", model, branch, dryRun, local, bg };
 };
 
 const printUsage = () => {
@@ -61,6 +64,7 @@ Commands:
 
 Options:
   --model, -m <model>     Override Claude model (default: from config)
+  --branch, -b <branch>   Base branch to work from and PR into (default: main)
   --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
   --bg                    Run on server in background (fire and forget)
@@ -72,6 +76,7 @@ Examples:
   oneshot my-org/my-repo "fix the login bug"
   oneshot my-org/my-repo https://linear.app/team/issue/ABC-123/slug
   oneshot my-org/my-repo "add dark mode" --bg
+  oneshot my-org/my-repo "fix staging bug" --branch staging
   oneshot my-org/my-repo --dry-run
 `);
 };
@@ -154,6 +159,7 @@ const main = async () => {
       const escapedTask = parsed.task.replace(/'/g, "'\\''");
       const parts = ["~/.bun/bin/oneshot", "--local", parsed.repo, `'${escapedTask}'`];
       if (parsed.model) parts.push("--model", parsed.model);
+      if (parsed.branch) parts.push("--branch", parsed.branch);
       if (parsed.dryRun) parts.push("--dry-run");
 
       if (parsed.bg) {
@@ -184,10 +190,35 @@ const main = async () => {
     if (config.anthropicApiKey) {
       process.env.ANTHROPIC_API_KEY = config.anthropicApiKey;
     }
+
+    // --local --bg: fork ourselves without --bg, redirect output to log file
+    if (parsed.bg) {
+      const logFile = `/tmp/oneshot-${Date.now()}.log`;
+      const args = ["--local", parsed.repo, parsed.task];
+      if (parsed.model) args.push("--model", parsed.model);
+      if (parsed.branch) args.push("--branch", parsed.branch);
+
+      const fd = openSync(logFile, "w");
+      const child = Bun.spawn([process.argv[0], ...args], {
+        stdout: fd,
+        stderr: fd,
+        stdin: "ignore",
+      });
+
+      // detach from parent
+      child.unref();
+
+      console.log(`PID: ${child.pid}`);
+      console.log(`LOG: ${logFile}`);
+      console.log(`\ntail logs: tail -f ${logFile}`);
+      process.exit(0);
+    }
+
     const options: OneshotOptions = {
       repo: parsed.repo,
       task: parsed.task,
       model: parsed.model,
+      branch: parsed.branch,
       dryRun: parsed.dryRun,
     };
 
