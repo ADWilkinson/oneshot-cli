@@ -32,7 +32,7 @@ oneshot my-org/my-app "fix the login timeout"   # ship
 5. **Review** -- Codex reviews its own diff for bugs, types, security
 6. **PR** -- Claude creates a branch, commits, pushes, opens a PR
 
-Worktree is cleaned up after every run.
+Worktree is cleaned up after every run. Each run acquires a per-repo lockfile to prevent concurrent runs on the same repo.
 
 ## Usage
 
@@ -53,6 +53,7 @@ oneshot init                           # configure
 | `--local` | | Run locally instead of over SSH |
 | `--bg` | | Run in background (SSH mode only) |
 | `--branch` | `-b` | Base branch (default: main) |
+| `--events-file` | | Write JSONL events to a file for structured progress tracking |
 | `--help` | `-h` | Help |
 | `--version` | `-v` | Version |
 
@@ -78,6 +79,23 @@ oneshot init                           # configure
 ```
 
 Only `host` is required. Everything else has defaults.
+
+## Structured events
+
+Pass `--events-file <path>` to emit JSONL events for machine consumption:
+
+```bash
+oneshot my-org/my-app "fix bug" --local --events-file /tmp/run.events.jsonl
+```
+
+Events emitted: `started`, `step` (running/done/failed for each pipeline stage), `completed` (with PR URL or error). Designed for integration with bots and CI systems that need reliable progress tracking instead of log parsing.
+
+## Safety
+
+- **Repo lockfile**: prevents concurrent oneshot runs on the same repo (`~/.oneshot/locks/`)
+- **Branch sanitization**: rejects branch names containing `..`, leading `/`, or control characters
+- **Path traversal protection**: worktree paths are verified to be under `/tmp`
+- **Atomic config writes**: config saves use temp file + rename to prevent corruption
 
 ## Customization
 
