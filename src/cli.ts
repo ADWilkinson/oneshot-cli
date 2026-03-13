@@ -162,9 +162,9 @@ const main = async () => {
     if (!parsed.local) {
       const escapedTask = parsed.task.replace(/'/g, "'\\''");
       const parts = ["~/.bun/bin/oneshot", "--local", parsed.repo, `'${escapedTask}'`];
-      if (parsed.model) parts.push("--model", parsed.model);
-      if (parsed.branch) parts.push("--branch", parsed.branch);
-      if (parsed.eventsFile) parts.push("--events-file", parsed.eventsFile);
+      if (parsed.model) parts.push("--model", `'${parsed.model.replace(/'/g, "'\\''")}'`);
+      if (parsed.branch) parts.push("--branch", `'${parsed.branch.replace(/'/g, "'\\''")}'`);
+      if (parsed.eventsFile) parts.push("--events-file", `'${parsed.eventsFile.replace(/'/g, "'\\''")}'`);
       if (parsed.dryRun) parts.push("--dry-run");
 
       if (parsed.bg) {

@@ -5,15 +5,15 @@ import { exec, gitRetry } from "../exec";
 const WORKTREE_ROOT = "/tmp";
 
 const sanitizeBranch = (branch: string): string => {
+  // Allowlist: only alphanumeric, hyphen, underscore, dot, forward slash
+  if (!/^[a-zA-Z0-9._\-/]+$/.test(branch)) {
+    throw new Error("invalid branch name: contains disallowed characters");
+  }
   if (branch.includes("..")) {
     throw new Error(`invalid branch name: contains ".."`);
   }
-  if (branch.startsWith("/")) {
-    throw new Error(`invalid branch name: starts with "/"`);
-  }
-  // reject control characters (U+0000 through U+001F and U+007F)
-  if (/[\x00-\x1f\x7f]/.test(branch)) {
-    throw new Error("invalid branch name: contains control characters");
+  if (branch.startsWith("/") || branch.endsWith("/")) {
+    throw new Error(`invalid branch name: starts or ends with "/"`);
   }
   return branch;
 };

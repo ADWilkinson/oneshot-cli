@@ -30,8 +30,9 @@ export interface CompletedEvent {
 
 export type OneshotEvent = StartedEvent | StepEvent | CompletedEvent;
 
-export class EventEmitter {
+export class EventWriter {
   private readonly filePath: string | null;
+  private writeFailed = false;
   readonly runId: string;
 
   constructor(eventsFile: string | null, runId: string) {
@@ -46,8 +47,13 @@ export class EventEmitter {
     if (!this.filePath) return;
     try {
       appendFileSync(this.filePath, JSON.stringify(event) + "\n");
-    } catch {
-      // best effort - don't crash the pipeline for event writes
+      this.writeFailed = false;
+    } catch (err) {
+      // Best effort - don't crash the pipeline for event writes, but warn once
+      if (!this.writeFailed) {
+        process.stderr.write(`[oneshot] warning: failed to write event: ${err}\n`);
+        this.writeFailed = true;
+      }
     }
   }
 

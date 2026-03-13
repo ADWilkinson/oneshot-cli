@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from "fs";
+import { existsSync, readFileSync, unlinkSync, mkdirSync, openSync, writeSync, closeSync } from "fs";
 import { join } from "path";
 import { createHash } from "crypto";
 
@@ -7,10 +7,8 @@ const LOCK_DIR = join(process.env.HOME ?? "/root", ".oneshot", "locks");
 const repoHash = (repo: string): string =>
   createHash("sha256").update(repo).digest("hex").slice(0, 12);
 
-const lockPath = (repo: string): string => {
-  mkdirSync(LOCK_DIR, { recursive: true });
-  return join(LOCK_DIR, `${repoHash(repo)}.lock`);
-};
+const lockPath = (repo: string): string =>
+  join(LOCK_DIR, `${repoHash(repo)}.lock`);
 
 const isPidAlive = (pid: number): boolean => {
   try {
@@ -22,8 +20,10 @@ const isPidAlive = (pid: number): boolean => {
 };
 
 export const acquireRepoLock = (repo: string): (() => void) => {
+  mkdirSync(LOCK_DIR, { recursive: true });
   const path = lockPath(repo);
 
+  // Check for stale lock from a dead process
   if (existsSync(path)) {
     try {
       const lock = JSON.parse(readFileSync(path, "utf-8"));
@@ -33,14 +33,24 @@ export const acquireRepoLock = (repo: string): (() => void) => {
           `if this is stale, delete ${path}`
         );
       }
-      // stale lock - remove it
+      unlinkSync(path);
     } catch (err) {
       if (err instanceof Error && err.message.includes("already locked")) throw err;
-      // corrupted lock file - remove it
+      try { unlinkSync(path); } catch { /* already gone */ }
     }
   }
 
-  writeFileSync(path, JSON.stringify({ pid: process.pid, repo, timestamp: Date.now() }));
+  // Atomic create with O_EXCL to prevent TOCTOU race
+  try {
+    const fd = openSync(path, "wx");
+    writeSync(fd, JSON.stringify({ pid: process.pid, repo, timestamp: Date.now() }));
+    closeSync(fd);
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      throw new Error(`repo "${repo}" lock acquired by another process between check and create`);
+    }
+    throw err;
+  }
 
   return () => {
     try { unlinkSync(path); } catch { /* already removed */ }

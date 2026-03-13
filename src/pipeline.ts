@@ -1,6 +1,6 @@
 import type { PipelineContext, OneshotConfig, OneshotOptions } from "./config";
 import { log } from "./log";
-import { EventEmitter } from "./events";
+import { EventWriter } from "./events";
 import { acquireRepoLock } from "./lockfile";
 import { validate } from "./steps/validate";
 import { createWorktree, removeWorktree } from "./steps/worktree";
@@ -30,7 +30,7 @@ const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineC
 const runStep = async (
   step: number,
   label: string,
-  events: EventEmitter,
+  events: EventWriter,
   fn: () => Promise<void>,
 ): Promise<void> => {
   log.stepStart(step, label);
@@ -51,7 +51,7 @@ const runStep = async (
 
 export const runPipeline = async (config: OneshotConfig, options: OneshotOptions): Promise<void> => {
   const ctx = buildContext(config, options);
-  const events = new EventEmitter(options.eventsFile ?? null, ctx.runId);
+  const events = new EventWriter(options.eventsFile ?? null, ctx.runId);
   const releaseLock = acquireRepoLock(options.repo);
 
   events.started(options.repo, options.task);
