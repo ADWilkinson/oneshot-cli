@@ -1,5 +1,7 @@
 import type { PipelineContext, OneshotConfig, OneshotOptions } from "./config";
 import { log } from "./log";
+import { EventEmitter } from "./events";
+import { acquireRepoLock } from "./lockfile";
 import { validate } from "./steps/validate";
 import { createWorktree, removeWorktree } from "./steps/worktree";
 import { plan } from "./steps/plan";
@@ -16,6 +18,7 @@ const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineC
   return {
     config,
     options,
+    runId: id,
     repoPath: `${basePath}/${options.repo}`,
     worktreePath: `/tmp/oneshot-${id}`,
     plan: "",
@@ -24,38 +27,52 @@ const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineC
   };
 };
 
-const runStep = async (step: number, label: string, fn: () => Promise<void>): Promise<void> => {
+const runStep = async (
+  step: number,
+  label: string,
+  events: EventEmitter,
+  fn: () => Promise<void>,
+): Promise<void> => {
   log.stepStart(step, label);
+  events.stepRunning(step, label);
   const start = Date.now();
   try {
     await fn();
-    log.stepDone(Date.now() - start);
+    const elapsed = Date.now() - start;
+    log.stepDone(elapsed);
+    events.stepDone(step, label, elapsed);
   } catch (err) {
-    log.stepFail(Date.now() - start);
+    const elapsed = Date.now() - start;
+    log.stepFail(elapsed);
+    events.stepFailed(step, label, elapsed);
     throw err;
   }
 };
 
 export const runPipeline = async (config: OneshotConfig, options: OneshotOptions): Promise<void> => {
   const ctx = buildContext(config, options);
+  const events = new EventEmitter(options.eventsFile ?? null, ctx.runId);
+  const releaseLock = acquireRepoLock(options.repo);
 
+  events.started(options.repo, options.task);
   log.header();
 
   try {
-    await runStep(1, "Validating repo", () => validate(ctx));
+    await runStep(1, "Validating repo", events, () => validate(ctx));
 
     if (options.dryRun) {
       log.dryRunSummary(ctx.repoPath);
+      events.completed({ elapsed: Date.now() - ctx.startTime });
       return;
     }
 
-    await runStep(2, "Creating worktree", () => createWorktree(ctx));
-    await runStep(3, "Planning with Claude", async () => { ctx.plan = await plan(ctx); });
-    await runStep(4, "Executing with Codex", () => execute(ctx));
-    await runStep(5, "Reviewing with Codex", () => review(ctx));
+    await runStep(2, "Creating worktree", events, () => createWorktree(ctx));
+    await runStep(3, "Planning with Claude", events, async () => { ctx.plan = await plan(ctx); });
+    await runStep(4, "Executing with Codex", events, () => execute(ctx));
+    await runStep(5, "Reviewing with Codex", events, () => review(ctx));
 
     let filesChanged = 0;
-    await runStep(6, "Creating PR", async () => {
+    await runStep(6, "Creating PR", events, async () => {
       ctx.prUrl = await createPr(ctx);
       filesChanged = await getFilesChanged(ctx);
     });
@@ -72,7 +89,13 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     }
 
     log.summary(ctx.prUrl, filesChanged, Date.now() - ctx.startTime);
+    events.completed({ prUrl: ctx.prUrl, filesChanged, elapsed: Date.now() - ctx.startTime });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    events.failed(msg, Date.now() - ctx.startTime);
+    throw err;
   } finally {
+    releaseLock();
     if (!options.dryRun) {
       try { await removeWorktree(ctx); } catch {
         log.warn(`failed to clean up worktree at ${ctx.worktreePath}`);

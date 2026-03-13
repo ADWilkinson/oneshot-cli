@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync, renameSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 
@@ -32,11 +32,13 @@ export interface OneshotOptions {
   branch?: string;
   dryRun?: boolean;
   linearIssueId?: string;
+  eventsFile?: string;
 }
 
 export interface PipelineContext {
   config: OneshotConfig;
   options: OneshotOptions;
+  runId: string;
   repoPath: string;
   worktreePath: string;
   plan: string;
@@ -83,7 +85,9 @@ export const loadConfig = async (): Promise<OneshotConfig> => {
 
 export const saveConfig = (config: OneshotConfig): void => {
   mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n");
+  const tmpPath = `${CONFIG_PATH}.${process.pid}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(config, null, 2) + "\n");
+  renameSync(tmpPath, CONFIG_PATH);
 };
 
 const DEFAULT_STEP_TIMEOUTS = {

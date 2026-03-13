@@ -21,6 +21,7 @@ const parseArgs = (args: string[]): ParsedArgs => {
   const positional: string[] = [];
   let model: string | undefined;
   let branch: string | undefined;
+  let eventsFile: string | undefined;
   let dryRun = false;
   let local = false;
   let bg = false;
@@ -35,6 +36,8 @@ const parseArgs = (args: string[]): ParsedArgs => {
       local = true;
     } else if (arg === "--branch" || arg === "-b") {
       branch = args[++i];
+    } else if (arg === "--events-file") {
+      eventsFile = args[++i];
     } else if (arg === "--bg") {
       bg = true;
     } else if (arg === "--help" || arg === "-h") {
@@ -51,7 +54,7 @@ const parseArgs = (args: string[]): ParsedArgs => {
   if (positional.length < 1) { log.error("missing repo argument"); printUsage(); process.exit(1); }
   if (positional.length < 2 && !dryRun) { log.error("missing task description or Linear URL"); printUsage(); process.exit(1); }
 
-  return { repo: positional[0], task: positional[1] ?? "", model, branch, dryRun, local, bg };
+  return { repo: positional[0], task: positional[1] ?? "", model, branch, eventsFile, dryRun, local, bg };
 };
 
 const printUsage = () => {
@@ -67,6 +70,7 @@ Options:
   --branch, -b <branch>   Base branch to work from and PR into (default: main)
   --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
+  --events-file <path>    Write JSONL events to file (for structured progress tracking)
   --bg                    Run on server in background (fire and forget)
   --help, -h              Show this help
   --version, -v           Show version
@@ -160,6 +164,7 @@ const main = async () => {
       const parts = ["~/.bun/bin/oneshot", "--local", parsed.repo, `'${escapedTask}'`];
       if (parsed.model) parts.push("--model", parsed.model);
       if (parsed.branch) parts.push("--branch", parsed.branch);
+      if (parsed.eventsFile) parts.push("--events-file", parsed.eventsFile);
       if (parsed.dryRun) parts.push("--dry-run");
 
       if (parsed.bg) {
@@ -197,6 +202,7 @@ const main = async () => {
       const args = ["--local", parsed.repo, parsed.task];
       if (parsed.model) args.push("--model", parsed.model);
       if (parsed.branch) args.push("--branch", parsed.branch);
+      if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
 
       const fd = openSync(logFile, "w");
       const child = Bun.spawn([process.argv[0], ...args], {
@@ -220,6 +226,7 @@ const main = async () => {
       model: parsed.model,
       branch: parsed.branch,
       dryRun: parsed.dryRun,
+      eventsFile: parsed.eventsFile,
     };
 
     if (options.task && isLinearUrl(options.task)) {
