@@ -1,12 +1,13 @@
 import type { PipelineContext } from "../config";
-import { exec, execOrThrow } from "../exec";
+import { exec, execOrThrow, gitRetry } from "../exec";
 import { log } from "../log";
 
 export const createWorktree = async (ctx: PipelineContext): Promise<void> => {
   const { repoPath, worktreePath } = ctx;
 
   const baseBranch = ctx.options.branch ?? "main";
-  await execOrThrow(`cd "${repoPath}" && git fetch origin ${baseBranch} && git worktree add "${worktreePath}" origin/${baseBranch} --detach`);
+  await gitRetry(`cd "${repoPath}" && git fetch origin ${baseBranch}`);
+  await gitRetry(`cd "${repoPath}" && git worktree add "${worktreePath}" origin/${baseBranch} --detach`);
 
   // Auto-detect package manager and install deps
   const { stdout: lockfiles } = await exec(

@@ -98,3 +98,23 @@ export const execOrThrow = async (
   }
   return result.stdout;
 };
+
+/** Retry a git command on .lock contention with linear backoff */
+export const gitRetry = async (
+  command: string,
+  options: { maxAttempts?: number; baseDelayMs?: number; timeoutMs?: number } = {}
+): Promise<string> => {
+  const { maxAttempts = 5, baseDelayMs = 2_000, timeoutMs } = options;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await execOrThrow(command, { timeoutMs });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt === maxAttempts || !msg.includes(".lock")) throw err;
+      const delay = baseDelayMs * attempt;
+      console.warn(`git lock contention, retrying in ${delay}ms (${attempt}/${maxAttempts})`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw new Error("unreachable");
+};
