@@ -14,9 +14,10 @@ const loadPromptTemplate = (): string => {
 export const review = async (ctx: PipelineContext): Promise<void> => {
   const { config, options, worktreePath } = ctx;
 
-  // Quick check that there are changes to review
+  // Quick check that there are changes to review (tracked modifications + new untracked files)
   const diff = await execOrThrow(`cd "${worktreePath}" && git diff --stat`);
-  if (!diff.trim()) throw new Error("no changes were made during execution step");
+  const untracked = await execOrThrow(`cd "${worktreePath}" && git ls-files --others --exclude-standard`);
+  if (!diff.trim() && !untracked.trim()) throw new Error("no changes were made during execution step");
 
   // Don't pass the diff inline -- let Codex read it via git diff itself
   const prompt = loadPromptTemplate()
