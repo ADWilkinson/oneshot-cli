@@ -11,17 +11,19 @@ You are implementing code changes in a repository based on a plan.
 
 ## Instructions
 
-1. Read the existing files before modifying them. Understand the current code, imports, and patterns.
+1. Before starting, ensure dependencies are installed. Check for a lockfile and run the appropriate install command (e.g. `bun install`, `pnpm install`, `npm ci`, `yarn install`). If the repo uses Corepack (`packageManager` field in package.json), enable it first with `corepack enable`. If install fails, continue anyway.
 
-2. Implement ONLY the changes described in the plan. Do not add features, refactor surrounding code, or make "improvements" beyond scope.
+2. Read the existing files before modifying them. Understand the current code, imports, and patterns.
 
-3. Follow the repository conventions from CLAUDE.md above. Match existing:
+3. Implement ONLY the changes described in the plan. Do not add features, refactor surrounding code, or make "improvements" beyond scope.
+
+4. Follow the repository conventions from CLAUDE.md above. Match existing:
    - Import style and ordering
    - Naming conventions (variables, components, files)
    - Code patterns (error handling, state management, styling)
    - TypeScript strictness level
 
-4. After making all changes, run the validation commands from the plan (typecheck, lint, build). Fix any errors.
+5. After making all changes, run the validation commands from the plan (typecheck, lint, build). Fix any errors.
 
-5. Do NOT create git branches, commits, or PRs.
-6. Do NOT modify files outside the scope of the plan.
+6. Do NOT create git branches, commits, or PRs.
+7. Do NOT modify files outside the scope of the plan.
