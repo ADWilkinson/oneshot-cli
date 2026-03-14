@@ -5,6 +5,7 @@ import type { OneshotConfig, OneshotOptions } from "./config";
 import { runPipeline } from "./pipeline";
 import { log } from "./log";
 import { isLinearUrl, extractIssueId, fetchIssue, formatIssueAsTask } from "./linear";
+import { runStats } from "./stats";
 import { existsSync, openSync } from "fs";
 
 interface ParsedArgs extends OneshotOptions {
@@ -16,6 +17,10 @@ interface ParsedArgs extends OneshotOptions {
 const parseArgs = (args: string[]): ParsedArgs => {
   if (args[0] === "init") {
     return { command: "init", repo: "", task: "", local: false, bg: false };
+  }
+
+  if (args[0] === "stats") {
+    return { command: "stats", repo: "", task: "", local: args.includes("--local"), bg: false };
   }
 
   const positional: string[] = [];
@@ -61,9 +66,11 @@ const printUsage = () => {
   console.log(`
 Usage: oneshot <repo> "<task or linear url>" [options]
        oneshot init
+       oneshot stats
 
 Commands:
   init                    Set up ~/.oneshot/config.json interactively
+  stats                   Show recent runs, success rates, per-repo averages
 
 Options:
   --model, -m <model>     Override Claude model (default: from config)
@@ -153,6 +160,20 @@ const main = async () => {
 
   if (parsed.command === "init") {
     await runInit();
+    return;
+  }
+
+  if (parsed.command === "stats") {
+    const config = await loadConfig();
+    if (!parsed.local) {
+      const proc = Bun.spawn(
+        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, "~/.bun/bin/oneshot stats --local"],
+        { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
+      );
+      await proc.exited;
+      process.exit(proc.exitCode ?? 0);
+    }
+    runStats();
     return;
   }
 
