@@ -32,7 +32,7 @@ oneshot my-org/my-app "fix the login timeout"   # ship
 5. **Review** -- Codex reviews its own diff for bugs, types, security
 6. **PR** -- Claude creates a branch, commits, pushes, opens a PR
 
-Worktree is cleaned up after every run. Each run acquires a per-repo lockfile to prevent concurrent runs on the same repo.
+Worktree is cleaned up after every run. Parallel runs on the same repo are safe -- each gets its own worktree, and `gitRetry` handles any brief contention on the shared `.git` directory.
 
 ## Usage
 
@@ -92,7 +92,7 @@ Events emitted: `started`, `step` (running/done/failed for each pipeline stage),
 
 ## Safety
 
-- **Repo lockfile**: prevents concurrent oneshot runs on the same repo (`~/.oneshot/locks/`)
+- **Worktree isolation**: each run gets its own `/tmp` worktree; parallel runs on the same repo are safe
 - **Branch sanitization**: rejects branch names containing `..`, leading `/`, or control characters
 - **Path traversal protection**: worktree paths are verified to be under `/tmp`
 - **Atomic config writes**: config saves use temp file + rename to prevent corruption

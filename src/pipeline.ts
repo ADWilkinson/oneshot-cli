@@ -2,7 +2,6 @@ import type { PipelineContext, OneshotConfig, OneshotOptions } from "./config";
 import { join } from "path";
 import { log } from "./log";
 import { EventWriter } from "./events";
-import { acquireRepoLock } from "./lockfile";
 import { validate } from "./steps/validate";
 import { createWorktree, removeWorktree } from "./steps/worktree";
 import { plan } from "./steps/plan";
@@ -57,7 +56,6 @@ const runStep = async (
 export const runPipeline = async (config: OneshotConfig, options: OneshotOptions): Promise<void> => {
   const ctx = buildContext(config, options);
   const events = new EventWriter(options.eventsFile ?? null, ctx.runId);
-  const releaseLock = acquireRepoLock(options.repo);
 
   events.started(options.repo, options.task);
   log.header();
@@ -105,6 +103,5 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
         log.warn(`failed to clean up worktree at ${ctx.worktreePath}`);
       }
     }
-    releaseLock();
   }
 };
