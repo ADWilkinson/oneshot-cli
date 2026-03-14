@@ -164,16 +164,17 @@ const main = async () => {
   }
 
   if (parsed.command === "stats") {
-    const config = await loadConfig();
-    if (!parsed.local) {
-      const proc = Bun.spawn(
-        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, "~/.bun/bin/oneshot stats --local"],
-        { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
-      );
-      await proc.exited;
-      process.exit(proc.exitCode ?? 0);
+    if (parsed.local) {
+      runStats();
+      return;
     }
-    runStats();
+    const config = await loadConfig();
+    const proc = Bun.spawn(
+      ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, "~/.bun/bin/oneshot stats --local"],
+      { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
+    );
+    await proc.exited;
+    process.exit(proc.exitCode ?? 1);
     return;
   }
 

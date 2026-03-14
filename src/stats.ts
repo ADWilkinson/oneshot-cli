@@ -95,10 +95,10 @@ function scanRecentRuns(): CompletedRun[] {
         if (!completed) continue;
 
         const stepTimings = events
-          .filter(e => e.type === "step" && e.status === "done" && e.elapsed != null)
+          .filter(e => e.type === "step" && e.status === "done" && e.step != null && e.label != null && e.elapsed != null)
           .map(e => ({ step: e.step!, label: e.label!, elapsed: e.elapsed! }));
 
-        const failed = events.find(e => e.type === "step" && e.status === "failed");
+        const failed = events.find(e => e.type === "step" && e.status === "failed" && e.step != null && e.label != null);
 
         runs.push({
           runId: started?.runId ?? "unknown",
