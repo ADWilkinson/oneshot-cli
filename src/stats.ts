@@ -76,7 +76,8 @@ function scanRecentRuns(): CompletedRun[] {
   try {
     const files = readdirSync("/tmp")
       .filter(f => f.startsWith("oneshot-") && f.endsWith(".events.jsonl"))
-      .map(f => ({ name: f, path: `/tmp/${f}`, mtime: statSync(`/tmp/${f}`).mtimeMs }))
+      .map(f => { try { return { name: f, path: `/tmp/${f}`, mtime: statSync(`/tmp/${f}`).mtimeMs }; } catch { return null; } })
+      .filter((f): f is NonNullable<typeof f> => f !== null)
       .sort((a, b) => b.mtime - a.mtime)
       .slice(0, 30);
 
