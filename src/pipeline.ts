@@ -1,4 +1,5 @@
 import type { PipelineContext, OneshotConfig, OneshotOptions } from "./config";
+import { join } from "path";
 import { log } from "./log";
 import { EventWriter } from "./events";
 import { acquireRepoLock } from "./lockfile";
@@ -12,7 +13,11 @@ import { moveToInReview, addPrComment } from "./linear";
 
 const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineContext => {
   const home = process.env.HOME ?? "/root";
-  const basePath = config.basePath.replace("~", home);
+  const basePath = config.basePath.startsWith("~/")
+    ? join(home, config.basePath.slice(2))
+    : config.basePath === "~"
+      ? home
+      : config.basePath;
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   return {
@@ -95,11 +100,11 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     events.failed(msg, Date.now() - ctx.startTime);
     throw err;
   } finally {
-    releaseLock();
     if (!options.dryRun) {
       try { await removeWorktree(ctx); } catch {
         log.warn(`failed to clean up worktree at ${ctx.worktreePath}`);
       }
     }
+    releaseLock();
   }
 };

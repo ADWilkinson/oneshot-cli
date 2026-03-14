@@ -6,8 +6,8 @@ const WORKTREE_ROOT = "/tmp";
 
 const sanitizeBranch = (branch: string): string => {
   // Allowlist: only alphanumeric, hyphen, underscore, dot, forward slash
-  if (!/^[a-zA-Z0-9._\-/]+$/.test(branch)) {
-    throw new Error("invalid branch name: contains disallowed characters");
+  if (!/^[a-zA-Z0-9._/\-]+$/.test(branch)) {
+    throw new Error(`invalid branch name: contains disallowed characters (allowed: a-z 0-9 . _ - /)`);
   }
   if (branch.includes("..")) {
     throw new Error(`invalid branch name: contains ".."`);
@@ -33,9 +33,9 @@ export const createWorktree = async (ctx: PipelineContext): Promise<void> => {
   const baseBranch = sanitizeBranch(ctx.options.branch ?? "main");
   ensureWithinRoot(worktreePath);
 
-  await gitRetry(`cd "${repoPath}" && git fetch origin ${baseBranch}`);
+  await gitRetry(`cd "${repoPath}" && git fetch origin '${baseBranch}'`);
   await gitRetry(
-    `cd "${repoPath}" && git worktree add "${worktreePath}" origin/${baseBranch} --detach`
+    `cd "${repoPath}" && git worktree add "${worktreePath}" 'origin/${baseBranch}' --detach`
   );
 };
 

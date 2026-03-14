@@ -31,7 +31,7 @@ export interface CompletedEvent {
 export type OneshotEvent = StartedEvent | StepEvent | CompletedEvent;
 
 export class EventWriter {
-  private readonly filePath: string | null;
+  private filePath: string | null;
   private writeFailed = false;
   readonly runId: string;
 
@@ -39,7 +39,12 @@ export class EventWriter {
     this.runId = runId;
     this.filePath = eventsFile;
     if (this.filePath) {
-      writeFileSync(this.filePath, "");
+      try {
+        writeFileSync(this.filePath, "");
+      } catch (err) {
+        process.stderr.write(`[oneshot] warning: cannot write events file "${this.filePath}": ${err}\n`);
+        this.filePath = null;
+      }
     }
   }
 

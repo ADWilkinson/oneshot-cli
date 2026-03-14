@@ -4,6 +4,13 @@ import { createHash } from "crypto";
 
 const LOCK_DIR = join(process.env.HOME ?? "/root", ".oneshot", "locks");
 
+class LockError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LockError";
+  }
+}
+
 const repoHash = (repo: string): string =>
   createHash("sha256").update(repo).digest("hex").slice(0, 12);
 
@@ -14,8 +21,10 @@ const isPidAlive = (pid: number): boolean => {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
-    return false;
+  } catch (err) {
+    // EPERM means process exists but is owned by another user -- still alive
+    if ((err as NodeJS.ErrnoException).code === "EPERM") return true;
+    return false; // ESRCH = no such process
   }
 };
 
@@ -28,14 +37,15 @@ export const acquireRepoLock = (repo: string): (() => void) => {
     try {
       const lock = JSON.parse(readFileSync(path, "utf-8"));
       if (lock.pid && isPidAlive(lock.pid)) {
-        throw new Error(
+        throw new LockError(
           `repo "${repo}" is already locked by PID ${lock.pid} (started ${new Date(lock.timestamp).toISOString()}). ` +
           `if this is stale, delete ${path}`
         );
       }
       unlinkSync(path);
     } catch (err) {
-      if (err instanceof Error && err.message.includes("already locked")) throw err;
+      if (err instanceof LockError) throw err;
+      // Corrupt or unreadable lock file -- remove it
       try { unlinkSync(path); } catch { /* already gone */ }
     }
   }
