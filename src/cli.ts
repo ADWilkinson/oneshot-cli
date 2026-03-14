@@ -228,7 +228,7 @@ const main = async () => {
       if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
 
       const fd = openSync(logFile, "w");
-      const child = Bun.spawn([process.argv[0], ...args], {
+      const child = Bun.spawn([process.argv[0], process.argv[1], ...args], {
         stdout: fd,
         stderr: fd,
         stdin: "ignore",
