@@ -114,7 +114,7 @@ The worktree is cleaned up after every run.
   "anthropicApiKey": "sk-ant-...",
   "linearApiKey": "lin_api_...",
   "claude": { "model": "opus", "timeoutMinutes": 180 },
-  "codex": { "model": "gpt-5.3-codex", "reasoningEffort": "xhigh", "timeoutMinutes": 180 },
+  "codex": { "model": "gpt-5.4-mini", "reasoningEffort": "xhigh", "timeoutMinutes": 180 },
   "stepTimeouts": {
     "planMinutes": 20,
     "executeMinutes": 60,

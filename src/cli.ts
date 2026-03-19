@@ -129,7 +129,7 @@ const runInit = async () => {
 
   const claudeModel = await prompt("  claude model (for planning + PR)", "opus");
   const claudeTimeout = await prompt("  claude timeout in minutes", "180");
-  const codexModel = await prompt("  codex model (for execution + review)", "gpt-5.3-codex");
+  const codexModel = await prompt("  codex model (for execution + review)", "gpt-5.4-mini");
   const codexEffort = await prompt("  codex reasoning effort", "xhigh");
   const codexTimeout = await prompt("  codex timeout in minutes", "180");
 
