@@ -31,9 +31,12 @@ export interface OneshotOptions {
   model?: string;
   branch?: string;
   dryRun?: boolean;
+  deepReview?: boolean;
   linearIssueId?: string;
   eventsFile?: string;
 }
+
+export type ComplexityMode = 'fast' | 'deep';
 
 export interface PipelineContext {
   config: OneshotConfig;
@@ -44,6 +47,7 @@ export interface PipelineContext {
   plan: string;
   prUrl: string;
   startTime: number;
+  mode: ComplexityMode;
 }
 
 const DEFAULT_CONFIG: Omit<OneshotConfig, "host"> = {

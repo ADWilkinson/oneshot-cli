@@ -6,7 +6,7 @@ const RED = "\x1b[31m";
 const YELLOW = "\x1b[33m";
 const CYAN = "\x1b[36m";
 
-const STEPS_TOTAL = 6;
+const STEPS_TOTAL = 7;
 
 export const log = {
   header: () => {
@@ -55,7 +55,7 @@ export const log = {
   },
 };
 
-const formatTime = (ms: number): string => {
+export const formatTime = (ms: number): string => {
   if (ms < 1000) return `${ms}ms`;
   const seconds = ms / 1000;
   if (seconds < 60) return `${seconds.toFixed(1)}s`;

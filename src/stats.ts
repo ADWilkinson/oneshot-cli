@@ -215,6 +215,7 @@ function shortStep(label: string): string {
   return label
     .replace("Validating repo", "validate")
     .replace("Creating worktree", "worktree")
+    .replace("Classifying task", "classify")
     .replace("Planning with Claude", "plan")
     .replace("Executing with Codex", "execute")
     .replace("Reviewing with Codex", "review")

@@ -18,7 +18,8 @@ export const createPr = async (ctx: PipelineContext): Promise<string> => {
     ? options.linearIssueId.toLowerCase()
     : slugify(options.taskSummary ?? options.task);
   const branchName = `oneshot/${branchSlug}-${Date.now()}`;
-  const model = options.model ?? config.claude.model;
+  // PR creation is mechanical (branch, commit, push, gh pr create) -- use sonnet to save cost
+  const model = options.model ?? "sonnet";
 
   const baseBranch = options.branch ?? "main";
   const prompt = loadPromptTemplate()
@@ -47,6 +48,18 @@ export const getFilesChanged = async (ctx: PipelineContext): Promise<number> => 
   const result = await execOrThrow(`cd "${ctx.worktreePath}" && git diff --stat HEAD~1 | tail -1`);
   const match = result.match(/(\d+) files? changed/);
   return match ? parseInt(match[1], 10) : 0;
+};
+
+export const getDiffStats = async (ctx: PipelineContext): Promise<Array<{ file: string; additions: number; deletions: number }>> => {
+  try {
+    const result = await execOrThrow(`cd "${ctx.worktreePath}" && git diff --numstat HEAD~1`);
+    return result.trim().split('\n').filter(Boolean).map(line => {
+      const [add, del, file] = line.split('\t');
+      return { file, additions: parseInt(add, 10) || 0, deletions: parseInt(del, 10) || 0 };
+    });
+  } catch {
+    return [];
+  }
 };
 
 const slugify = (text: string): string =>

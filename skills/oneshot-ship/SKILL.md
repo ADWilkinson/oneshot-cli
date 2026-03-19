@@ -96,10 +96,11 @@ oneshot <repo> "<task>" --model sonnet
 
 1. **Validate** -- checks the repo exists, fetches latest from origin
 2. **Worktree** -- creates a temp git worktree from `origin/main`, auto-detects and installs deps (bun/pnpm/yarn/npm)
-3. **Plan** -- Claude reads the codebase and CLAUDE.md conventions, outputs an implementation plan
-4. **Execute** -- Codex implements the plan
-5. **Review** -- Codex reviews its own diff for bugs, types, and security issues
-6. **PR** -- Claude creates a branch, commits, pushes, and opens a PR
+3. **Classify** -- classifies the task as `fast` or `deep` via heuristics + LLM (haiku). Deep mode enables 3-pass review
+4. **Plan** -- Claude reads the codebase and CLAUDE.md conventions, outputs an implementation plan
+5. **Execute** -- Codex implements the plan (graceful degradation: if timeout but partial changes exist, continues)
+6. **Review** -- Codex reviews its own diff. In `deep` mode: 3 sequential passes (correctness, security, quality)
+7. **PR** -- Claude creates a branch, commits, pushes, and opens a PR
 
 The worktree is cleaned up after every run.
 
@@ -131,6 +132,7 @@ Only `host` is required. Everything else has defaults.
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--model` | `-m` | Override Claude model |
+| `--deep-review` | | Force 3-pass deep review (correctness, security, quality) |
 | `--dry-run` | `-d` | Validate only |
 | `--local` | | Run locally instead of over SSH |
 | `--bg` | | Run in background (SSH mode only) |
@@ -148,3 +150,7 @@ Only `host` is required. Everything else has defaults.
 - Linear integration auto-moves tickets to "In Review" and adds a PR comment
 - Per-step timeouts prevent runaway processes (defaults: plan 20min, execute 60min, review 20min, PR 20min)
 - oneshot CLI creates isolated worktrees so your main branch is never affected
+- Task classification auto-selects `fast` or `deep` mode; `deep` mode enables 3-pass review
+- Use `--deep-review` to force multi-pass review regardless of classification
+- If execute times out but partial changes exist, the pipeline continues with review and PR
+- Duration estimates are shown based on historical runs per repo (`~/.oneshot/history.json`)

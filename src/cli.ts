@@ -12,15 +12,16 @@ interface ParsedArgs extends OneshotOptions {
   local: boolean;
   bg: boolean;
   command?: string;
+  deepReview: boolean;
 }
 
 const parseArgs = (args: string[]): ParsedArgs => {
   if (args[0] === "init") {
-    return { command: "init", repo: "", task: "", local: false, bg: false };
+    return { command: "init", repo: "", task: "", local: false, bg: false, deepReview: false };
   }
 
   if (args[0] === "stats") {
-    return { command: "stats", repo: "", task: "", local: args.includes("--local"), bg: false };
+    return { command: "stats", repo: "", task: "", local: args.includes("--local"), bg: false, deepReview: false };
   }
 
   const positional: string[] = [];
@@ -28,6 +29,7 @@ const parseArgs = (args: string[]): ParsedArgs => {
   let branch: string | undefined;
   let eventsFile: string | undefined;
   let dryRun = false;
+  let deepReview = false;
   let local = false;
   let bg = false;
 
@@ -37,6 +39,8 @@ const parseArgs = (args: string[]): ParsedArgs => {
       model = args[++i];
     } else if (arg === "--dry-run" || arg === "-d") {
       dryRun = true;
+    } else if (arg === "--deep-review") {
+      deepReview = true;
     } else if (arg === "--local") {
       local = true;
     } else if (arg === "--branch" || arg === "-b") {
@@ -59,7 +63,7 @@ const parseArgs = (args: string[]): ParsedArgs => {
   if (positional.length < 1) { log.error("missing repo argument"); printUsage(); process.exit(1); }
   if (positional.length < 2 && !dryRun) { log.error("missing task description or Linear URL"); printUsage(); process.exit(1); }
 
-  return { repo: positional[0], task: positional[1] ?? "", model, branch, eventsFile, dryRun, local, bg };
+  return { repo: positional[0], task: positional[1] ?? "", model, branch, eventsFile, dryRun, deepReview, local, bg };
 };
 
 const printUsage = () => {
@@ -75,6 +79,7 @@ Commands:
 Options:
   --model, -m <model>     Override Claude model (default: from config)
   --branch, -b <branch>   Base branch to work from and PR into (default: main)
+  --deep-review           Force 3-pass deep review (correctness, security, quality)
   --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
   --events-file <path>    Write JSONL events to file (for structured progress tracking)
@@ -189,6 +194,7 @@ const main = async () => {
       if (parsed.branch) parts.push("--branch", `'${parsed.branch.replace(/'/g, "'\\''")}'`);
       if (parsed.eventsFile) parts.push("--events-file", `'${parsed.eventsFile.replace(/'/g, "'\\''")}'`);
       if (parsed.dryRun) parts.push("--dry-run");
+      if (parsed.deepReview) parts.push("--deep-review");
 
       if (parsed.bg) {
         const logFile = `/tmp/oneshot-${Date.now()}.log`;
@@ -226,6 +232,7 @@ const main = async () => {
       if (parsed.model) args.push("--model", parsed.model);
       if (parsed.branch) args.push("--branch", parsed.branch);
       if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
+      if (parsed.deepReview) args.push("--deep-review");
 
       const fd = openSync(logFile, "w");
       const child = Bun.spawn([process.argv[0], process.argv[1], ...args], {
@@ -249,6 +256,7 @@ const main = async () => {
       model: parsed.model,
       branch: parsed.branch,
       dryRun: parsed.dryRun,
+      deepReview: parsed.deepReview,
       eventsFile: parsed.eventsFile,
     };
 
