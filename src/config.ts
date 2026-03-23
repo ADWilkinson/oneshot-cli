@@ -14,6 +14,8 @@ export interface OneshotConfig {
   codex: {
     model: string;
     reasoningEffort: string;
+    reviewModel?: string;
+    reviewReasoningEffort?: string;
     timeoutMinutes: number;
   };
   stepTimeouts?: {
@@ -60,6 +62,8 @@ const DEFAULT_CONFIG: Omit<OneshotConfig, "host"> = {
   codex: {
     model: "gpt-5.4-mini",
     reasoningEffort: "xhigh",
+    reviewModel: "gpt-5.4-mini",
+    reviewReasoningEffort: "xhigh",
     timeoutMinutes: 180,
   },
 };
@@ -99,7 +103,7 @@ const DEFAULT_STEP_TIMEOUTS = {
   planMinutes: 20,
   executeMinutes: 60,
   reviewMinutes: 20,
-  deepReviewMinutes: 45,
+  deepReviewMinutes: 20,
   prMinutes: 20,
 };
 

@@ -12,11 +12,11 @@ You are creating a pull request for changes already made in this repository.
    - Prefix with feat:/fix:/refactor:/chore: as appropriate
    - Keep it concise (under 72 chars)
 4. Push the branch to origin
-5. Create a PR using `gh pr create` with:
+5. Create a DRAFT PR using `gh pr create --draft` with:
    - Base branch: {{baseBranch}}
    - Pass `--base {{baseBranch}}` to `gh pr create`
    - A concise title (under 70 chars) that describes the change, not the ticket
    - A body with ## Summary (2-3 bullet points) and ## Test plan sections
 6. Print the PR URL on the last line prefixed with "PR_URL:"
 
-Do NOT modify any code. Only create the branch, commit, push, and open the PR.
+Do NOT modify any code. Only create the branch, commit, push, and open the draft PR.

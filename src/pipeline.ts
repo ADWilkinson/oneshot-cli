@@ -12,7 +12,7 @@ import { classify } from "./steps/classify";
 import { plan } from "./steps/plan";
 import { execute } from "./steps/execute";
 import { review } from "./steps/review";
-import { createPr, getFilesChanged, getDiffStats } from "./steps/pr";
+import { createDraftPr, finalizeAfterReview, getFilesChanged, getDiffStats } from "./steps/pr";
 import { moveToInReview, addPrComment } from "./linear";
 
 const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineContext => {
@@ -68,13 +68,11 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
   const ctx = buildContext(config, options);
   const events = new EventWriter(options.eventsFile ?? null, ctx.runId);
 
-  // Clear step timings for this run
   stepTimings.length = 0;
 
   events.started(options.repo, options.task);
   log.header();
 
-  // Duration estimation from history
   try {
     const historyPath = join(CONFIG_DIR, 'history.json');
     if (existsSync(historyPath)) {
@@ -120,15 +118,32 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       }
     }
 
-    await runStep(6, "Reviewing with Codex", events, () => review(ctx));
+    // Create draft PR BEFORE review so work is never lost to timeouts
+    await runStep(6, "Creating draft PR", events, async () => {
+      ctx.prUrl = await createDraftPr(ctx);
+    });
+
+    // Review pushes fixes on top of the draft PR branch.
+    // If review fails or times out, the draft PR still has all the execution work.
+    try {
+      await runStep(7, "Reviewing with Codex", events, () => review(ctx));
+    } catch (err) {
+      if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {
+        log.warn("review timed out — draft PR preserved, skipping finalization");
+      } else {
+        log.warn(`review failed — draft PR preserved: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // Push review fixes (if any) and mark PR as ready
+    await runStep(8, "Finalizing PR", events, () => finalizeAfterReview(ctx));
 
     let filesChanged = 0;
     let diffStats: Array<{ file: string; additions: number; deletions: number }> = [];
-    await runStep(7, "Creating PR", events, async () => {
-      ctx.prUrl = await createPr(ctx);
+    try {
       filesChanged = await getFilesChanged(ctx);
       diffStats = await getDiffStats(ctx);
-    });
+    } catch { /* non-fatal */ }
 
     if (options.linearIssueId) {
       try {
@@ -145,7 +160,6 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     log.summary(ctx.prUrl, filesChanged, totalElapsed);
     events.completed({ prUrl: ctx.prUrl, filesChanged, elapsed: totalElapsed, diffStats, stepTimings: [...stepTimings] });
 
-    // Record duration to history
     try {
       const historyPath = join(CONFIG_DIR, 'history.json');
       let history: Record<string, number[]> = {};
@@ -154,7 +168,6 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       }
       if (!history[options.repo]) history[options.repo] = [];
       history[options.repo].push(totalElapsed);
-      // Keep last 20 runs per repo
       if (history[options.repo].length > 20) history[options.repo] = history[options.repo].slice(-20);
       writeFileSync(historyPath, JSON.stringify(history, null, 2));
     } catch { /* ignore */ }

@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import type { PipelineContext } from "../config";
-import { execOrThrow } from "../exec";
+import { execOrThrow, exec } from "../exec";
 import { getStepTimeout } from "../config";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -11,19 +11,24 @@ const loadPromptTemplate = (): string => {
   return readFileSync(join(__dirname, "..", "..", "prompts", "pr.txt"), "utf-8");
 };
 
-export const createPr = async (ctx: PipelineContext): Promise<string> => {
+/**
+ * Create a draft PR with all current changes committed and pushed.
+ * Returns the PR URL. The PR is created as draft so review can push fixes on top.
+ */
+export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const { config, options, worktreePath } = ctx;
 
   const branchSlug = options.linearIssueId
     ? options.linearIssueId.toLowerCase()
     : slugify(options.taskSummary ?? options.task);
   const branchName = `oneshot/${branchSlug}-${Date.now()}`;
-  // PR creation is mechanical (branch, commit, push, gh pr create) -- use sonnet to save cost
-  const model = options.model ?? "sonnet";
-
   const baseBranch = options.branch ?? "main";
+  const taskSummary = options.taskSummary ?? options.task;
+
+  // Mechanical git ops -- use sonnet to save cost
+  const model = options.model ?? "sonnet";
   const prompt = loadPromptTemplate()
-    .replace("{{task}}", options.taskSummary ?? options.task)
+    .replace("{{task}}", taskSummary)
     .replace("{{branchName}}", branchName)
     .replace(/\{\{baseBranch\}\}/g, baseBranch);
 
@@ -44,15 +49,43 @@ export const createPr = async (ctx: PipelineContext): Promise<string> => {
   throw new Error("could not extract PR URL from claude output");
 };
 
+/**
+ * After review, commit any fixes and push. Then mark the PR as ready.
+ * If review made no changes, just marks the PR as ready.
+ */
+export const finalizeAfterReview = async (ctx: PipelineContext): Promise<void> => {
+  const { worktreePath, prUrl } = ctx;
+
+  // Check if review made any changes
+  const diff = await exec(`cd "${worktreePath}" && git diff --stat`);
+  const untracked = await exec(`cd "${worktreePath}" && git ls-files --others --exclude-standard`);
+  const hasChanges = !!(diff.stdout.trim() || untracked.stdout.trim());
+
+  if (hasChanges) {
+    // Stage, commit, and push review fixes
+    await execOrThrow(`cd "${worktreePath}" && git add -A`);
+    await execOrThrow(`cd "${worktreePath}" && git commit -m "fix: address review findings"`);
+    await execOrThrow(`cd "${worktreePath}" && git push`);
+  }
+
+  // Mark the PR as ready (remove draft status)
+  const prNumber = prUrl.match(/\/pull\/(\d+)/)?.[1];
+  if (prNumber) {
+    await exec(`cd "${worktreePath}" && gh pr ready ${prNumber}`);
+  }
+};
+
 export const getFilesChanged = async (ctx: PipelineContext): Promise<number> => {
-  const result = await execOrThrow(`cd "${ctx.worktreePath}" && git diff --stat HEAD~1 | tail -1`);
+  const baseBranch = ctx.options.branch ?? "main";
+  const result = await execOrThrow(`cd "${ctx.worktreePath}" && git diff --stat origin/${baseBranch}...HEAD | tail -1`);
   const match = result.match(/(\d+) files? changed/);
   return match ? parseInt(match[1], 10) : 0;
 };
 
 export const getDiffStats = async (ctx: PipelineContext): Promise<Array<{ file: string; additions: number; deletions: number }>> => {
   try {
-    const result = await execOrThrow(`cd "${ctx.worktreePath}" && git diff --numstat HEAD~1`);
+    const baseBranch = ctx.options.branch ?? "main";
+    const result = await execOrThrow(`cd "${ctx.worktreePath}" && git diff --numstat origin/${baseBranch}...HEAD`);
     return result.trim().split('\n').filter(Boolean).map(line => {
       const [add, del, file] = line.split('\t');
       return { file, additions: parseInt(add, 10) || 0, deletions: parseInt(del, 10) || 0 };
