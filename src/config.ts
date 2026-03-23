@@ -20,6 +20,7 @@ export interface OneshotConfig {
     planMinutes?: number;
     executeMinutes?: number;
     reviewMinutes?: number;
+    deepReviewMinutes?: number;
     prMinutes?: number;
   };
 }
@@ -98,6 +99,7 @@ const DEFAULT_STEP_TIMEOUTS = {
   planMinutes: 20,
   executeMinutes: 60,
   reviewMinutes: 20,
+  deepReviewMinutes: 45,
   prMinutes: 20,
 };
 

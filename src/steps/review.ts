@@ -40,7 +40,7 @@ const standardReview = async (ctx: PipelineContext): Promise<void> => {
 
 const deepReview = async (ctx: PipelineContext): Promise<void> => {
   const { config, worktreePath, options } = ctx;
-  const timeoutMs = getStepTimeout(config, "reviewMinutes");
+  const timeoutMs = getStepTimeout(config, "deepReviewMinutes");
 
   // Run 3 focused review passes sequentially via codex
   const reviewPasses = [
