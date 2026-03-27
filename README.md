@@ -26,11 +26,13 @@ oneshot my-org/my-app "fix the login timeout"   # ship
 ## What it does
 
 1. **Validate** -- checks the repo exists, fetches latest from origin
-2. **Worktree** -- creates a temp worktree from `origin/main`, installs deps
-3. **Plan** -- Claude reads the codebase + `CLAUDE.md` conventions, outputs a plan
-4. **Execute** -- Codex implements the plan
-5. **Review** -- Codex reviews its own diff for bugs, types, security
-6. **PR** -- Claude creates a branch, commits, pushes, opens a PR
+2. **Worktree** -- creates a temp worktree from `origin/main`
+3. **Classify** -- chooses a fast or deep review mode based on task complexity
+4. **Plan** -- Claude reads the codebase + `CLAUDE.md` conventions, outputs a plan
+5. **Execute** -- Codex implements the plan
+6. **Draft PR** -- Claude creates a branch, commits, pushes, and opens a draft PR so work is preserved
+7. **Review** -- Codex reviews the branch diff for bugs, types, and security
+8. **Finalize** -- pushes any review fixes and marks the PR ready
 
 Worktree is cleaned up after every run. Parallel runs on the same repo are safe -- each gets its own worktree, and `gitRetry` handles any brief contention on the shared `.git` directory.
 
@@ -44,6 +46,7 @@ oneshot <repo> "<task>" --local        # run locally, no SSH
 oneshot <repo> "<task>" --model sonnet # override model
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
+oneshot stats                          # recent runs + averages
 ```
 
 | Flag | Short | Description |
@@ -51,9 +54,9 @@ oneshot init                           # configure
 | `--model` | `-m` | Override Claude model |
 | `--dry-run` | `-d` | Validate only |
 | `--local` | | Run locally instead of over SSH |
-| `--bg` | | Run in background (SSH mode only) |
+| `--bg` | | Run detached in background and print PID + log path |
 | `--branch` | `-b` | Base branch (default: main) |
-| `--events-file` | | Write JSONL events to a file for structured progress tracking |
+| `--events-file` | | Mirror JSONL events to an additional file |
 | `--help` | `-h` | Help |
 | `--version` | `-v` | Version |
 
@@ -82,7 +85,7 @@ Only `host` is required. Everything else has defaults.
 
 ## Structured events
 
-Pass `--events-file <path>` to emit JSONL events for machine consumption:
+Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl` so `oneshot stats` can inspect recent history. Pass `--events-file <path>` to mirror the same events to an additional file for machine consumption:
 
 ```bash
 oneshot my-org/my-app "fix bug" --local --events-file /tmp/run.events.jsonl

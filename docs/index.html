@@ -117,7 +117,7 @@
     <!-- Pipeline -->
     <section id="pipeline" class="section">
       <h2 class="section-title">The Pipeline</h2>
-      <p class="section-desc">Six steps from task to pull request. Fully automated, fully isolated.</p>
+      <p class="section-desc">Six high-level phases from task to pull request, with automatic classification and a draft PR safety checkpoint under the hood.</p>
 
       <div class="pipeline">
         <div class="pipeline-step">
@@ -139,7 +139,7 @@
           </div>
           <h3 class="step-title">Worktree</h3>
           <span class="step-engine">git</span>
-          <p class="step-desc">Creates an isolated worktree and installs dependencies</p>
+          <p class="step-desc">Creates an isolated worktree so the run stays off your main checkout</p>
         </div>
 
         <div class="pipeline-connector"></div>
@@ -175,7 +175,7 @@
           </div>
           <h3 class="step-title">Review</h3>
           <span class="step-engine engine-codex">Codex</span>
-          <p class="step-desc">Self-reviews the diff for bugs, types, and security</p>
+          <p class="step-desc">Reviews the branch diff for bugs, types, and security before finalization</p>
         </div>
 
         <div class="pipeline-connector"></div>
@@ -187,7 +187,7 @@
           </div>
           <h3 class="step-title">PR</h3>
           <span class="step-engine engine-claude">Claude</span>
-          <p class="step-desc">Creates a branch, commits, pushes, and opens a pull request</p>
+          <p class="step-desc">Creates a draft PR first, then marks it ready after review fixes are pushed</p>
         </div>
       </div>
 
@@ -305,7 +305,8 @@ oneshot &lt;repo&gt; "&lt;task&gt;" --bg             # fire and forget
 oneshot &lt;repo&gt; "&lt;task&gt;" --local          # run locally, no SSH
 oneshot &lt;repo&gt; "&lt;task&gt;" --model sonnet   # override model
 oneshot &lt;repo&gt; --dry-run                 # validate only
-oneshot init                             # configure</code></pre>
+oneshot init                             # configure
+oneshot stats                            # recent runs + averages</code></pre>
       </div>
 
       <h3 class="subsection-title">Flags</h3>
@@ -343,6 +344,11 @@ oneshot init                             # configure</code></pre>
               <td><code>--branch</code></td>
               <td><code>-b</code></td>
               <td>Base branch to use instead of <code>main</code></td>
+            </tr>
+            <tr>
+              <td><code>--events-file</code></td>
+              <td></td>
+              <td>Mirror JSONL events to an additional file</td>
             </tr>
             <tr>
               <td><code>--help</code></td>
