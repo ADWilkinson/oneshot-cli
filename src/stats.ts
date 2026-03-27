@@ -190,7 +190,8 @@ export const runStats = (): void => {
     }
     console.log();
   } else {
-    console.log(`${DIM}No recent runs found.${RESET}\n`);
+    console.log(`${DIM}No recent runs found yet.${RESET}`);
+    console.log(`${DIM}Run \`oneshot <repo> --dry-run\` to verify setup or ship a task to generate your first event log.${RESET}\n`);
   }
 
   // Per-repo averages
