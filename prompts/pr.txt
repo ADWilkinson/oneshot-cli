@@ -5,18 +5,34 @@ You are creating a pull request for changes already made in this repository.
 
 ## Instructions
 
-1. Create and checkout a new branch named: {{branchName}}
-2. Stage all changes with git add -A
-3. Create a commit with a descriptive message:
+1. Before writing the PR, inspect the actual shipped changes:
+   - `git status --short`
+   - `git diff --stat origin/{{baseBranch}}...HEAD`
+   - `git diff --name-only origin/{{baseBranch}}...HEAD`
+   - `git diff origin/{{baseBranch}}...HEAD`
+2. Create and checkout a new branch named: {{branchName}}
+3. Stage all changes with git add -A
+4. Create a commit with a descriptive message:
    - Imperative mood, lowercase, no period
    - Prefix with feat:/fix:/refactor:/chore: as appropriate
    - Keep it concise (under 72 chars)
-4. Push the branch to origin
-5. Create a DRAFT PR using `gh pr create --draft` with:
+5. Push the branch to origin
+6. Create a DRAFT PR using `gh pr create --draft` with:
    - Base branch: {{baseBranch}}
    - Pass `--base {{baseBranch}}` to `gh pr create`
    - A concise title (under 70 chars) that describes the change, not the ticket
-   - A body with ## Summary (2-3 bullet points) and ## Test plan sections
-6. Print the PR URL on the last line prefixed with "PR_URL:"
+   - A body that is richer but still tightly scannable
+   - Keep these sections in this order for compatibility:
+     - `## Summary` -- 2-4 bullets covering the user-visible outcome and the most important implementation changes
+     - `## Why` -- 1 short paragraph or 1-2 bullets explaining the motivation / problem being solved
+     - `## Changes` -- grouped bullets for the main code or product areas touched
+     - `## Test plan` -- exact commands actually run, plus concise outcomes; if nothing was run, explicitly say `Not run`
+   - Optional sections after `## Test plan` only when they add real value:
+     - `## Risks / Follow-ups`
+     - `## Context`
+   - Keep it grounded in the actual diff. Do not invent tests, risks, or behavior changes.
+   - Do not paste raw diff output or exhaustive file inventories.
+   - Prefer concrete language over generic PR filler.
+7. Print the PR URL on the last line prefixed with "PR_URL:"
 
 Do NOT modify any code. Only create the branch, commit, push, and open the draft PR.
