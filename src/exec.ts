@@ -73,17 +73,22 @@ export const exec = async (
   const readStream = async (
     reader: ReadableStream<Uint8Array>,
     chunks: string[],
-    streamToConsole: boolean
+    writer?: Pick<typeof process.stdout, "write">
   ) => {
     const r = reader.getReader();
     const decoder = new TextDecoder();
     while (true) {
       const { done, value } = await r.read();
       if (done) break;
-      const text = decoder.decode(value);
+      const text = decoder.decode(value, { stream: true });
+      if (!text) continue;
       chunks.push(text);
-      if (streamToConsole) process.stdout.write(text);
+      writer?.write(text);
     }
+    const trailing = decoder.decode();
+    if (!trailing) return;
+    chunks.push(trailing);
+    writer?.write(trailing);
   };
 
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -98,8 +103,8 @@ export const exec = async (
   try {
     await Promise.race([
       Promise.all([
-        readStream(proc.stdout, stdoutChunks, stream),
-        readStream(proc.stderr, stderrChunks, false),
+        readStream(proc.stdout, stdoutChunks, stream ? process.stdout : undefined),
+        readStream(proc.stderr, stderrChunks, stream ? process.stderr : undefined),
         proc.exited,
       ]),
       timeout,

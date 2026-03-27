@@ -125,8 +125,10 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
 
     // Review pushes fixes on top of the draft PR branch.
     // If review fails or times out, the draft PR still has all the execution work.
+    let shouldFinalizePr = false;
     try {
       await runStep(7, "Reviewing with Codex", events, () => review(ctx));
+      shouldFinalizePr = true;
     } catch (err) {
       if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {
         log.warn("review timed out — draft PR preserved, skipping finalization");
@@ -136,7 +138,9 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     }
 
     // Push review fixes (if any) and mark PR as ready
-    await runStep(8, "Finalizing PR", events, () => finalizeAfterReview(ctx));
+    if (shouldFinalizePr) {
+      await runStep(8, "Finalizing PR", events, () => finalizeAfterReview(ctx));
+    }
 
     let filesChanged = 0;
     let diffStats: Array<{ file: string; additions: number; deletions: number }> = [];

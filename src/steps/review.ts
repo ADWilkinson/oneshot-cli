@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import type { PipelineContext } from "../config";
 import { execOrThrow, OneshotError } from "../exec";
 import { getStepTimeout } from "../config";
+import { shellEscape } from "../shell";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -19,10 +20,17 @@ const getReviewEffort = (ctx: PipelineContext): string =>
 
 export const review = async (ctx: PipelineContext): Promise<void> => {
   const { options, worktreePath } = ctx;
-
-  const diff = await execOrThrow(`cd "${worktreePath}" && git diff --stat`);
-  const untracked = await execOrThrow(`cd "${worktreePath}" && git ls-files --others --exclude-standard`);
-  if (!diff.trim() && !untracked.trim()) throw new OneshotError("no changes were made during execution step", "ERR_NO_CHANGES");
+  const baseBranch = options.branch ?? "main";
+  const range = `origin/${baseBranch}...HEAD`;
+  const branchDiff = await execOrThrow(
+    `cd ${shellEscape(worktreePath)} && git diff --stat ${shellEscape(range)}`
+  );
+  const untracked = await execOrThrow(
+    `cd ${shellEscape(worktreePath)} && git ls-files --others --exclude-standard`
+  );
+  if (!branchDiff.trim() && !untracked.trim()) {
+    throw new OneshotError("no changes were made during execution step", "ERR_NO_CHANGES");
+  }
 
   if (options.deepReview || ctx.mode === "deep") {
     await deepReview(ctx);
@@ -33,19 +41,23 @@ export const review = async (ctx: PipelineContext): Promise<void> => {
 
 const standardReview = async (ctx: PipelineContext): Promise<void> => {
   const { config, worktreePath, options } = ctx;
-  const prompt = loadPromptTemplate().replace("{{task}}", options.task);
-  const escapedPrompt = prompt.replace(/'/g, "'\\''");
+  const baseBranch = options.branch ?? "main";
+  const prompt = loadPromptTemplate()
+    .replace("{{task}}", options.task)
+    .replace(/\{\{baseBranch\}\}/g, baseBranch);
   const timeoutMs = getStepTimeout(config, "reviewMinutes");
   const model = getReviewModel(ctx);
   const effort = getReviewEffort(ctx);
+  const effortConfig = `model_reasoning_effort="${effort}"`;
   await execOrThrow(
-    `cd "${worktreePath}" && codex exec '${escapedPrompt}' --dangerously-bypass-approvals-and-sandbox -m ${model} -c 'model_reasoning_effort="${effort}"'`,
+    `cd ${shellEscape(worktreePath)} && codex exec ${shellEscape(prompt)} --dangerously-bypass-approvals-and-sandbox -m ${shellEscape(model)} -c ${shellEscape(effortConfig)}`,
     { timeoutMs, stream: true }
   );
 };
 
 const deepReview = async (ctx: PipelineContext): Promise<void> => {
   const { config, worktreePath, options } = ctx;
+  const baseBranch = options.branch ?? "main";
   const timeoutMs = getStepTimeout(config, "deepReviewMinutes");
   const model = getReviewModel(ctx);
   const effort = getReviewEffort(ctx);
@@ -54,7 +66,7 @@ const deepReview = async (ctx: PipelineContext): Promise<void> => {
 
 Task: ${options.task}
 
-Review ALL changes (git diff + any new files) in a SINGLE pass:
+Review ALL changes in this branch against origin/${baseBranch} (use git diff origin/${baseBranch}...HEAD, plus any untracked files) in a SINGLE pass:
 
 1. BUGS & LOGIC: off-by-one, null/undefined, race conditions, type mismatches, missing returns
 2. SECURITY: injection, secret exposure, auth bypasses, path traversal
@@ -62,9 +74,9 @@ Review ALL changes (git diff + any new files) in a SINGLE pass:
 
 Fix any issues directly. Run typecheck and build to verify. Do NOT create commits.`;
 
-  const escapedPrompt = prompt.replace(/'/g, "'\\''");
+  const effortConfig = `model_reasoning_effort="${effort}"`;
   await execOrThrow(
-    `cd "${worktreePath}" && codex exec '${escapedPrompt}' --dangerously-bypass-approvals-and-sandbox -m ${model} -c 'model_reasoning_effort="${effort}"'`,
+    `cd ${shellEscape(worktreePath)} && codex exec ${shellEscape(prompt)} --dangerously-bypass-approvals-and-sandbox -m ${shellEscape(model)} -c ${shellEscape(effortConfig)}`,
     { timeoutMs, stream: true }
   );
 };

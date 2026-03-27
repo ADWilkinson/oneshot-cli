@@ -6,16 +6,36 @@ import { runPipeline } from "./pipeline";
 import { log } from "./log";
 import { isLinearUrl, extractIssueId, fetchIssue, formatIssueAsTask } from "./linear";
 import { runStats } from "./stats";
-import { existsSync, openSync } from "fs";
+import { existsSync, openSync, closeSync } from "fs";
+import { shellEscape } from "./shell";
+import { VERSION } from "./version";
 
-interface ParsedArgs extends OneshotOptions {
+export interface ParsedArgs extends OneshotOptions {
   local: boolean;
   bg: boolean;
   command?: string;
   deepReview: boolean;
 }
 
-const parseArgs = (args: string[]): ParsedArgs => {
+const getFlagValue = (args: string[], index: number, flag: string): string => {
+  const value = args[index + 1];
+  if (value == null || value.startsWith("-")) {
+    throw new Error(`${flag} requires a value`);
+  }
+  return value;
+};
+
+export const parseArgs = (args: string[]): ParsedArgs => {
+  if (args.includes("--help") || args.includes("-h")) {
+    printUsage();
+    process.exit(0);
+  }
+
+  if (args.includes("--version") || args.includes("-v")) {
+    console.log(`oneshot v${VERSION}`);
+    process.exit(0);
+  }
+
   if (args[0] === "init") {
     return { command: "init", repo: "", task: "", local: false, bg: false, deepReview: false };
   }
@@ -36,7 +56,8 @@ const parseArgs = (args: string[]): ParsedArgs => {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--model" || arg === "-m") {
-      model = args[++i];
+      model = getFlagValue(args, i, arg);
+      i++;
     } else if (arg === "--dry-run" || arg === "-d") {
       dryRun = true;
     } else if (arg === "--deep-review") {
@@ -44,19 +65,17 @@ const parseArgs = (args: string[]): ParsedArgs => {
     } else if (arg === "--local") {
       local = true;
     } else if (arg === "--branch" || arg === "-b") {
-      branch = args[++i];
+      branch = getFlagValue(args, i, arg);
+      i++;
     } else if (arg === "--events-file") {
-      eventsFile = args[++i];
+      eventsFile = getFlagValue(args, i, arg);
+      i++;
     } else if (arg === "--bg") {
       bg = true;
-    } else if (arg === "--help" || arg === "-h") {
-      printUsage();
-      process.exit(0);
-    } else if (arg === "--version" || arg === "-v") {
-      console.log("oneshot v0.0.1");
-      process.exit(0);
     } else if (!arg.startsWith("-")) {
       positional.push(arg);
+    } else {
+      throw new Error(`unknown option: ${arg}`);
     }
   }
 
@@ -64,6 +83,28 @@ const parseArgs = (args: string[]): ParsedArgs => {
   if (positional.length < 2 && !dryRun) { log.error("missing task description or Linear URL"); printUsage(); process.exit(1); }
 
   return { repo: positional[0], task: positional[1] ?? "", model, branch, eventsFile, dryRun, deepReview, local, bg };
+};
+
+export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
+  const parts = ["~/.bun/bin/oneshot", "--local", shellEscape(parsed.repo)];
+  if (parsed.task) parts.push(shellEscape(parsed.task));
+  if (parsed.model) parts.push("--model", shellEscape(parsed.model));
+  if (parsed.branch) parts.push("--branch", shellEscape(parsed.branch));
+  if (parsed.eventsFile) parts.push("--events-file", shellEscape(parsed.eventsFile));
+  if (parsed.dryRun) parts.push("--dry-run");
+  if (parsed.deepReview) parts.push("--deep-review");
+  return parts;
+};
+
+export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
+  const args = ["--local", parsed.repo];
+  if (parsed.task) args.push(parsed.task);
+  if (parsed.model) args.push("--model", parsed.model);
+  if (parsed.branch) args.push("--branch", parsed.branch);
+  if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
+  if (parsed.dryRun) args.push("--dry-run");
+  if (parsed.deepReview) args.push("--deep-review");
+  return args;
 };
 
 const printUsage = () => {
@@ -82,8 +123,8 @@ Options:
   --deep-review           Force 3-pass deep review (correctness, security, quality)
   --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
-  --events-file <path>    Write JSONL events to file (for structured progress tracking)
-  --bg                    Run on server in background (fire and forget)
+  --events-file <path>    Mirror JSONL events to an additional file
+  --bg                    Run detached in background (returns PID + log path)
   --help, -h              Show this help
   --version, -v           Show version
 
@@ -94,6 +135,7 @@ Examples:
   oneshot my-org/my-repo "add dark mode" --bg
   oneshot my-org/my-repo "fix staging bug" --branch staging
   oneshot my-org/my-repo --dry-run
+  oneshot stats
 `);
 };
 
@@ -161,40 +203,33 @@ const runInit = async () => {
 };
 
 const main = async () => {
-  const parsed = parseArgs(process.argv.slice(2));
+  try {
+    const parsed = parseArgs(process.argv.slice(2));
 
-  if (parsed.command === "init") {
-    await runInit();
-    return;
-  }
-
-  if (parsed.command === "stats") {
-    if (parsed.local) {
-      runStats();
+    if (parsed.command === "init") {
+      await runInit();
       return;
     }
+
+    if (parsed.command === "stats") {
+      if (parsed.local) {
+        runStats();
+        return;
+      }
+      const config = await loadConfig();
+      const proc = Bun.spawn(
+        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, "~/.bun/bin/oneshot stats --local"],
+        { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
+      );
+      await proc.exited;
+      process.exit(proc.exitCode ?? 1);
+      return;
+    }
+
     const config = await loadConfig();
-    const proc = Bun.spawn(
-      ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, "~/.bun/bin/oneshot stats --local"],
-      { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
-    );
-    await proc.exited;
-    process.exit(proc.exitCode ?? 1);
-    return;
-  }
 
-  const config = await loadConfig();
-
-  try {
     if (!parsed.local) {
-      const escapedTask = parsed.task.replace(/'/g, "'\\''");
-      const escapedRepo = parsed.repo.replace(/'/g, "'\\''");
-      const parts = ["~/.bun/bin/oneshot", "--local", `'${escapedRepo}'`, `'${escapedTask}'`];
-      if (parsed.model) parts.push("--model", `'${parsed.model.replace(/'/g, "'\\''")}'`);
-      if (parsed.branch) parts.push("--branch", `'${parsed.branch.replace(/'/g, "'\\''")}'`);
-      if (parsed.eventsFile) parts.push("--events-file", `'${parsed.eventsFile.replace(/'/g, "'\\''")}'`);
-      if (parsed.dryRun) parts.push("--dry-run");
-      if (parsed.deepReview) parts.push("--deep-review");
+      const parts = buildRemoteCommandParts(parsed);
 
       if (parsed.bg) {
         const logFile = `/tmp/oneshot-${Date.now()}.log`;
@@ -228,18 +263,13 @@ const main = async () => {
     // --local --bg: fork ourselves without --bg, redirect output to log file
     if (parsed.bg) {
       const logFile = `/tmp/oneshot-${Date.now()}.log`;
-      const args = ["--local", parsed.repo, parsed.task];
-      if (parsed.model) args.push("--model", parsed.model);
-      if (parsed.branch) args.push("--branch", parsed.branch);
-      if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
-      if (parsed.deepReview) args.push("--deep-review");
-
       const fd = openSync(logFile, "w");
-      const child = Bun.spawn([process.argv[0], process.argv[1], ...args], {
+      const child = Bun.spawn([process.argv[0], process.argv[1], ...buildLocalChildArgs(parsed)], {
         stdout: fd,
         stderr: fd,
         stdin: "ignore",
       });
+      closeSync(fd);
 
       // detach from parent
       child.unref();
@@ -277,4 +307,6 @@ const main = async () => {
   }
 };
 
-main();
+if (import.meta.main) {
+  void main();
+}

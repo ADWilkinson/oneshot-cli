@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import type { PipelineContext } from "../config";
 import { exec, execOrThrow } from "../exec";
 import { getStepTimeout } from "../config";
+import { shellEscape } from "../shell";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -20,12 +21,11 @@ export const plan = async (ctx: PipelineContext): Promise<string> => {
     .replace("{{task}}", options.task)
     .replace("{{claudeMd}}", claudeMd.stdout.trim());
 
-  const escapedPrompt = prompt.replace(/'/g, "'\\''");
   const model = options.model ?? config.claude.model;
   const timeoutMs = getStepTimeout(config, "planMinutes");
 
   const result = await execOrThrow(
-    `cd "${worktreePath}" && claude -p '${escapedPrompt}' --model ${model} --no-session-persistence`,
+    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} --model ${shellEscape(model)} --no-session-persistence`,
     { timeoutMs, stream: true }
   );
 

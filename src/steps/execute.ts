@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import type { PipelineContext } from "../config";
 import { exec, execOrThrow } from "../exec";
 import { getStepTimeout } from "../config";
+import { shellEscape } from "../shell";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -21,11 +22,11 @@ export const execute = async (ctx: PipelineContext): Promise<void> => {
     .replace("{{plan}}", ctx.plan)
     .replace("{{claudeMd}}", claudeMd.stdout.trim());
 
-  const escapedPrompt = prompt.replace(/'/g, "'\\''");
   const timeoutMs = getStepTimeout(config, "executeMinutes");
+  const effortConfig = `model_reasoning_effort="${config.codex.reasoningEffort}"`;
 
   await execOrThrow(
-    `cd "${worktreePath}" && codex exec '${escapedPrompt}' --dangerously-bypass-approvals-and-sandbox -m ${config.codex.model} -c 'model_reasoning_effort="${config.codex.reasoningEffort}"'`,
+    `cd ${shellEscape(worktreePath)} && codex exec ${shellEscape(prompt)} --dangerously-bypass-approvals-and-sandbox -m ${shellEscape(config.codex.model)} -c ${shellEscape(effortConfig)}`,
     { timeoutMs, stream: true }
   );
 };

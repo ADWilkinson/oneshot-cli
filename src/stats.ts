@@ -1,4 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
+import { join } from "path";
+import { CONFIG_DIR } from "./config";
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
@@ -8,7 +10,7 @@ const RED = "\x1b[31m";
 const YELLOW = "\x1b[33m";
 const CYAN = "\x1b[36m";
 
-const HISTORY_FILE = "/tmp/oneshot-bot-history.json";
+const HISTORY_FILES = [join(CONFIG_DIR, "history.json"), "/tmp/oneshot-bot-history.json"];
 const JOBS_FILE = "/tmp/oneshot-bot-jobs.json";
 
 interface CompletedRun {
@@ -124,12 +126,23 @@ function scanRecentRuns(): CompletedRun[] {
 }
 
 function loadHistory(): RepoHistory {
-  try {
-    if (!existsSync(HISTORY_FILE)) return {};
-    return JSON.parse(readFileSync(HISTORY_FILE, "utf-8"));
-  } catch {
-    return {};
+  const merged: RepoHistory = {};
+
+  for (const historyFile of HISTORY_FILES) {
+    try {
+      if (!existsSync(historyFile)) continue;
+      const history = JSON.parse(readFileSync(historyFile, "utf-8")) as RepoHistory;
+      for (const [repo, durations] of Object.entries(history)) {
+        if (!Array.isArray(durations)) continue;
+        if (!merged[repo]) merged[repo] = [];
+        merged[repo].push(...durations.filter((duration) => typeof duration === "number" && duration > 0));
+      }
+    } catch {
+      // ignore malformed history files
+    }
   }
+
+  return merged;
 }
 
 function loadActiveJobs(): ActiveJob[] {
@@ -218,6 +231,8 @@ function shortStep(label: string): string {
     .replace("Classifying task", "classify")
     .replace("Planning with Claude", "plan")
     .replace("Executing with Codex", "execute")
+    .replace("Creating draft PR", "draft PR")
     .replace("Reviewing with Codex", "review")
+    .replace("Finalizing PR", "finalize PR")
     .replace("Creating PR", "PR");
 }

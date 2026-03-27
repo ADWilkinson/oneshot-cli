@@ -1,4 +1,4 @@
-import { writeFileSync, appendFileSync } from "fs";
+import { appendFileSync, writeFileSync } from "fs";
 
 export interface StartedEvent {
   readonly type: "started";
@@ -44,34 +44,45 @@ export interface ClassifiedEvent {
 
 export type OneshotEvent = StartedEvent | StepEvent | CompletedEvent | ClassifiedEvent;
 
+export const getDefaultEventsFile = (runId: string): string => {
+  return `/tmp/oneshot-${runId}.events.jsonl`;
+};
+
 export class EventWriter {
-  private filePath: string | null;
-  private writeFailed = false;
+  private filePaths: string[];
+  private writeFailed = new Set<string>();
   readonly runId: string;
 
   constructor(eventsFile: string | null, runId: string) {
     this.runId = runId;
-    this.filePath = eventsFile;
-    if (this.filePath) {
+    const candidates = [getDefaultEventsFile(runId), eventsFile].filter(
+      (path, index, paths): path is string => !!path && paths.indexOf(path) === index
+    );
+    this.filePaths = [];
+
+    for (const filePath of candidates) {
       try {
-        writeFileSync(this.filePath, "");
+        writeFileSync(filePath, "");
+        this.filePaths.push(filePath);
       } catch (err) {
-        process.stderr.write(`[oneshot] warning: cannot write events file "${this.filePath}": ${err}\n`);
-        this.filePath = null;
+        process.stderr.write(`[oneshot] warning: cannot write events file "${filePath}": ${err}\n`);
       }
     }
   }
 
   emit(event: OneshotEvent): void {
-    if (!this.filePath) return;
-    try {
-      appendFileSync(this.filePath, JSON.stringify(event) + "\n");
-      this.writeFailed = false;
-    } catch (err) {
-      // Best effort - don't crash the pipeline for event writes, but warn once
-      if (!this.writeFailed) {
-        process.stderr.write(`[oneshot] warning: failed to write event: ${err}\n`);
-        this.writeFailed = true;
+    if (this.filePaths.length === 0) return;
+
+    for (const filePath of this.filePaths) {
+      try {
+        appendFileSync(filePath, JSON.stringify(event) + "\n");
+        this.writeFailed.delete(filePath);
+      } catch (err) {
+        // Best effort - don't crash the pipeline for event writes, but warn once per path
+        if (!this.writeFailed.has(filePath)) {
+          process.stderr.write(`[oneshot] warning: failed to write event to "${filePath}": ${err}\n`);
+          this.writeFailed.add(filePath);
+        }
       }
     }
   }

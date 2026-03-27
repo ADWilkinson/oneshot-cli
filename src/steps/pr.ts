@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import type { PipelineContext } from "../config";
 import { execOrThrow, exec } from "../exec";
 import { getStepTimeout } from "../config";
+import { shellEscape } from "../shell";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -20,7 +21,7 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
 
   const branchSlug = options.linearIssueId
     ? options.linearIssueId.toLowerCase()
-    : slugify(options.taskSummary ?? options.task);
+    : slugify(options.taskSummary ?? options.task) || "task";
   const branchName = `oneshot/${branchSlug}-${Date.now()}`;
   const baseBranch = options.branch ?? "main";
   const taskSummary = options.taskSummary ?? options.task;
@@ -32,11 +33,10 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
     .replace("{{branchName}}", branchName)
     .replace(/\{\{baseBranch\}\}/g, baseBranch);
 
-  const escapedPrompt = prompt.replace(/'/g, "'\\''");
   const timeoutMs = getStepTimeout(config, "prMinutes");
 
   const result = await execOrThrow(
-    `cd "${worktreePath}" && claude -p '${escapedPrompt}' --dangerously-skip-permissions --model ${model} --no-session-persistence`,
+    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} --dangerously-skip-permissions --model ${shellEscape(model)} --no-session-persistence`,
     { timeoutMs, stream: true }
   );
 
@@ -57,27 +57,30 @@ export const finalizeAfterReview = async (ctx: PipelineContext): Promise<void> =
   const { worktreePath, prUrl } = ctx;
 
   // Check if review made any changes
-  const diff = await exec(`cd "${worktreePath}" && git diff --stat`);
-  const untracked = await exec(`cd "${worktreePath}" && git ls-files --others --exclude-standard`);
+  const diff = await exec(`cd ${shellEscape(worktreePath)} && git diff --stat`);
+  const untracked = await exec(
+    `cd ${shellEscape(worktreePath)} && git ls-files --others --exclude-standard`
+  );
   const hasChanges = !!(diff.stdout.trim() || untracked.stdout.trim());
 
   if (hasChanges) {
     // Stage, commit, and push review fixes
-    await execOrThrow(`cd "${worktreePath}" && git add -A`);
-    await execOrThrow(`cd "${worktreePath}" && git commit -m "fix: address review findings"`);
-    await execOrThrow(`cd "${worktreePath}" && git push`);
+    await execOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
+    await execOrThrow(`cd ${shellEscape(worktreePath)} && git commit -m "fix: address review findings"`);
+    await execOrThrow(`cd ${shellEscape(worktreePath)} && git push`);
   }
 
   // Mark the PR as ready (remove draft status)
   const prNumber = prUrl.match(/\/pull\/(\d+)/)?.[1];
-  if (prNumber) {
-    await exec(`cd "${worktreePath}" && gh pr ready ${prNumber}`);
-  }
+  if (!prNumber) throw new Error(`could not extract PR number from URL: ${prUrl}`);
+  await execOrThrow(`cd ${shellEscape(worktreePath)} && gh pr ready ${shellEscape(prNumber)}`);
 };
 
 export const getFilesChanged = async (ctx: PipelineContext): Promise<number> => {
   const baseBranch = ctx.options.branch ?? "main";
-  const result = await execOrThrow(`cd "${ctx.worktreePath}" && git diff --stat origin/${baseBranch}...HEAD | tail -1`);
+  const result = await execOrThrow(
+    `cd ${shellEscape(ctx.worktreePath)} && git diff --stat ${shellEscape(`origin/${baseBranch}...HEAD`)} | tail -1`
+  );
   const match = result.match(/(\d+) files? changed/);
   return match ? parseInt(match[1], 10) : 0;
 };
@@ -85,7 +88,9 @@ export const getFilesChanged = async (ctx: PipelineContext): Promise<number> => 
 export const getDiffStats = async (ctx: PipelineContext): Promise<Array<{ file: string; additions: number; deletions: number }>> => {
   try {
     const baseBranch = ctx.options.branch ?? "main";
-    const result = await execOrThrow(`cd "${ctx.worktreePath}" && git diff --numstat origin/${baseBranch}...HEAD`);
+    const result = await execOrThrow(
+      `cd ${shellEscape(ctx.worktreePath)} && git diff --numstat ${shellEscape(`origin/${baseBranch}...HEAD`)}`
+    );
     return result.trim().split('\n').filter(Boolean).map(line => {
       const [add, del, file] = line.split('\t');
       return { file, additions: parseInt(add, 10) || 0, deletions: parseInt(del, 10) || 0 };

@@ -5,7 +5,7 @@ You are reviewing code changes for quality and correctness.
 
 ## Instructions
 
-1. Run `git diff` to see all changes made in this working tree.
+1. Run `git diff origin/{{baseBranch}}...HEAD` to see all committed changes in this branch. Also check for any untracked files.
 
 2. Review every changed file. For each change, check:
    - **Correctness** -- logic errors, off-by-one, null/undefined, race conditions

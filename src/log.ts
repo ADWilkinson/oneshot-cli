@@ -1,3 +1,5 @@
+import { VERSION } from "./version";
+
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
@@ -6,11 +8,11 @@ const RED = "\x1b[31m";
 const YELLOW = "\x1b[33m";
 const CYAN = "\x1b[36m";
 
-const STEPS_TOTAL = 7;
+const STEPS_TOTAL = 8;
 
 export const log = {
   header: () => {
-    console.log(`\n${BOLD}${CYAN}oneshot${RESET} ${DIM}v0.1.0${RESET}\n`);
+    console.log(`\n${BOLD}${CYAN}oneshot${RESET} ${DIM}v${VERSION}${RESET}\n`);
   },
 
   stepStart: (step: number, message: string) => {

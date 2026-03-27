@@ -71,6 +71,16 @@ const DEFAULT_CONFIG: Omit<OneshotConfig, "host"> = {
 export const CONFIG_DIR = join(homedir(), ".oneshot");
 export const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
+const asPositiveMinutes = (value: unknown, fallback: number): number => {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : fallback;
+};
+
+const asOptionalString = (value: unknown): string | undefined => {
+  return typeof value === "string" && value.trim() ? value : undefined;
+};
+
 export const loadConfig = async (): Promise<OneshotConfig> => {
   if (!existsSync(CONFIG_PATH)) {
     throw new Error(
@@ -78,17 +88,75 @@ export const loadConfig = async (): Promise<OneshotConfig> => {
     );
   }
 
-  const raw = JSON.parse(await Bun.file(CONFIG_PATH).text());
+  const rawText = await Bun.file(CONFIG_PATH).text();
+  let raw: Partial<OneshotConfig>;
+  try {
+    raw = JSON.parse(rawText) as Partial<OneshotConfig>;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`invalid config JSON in ${CONFIG_PATH}: ${msg}`);
+  }
 
-  if (!raw.host) {
+  if (typeof raw.host !== "string" || !raw.host.trim()) {
     throw new Error("host is required in ~/.oneshot/config.json");
   }
 
   return {
     ...DEFAULT_CONFIG,
     ...raw,
-    claude: { ...DEFAULT_CONFIG.claude, ...raw.claude },
-    codex: { ...DEFAULT_CONFIG.codex, ...raw.codex },
+    host: raw.host.trim(),
+    basePath: asOptionalString(raw.basePath) ?? DEFAULT_CONFIG.basePath,
+    linearApiKey: asOptionalString(raw.linearApiKey),
+    anthropicApiKey: asOptionalString(raw.anthropicApiKey),
+    claude: {
+      ...DEFAULT_CONFIG.claude,
+      ...raw.claude,
+      model: asOptionalString(raw.claude?.model) ?? DEFAULT_CONFIG.claude.model,
+      timeoutMinutes: asPositiveMinutes(
+        raw.claude?.timeoutMinutes,
+        DEFAULT_CONFIG.claude.timeoutMinutes
+      ),
+    },
+    codex: {
+      ...DEFAULT_CONFIG.codex,
+      ...raw.codex,
+      model: asOptionalString(raw.codex?.model) ?? DEFAULT_CONFIG.codex.model,
+      reasoningEffort:
+        asOptionalString(raw.codex?.reasoningEffort) ?? DEFAULT_CONFIG.codex.reasoningEffort,
+      reviewModel:
+        asOptionalString(raw.codex?.reviewModel) ?? DEFAULT_CONFIG.codex.reviewModel,
+      reviewReasoningEffort:
+        asOptionalString(raw.codex?.reviewReasoningEffort) ??
+        DEFAULT_CONFIG.codex.reviewReasoningEffort,
+      timeoutMinutes: asPositiveMinutes(
+        raw.codex?.timeoutMinutes,
+        DEFAULT_CONFIG.codex.timeoutMinutes
+      ),
+    },
+    stepTimeouts: raw.stepTimeouts
+      ? {
+          planMinutes: asPositiveMinutes(
+            raw.stepTimeouts.planMinutes,
+            DEFAULT_STEP_TIMEOUTS.planMinutes
+          ),
+          executeMinutes: asPositiveMinutes(
+            raw.stepTimeouts.executeMinutes,
+            DEFAULT_STEP_TIMEOUTS.executeMinutes
+          ),
+          reviewMinutes: asPositiveMinutes(
+            raw.stepTimeouts.reviewMinutes,
+            DEFAULT_STEP_TIMEOUTS.reviewMinutes
+          ),
+          deepReviewMinutes: asPositiveMinutes(
+            raw.stepTimeouts.deepReviewMinutes,
+            DEFAULT_STEP_TIMEOUTS.deepReviewMinutes
+          ),
+          prMinutes: asPositiveMinutes(
+            raw.stepTimeouts.prMinutes,
+            DEFAULT_STEP_TIMEOUTS.prMinutes
+          ),
+        }
+      : undefined,
   };
 };
 
