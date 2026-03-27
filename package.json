@@ -10,7 +10,8 @@
   "scripts": {
     "build": "bun build src/cli.ts --outdir dist --target bun",
     "dev": "bun run src/cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
   },
   "keywords": ["cli", "automation", "ai", "claude", "codex", "ssh", "bun"],
   "author": "ADWilkinson",
