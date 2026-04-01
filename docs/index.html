@@ -152,7 +152,7 @@
     <!-- Pipeline -->
     <section id="pipeline" class="section">
       <h2 class="section-title">The Pipeline</h2>
-      <p class="section-desc">Six high-level phases from task to pull request, with automatic classification and a draft PR safety checkpoint under the hood.</p>
+      <p class="section-desc">This page groups the flow into six high-level phases, while the CLI tracks eight concrete steps under the hood: validate, worktree, classify, plan, execute, draft PR, review, and finalize.</p>
 
       <div class="pipeline">
         <div class="pipeline-step">
@@ -364,6 +364,11 @@ oneshot stats                            # recent runs + averages</code></pre>
               <td>Override the Claude model (e.g. <code>sonnet</code>, <code>opus</code>)</td>
             </tr>
             <tr>
+              <td><code>--deep-review</code></td>
+              <td></td>
+              <td>Force deep review mode before PR finalization</td>
+            </tr>
+            <tr>
               <td><code>--dry-run</code></td>
               <td><code>-d</code></td>
               <td>Validate repo exists without running the pipeline</td>
@@ -486,8 +491,8 @@ oneshot stats                            # recent runs + averages</code></pre>
             <tbody>
               <tr>
                 <td><code>host</code></td>
-                <td>Yes *</td>
-                <td>SSH target (e.g. <code>user@192.168.1.10</code>). Not needed with <code>--local</code>.</td>
+                <td>SSH only</td>
+                <td>SSH target (e.g. <code>user@192.168.1.10</code>). Local mode can fall back to built-in defaults if no config file exists yet.</td>
               </tr>
               <tr>
                 <td><code>basePath</code></td>
@@ -550,7 +555,7 @@ oneshot stats                            # recent runs + averages</code></pre>
         </div>
         <div class="linear-step">
           <span class="linear-num">3</span>
-          <p>Uses the issue ID for branch naming (e.g. <code>ENG-142/fix-auth-timeout</code>)</p>
+          <p>Uses the issue ID when generating the PR branch name (e.g. <code>oneshot/eng-142-1712345678901</code>)</p>
         </div>
         <div class="linear-step">
           <span class="linear-num">4</span>

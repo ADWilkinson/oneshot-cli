@@ -12,6 +12,9 @@ const loadPromptTemplate = (): string => {
   return readFileSync(join(__dirname, "..", "..", "prompts", "pr.txt"), "utf-8");
 };
 
+export const getPrModel = (ctx: PipelineContext): string =>
+  ctx.options.model ?? ctx.config.claude.model;
+
 /**
  * Create a draft PR with all current changes committed and pushed.
  * Returns the PR URL. The PR is created as draft so review can push fixes on top.
@@ -26,8 +29,7 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const baseBranch = options.branch ?? "main";
   const taskSummary = options.taskSummary ?? options.task;
 
-  // Mechanical git ops -- use sonnet to save cost
-  const model = options.model ?? "sonnet";
+  const model = getPrModel(ctx);
   const prompt = loadPromptTemplate()
     .replace("{{task}}", taskSummary)
     .replace("{{branchName}}", branchName)

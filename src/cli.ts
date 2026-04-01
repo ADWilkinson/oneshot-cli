@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { loadConfig, saveConfig, CONFIG_PATH } from "./config";
+import { loadConfig, loadLocalConfig, saveConfig, CONFIG_PATH } from "./config";
 import type { OneshotConfig, OneshotOptions } from "./config";
 import { runPipeline } from "./pipeline";
 import { log } from "./log";
@@ -120,7 +120,7 @@ Commands:
 Options:
   --model, -m <model>     Override Claude model (default: from config)
   --branch, -b <branch>   Base branch to work from and PR into (default: main)
-  --deep-review           Force 3-pass deep review (correctness, security, quality)
+  --deep-review           Force deep review mode
   --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
   --events-file <path>    Mirror JSONL events to an additional file
@@ -226,7 +226,7 @@ const main = async () => {
       return;
     }
 
-    const config = await loadConfig();
+    const config = parsed.local ? await loadLocalConfig() : await loadConfig();
 
     if (!parsed.local) {
       const parts = buildRemoteCommandParts(parsed);
@@ -241,7 +241,10 @@ const main = async () => {
         );
 
         const output = await new Response(proc.stdout).text();
-        await proc.exited;
+        const exitCode = await proc.exited;
+        if ((exitCode ?? 1) !== 0) {
+          process.exit(exitCode ?? 1);
+        }
         console.log(`shipped to background on server`);
         console.log(output.trim());
         console.log(`\ntail logs: ssh ${config.host} "tail -f ${logFile}"`);

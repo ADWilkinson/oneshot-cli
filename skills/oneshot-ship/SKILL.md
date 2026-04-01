@@ -76,7 +76,7 @@ Runs the pipeline directly on the current machine instead of SSH-ing to a server
 oneshot <repo> "<task>" --bg
 ```
 
-Fire and forget -- runs detached on the server (SSH mode only).
+Fire and forget -- runs detached and returns a PID plus log path.
 
 ### Dry run
 
@@ -95,12 +95,13 @@ oneshot <repo> "<task>" --model sonnet
 ## Pipeline steps
 
 1. **Validate** -- checks the repo exists, fetches latest from origin
-2. **Worktree** -- creates a temp git worktree from `origin/main`, auto-detects and installs deps (bun/pnpm/yarn/npm)
-3. **Classify** -- classifies the task as `fast` or `deep` via heuristics + LLM (haiku). Deep mode enables 3-pass review
+2. **Worktree** -- creates a temp git worktree from the target base branch
+3. **Classify** -- classifies the task as `fast` or `deep` via heuristics + LLM (haiku)
 4. **Plan** -- Claude reads the codebase and CLAUDE.md conventions, outputs an implementation plan
 5. **Execute** -- Codex implements the plan (graceful degradation: if timeout but partial changes exist, continues)
-6. **Review** -- Codex reviews its own diff. In `deep` mode: 3 sequential passes (correctness, security, quality)
-7. **PR** -- Claude creates a branch, commits, pushes, and opens a PR
+6. **Draft PR** -- Claude creates a branch, commits, pushes, and opens a draft PR so the work is preserved
+7. **Review** -- Codex reviews its own diff. In `deep` mode it runs an exhaustive single-pass review across correctness, security, and code quality
+8. **Finalize** -- Pushes any review fixes and marks the PR ready
 
 The worktree is cleaned up after every run.
 
@@ -125,17 +126,17 @@ The worktree is cleaned up after every run.
 }
 ```
 
-Only `host` is required. Everything else has defaults.
+Only `host` is required for SSH runs. Local mode can fall back to built-in defaults even if no config file exists yet.
 
 ## Flags
 
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--model` | `-m` | Override Claude model |
-| `--deep-review` | | Force 3-pass deep review (correctness, security, quality) |
+| `--deep-review` | | Force deep review mode |
 | `--dry-run` | `-d` | Validate only |
 | `--local` | | Run locally instead of over SSH |
-| `--bg` | | Run in background (SSH mode only) |
+| `--bg` | | Run in background and return PID + log path |
 | `--help` | `-h` | Help |
 | `--version` | `-v` | Version |
 
@@ -150,7 +151,7 @@ Only `host` is required. Everything else has defaults.
 - Linear integration auto-moves tickets to "In Review" and adds a PR comment
 - Per-step timeouts prevent runaway processes (defaults: plan 20min, execute 60min, review 20min, PR 20min)
 - oneshot CLI creates isolated worktrees so your main branch is never affected
-- Task classification auto-selects `fast` or `deep` mode; `deep` mode enables 3-pass review
-- Use `--deep-review` to force multi-pass review regardless of classification
+- Task classification auto-selects `fast` or `deep` mode; `deep` mode enables a stricter exhaustive review pass
+- Use `--deep-review` to force deep review regardless of classification
 - If execute times out but partial changes exist, the pipeline continues with review and PR
 - Duration estimates are shown based on historical runs per repo (`~/.oneshot/history.json`)

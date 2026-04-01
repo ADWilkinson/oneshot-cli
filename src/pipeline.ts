@@ -90,7 +90,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
 
     if (options.dryRun) {
       log.dryRunSummary(ctx.repoPath);
-      events.completed({ elapsed: Date.now() - ctx.startTime });
+      events.completed({ result: "dry-run", elapsed: Date.now() - ctx.startTime });
       return;
     }
 

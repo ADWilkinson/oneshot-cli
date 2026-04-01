@@ -43,6 +43,7 @@ oneshot <repo> "<task>"                 # ship a task
 oneshot <repo> <linear-url>            # fetch ticket as context
 oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
+oneshot <repo> "<task>" --deep-review  # force exhaustive review mode
 oneshot <repo> "<task>" --model sonnet # override model
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
@@ -52,6 +53,7 @@ oneshot stats                          # recent runs + averages
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--model` | `-m` | Override Claude model |
+| `--deep-review` | | Force deep review mode |
 | `--dry-run` | `-d` | Validate only |
 | `--local` | | Run locally instead of over SSH |
 | `--bg` | | Run detached in background and print PID + log path |
@@ -81,7 +83,7 @@ oneshot stats                          # recent runs + averages
 }
 ```
 
-Only `host` is required. Everything else has defaults.
+Only `host` is required for SSH runs. Local mode can fall back to built-in defaults even if `~/.oneshot/config.json` does not exist yet.
 
 ## Structured events
 
@@ -91,7 +93,7 @@ Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl` so `oneshot
 oneshot my-org/my-app "fix bug" --local --events-file /tmp/run.events.jsonl
 ```
 
-Events emitted: `started`, `step` (running/done/failed for each pipeline stage), `completed` (with PR URL or error). Designed for integration with bots and CI systems that need reliable progress tracking instead of log parsing.
+Events emitted: `started`, `step` (running/done/failed for each pipeline stage), `classified`, `completed` (with a terminal result of `success`, `failed`, or `dry-run`). Designed for integration with bots and CI systems that need reliable progress tracking instead of log parsing.
 
 ## Safety
 

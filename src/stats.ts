@@ -17,6 +17,7 @@ interface CompletedRun {
   runId: string;
   repo: string;
   task: string;
+  result: "success" | "failed" | "dry-run" | "unknown";
   prUrl?: string;
   error?: string;
   elapsed: number;
@@ -47,6 +48,7 @@ interface EventLine {
   elapsed?: number;
   prUrl?: string;
   error?: string;
+  result?: string;
   timestamp?: number;
   filesChanged?: number;
 }
@@ -96,6 +98,14 @@ function scanRecentRuns(): CompletedRun[] {
         const started = events.find(e => e.type === "started");
         const completed = events.find(e => e.type === "completed");
         if (!completed) continue;
+        const result =
+          completed.result === "success" || completed.result === "failed" || completed.result === "dry-run"
+            ? completed.result
+            : completed.prUrl
+              ? "success"
+              : completed.error
+                ? "failed"
+                : "unknown";
 
         const stepTimings = events
           .filter(e => e.type === "step" && e.status === "done" && e.step != null && e.label != null && e.elapsed != null)
@@ -107,6 +117,7 @@ function scanRecentRuns(): CompletedRun[] {
           runId: started?.runId ?? "unknown",
           repo: started?.repo ?? "unknown",
           task: started?.task?.slice(0, 80) ?? "",
+          result,
           prUrl: completed.prUrl,
           error: completed.error,
           elapsed: completed.elapsed ?? 0,
@@ -174,7 +185,9 @@ export const runStats = (): void => {
     const display = runs.slice(0, 15);
     console.log(`${BOLD}Recent runs (${display.length}/${runs.length})${RESET}`);
     for (const run of display) {
-      const status = run.prUrl
+      const status = run.result === "dry-run"
+        ? `${CYAN}\u25cf${RESET} dry run complete`
+        : run.prUrl
         ? `${GREEN}\u2713${RESET} PR delivered`
         : run.failedStep
           ? `${RED}\u2717${RESET} failed step ${run.failedStep.step} (${shortStep(run.failedStep.label)})`
@@ -200,8 +213,9 @@ export const runStats = (): void => {
   if (repos.length > 0) {
     console.log(`${BOLD}Per-repo averages${RESET}`);
 
-    const successCount = runs.filter(r => r.prUrl).length;
-    const failCount = runs.filter(r => !r.prUrl).length;
+    const finishedRuns = runs.filter(r => r.result === "success" || r.result === "failed");
+    const successCount = finishedRuns.filter(r => r.result === "success").length;
+    const failCount = finishedRuns.filter(r => r.result === "failed").length;
     const totalRuns = successCount + failCount;
     const successRate = totalRuns > 0 ? Math.round((successCount / totalRuns) * 100) : 0;
 

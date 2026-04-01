@@ -81,13 +81,7 @@ const asOptionalString = (value: unknown): string | undefined => {
   return typeof value === "string" && value.trim() ? value : undefined;
 };
 
-export const loadConfig = async (): Promise<OneshotConfig> => {
-  if (!existsSync(CONFIG_PATH)) {
-    throw new Error(
-      "no config found. run `oneshot init` to set up your configuration"
-    );
-  }
-
+const parseConfigFile = async (): Promise<Partial<OneshotConfig>> => {
   const rawText = await Bun.file(CONFIG_PATH).text();
   let raw: Partial<OneshotConfig>;
   try {
@@ -97,14 +91,22 @@ export const loadConfig = async (): Promise<OneshotConfig> => {
     throw new Error(`invalid config JSON in ${CONFIG_PATH}: ${msg}`);
   }
 
-  if (typeof raw.host !== "string" || !raw.host.trim()) {
+  return raw;
+};
+
+const normalizeConfig = (
+  raw: Partial<OneshotConfig>,
+  options: { requireHost: boolean }
+): OneshotConfig => {
+  const host = asOptionalString(raw.host);
+  if (options.requireHost && !host) {
     throw new Error("host is required in ~/.oneshot/config.json");
   }
 
   return {
     ...DEFAULT_CONFIG,
     ...raw,
-    host: raw.host.trim(),
+    host: host ?? "local",
     basePath: asOptionalString(raw.basePath) ?? DEFAULT_CONFIG.basePath,
     linearApiKey: asOptionalString(raw.linearApiKey),
     anthropicApiKey: asOptionalString(raw.anthropicApiKey),
@@ -158,6 +160,24 @@ export const loadConfig = async (): Promise<OneshotConfig> => {
         }
       : undefined,
   };
+};
+
+export const loadConfig = async (): Promise<OneshotConfig> => {
+  if (!existsSync(CONFIG_PATH)) {
+    throw new Error(
+      "no config found. run `oneshot init` to set up your configuration"
+    );
+  }
+
+  return normalizeConfig(await parseConfigFile(), { requireHost: true });
+};
+
+export const loadLocalConfig = async (): Promise<OneshotConfig> => {
+  if (!existsSync(CONFIG_PATH)) {
+    return normalizeConfig({}, { requireHost: false });
+  }
+
+  return normalizeConfig(await parseConfigFile(), { requireHost: false });
 };
 
 export const saveConfig = (config: OneshotConfig): void => {

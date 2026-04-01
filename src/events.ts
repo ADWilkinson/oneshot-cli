@@ -24,6 +24,7 @@ export interface StepEvent {
 export interface CompletedEvent {
   readonly type: "completed";
   readonly runId: string;
+  readonly result: "success" | "failed" | "dry-run";
   readonly prUrl?: string;
   readonly filesChanged?: number;
   readonly error?: string;
@@ -107,11 +108,33 @@ export class EventWriter {
     this.emit({ type: "step", runId: this.runId, step, label, status: "failed", elapsed, errorCode, errorDetail, timestamp: Date.now() });
   }
 
-  completed(opts: { prUrl?: string; filesChanged?: number; elapsed: number; diffStats?: Array<{ file: string; additions: number; deletions: number }>; stepTimings?: Array<{ step: number; label: string; elapsed: number }> }): void {
-    this.emit({ type: "completed", runId: this.runId, ...opts, timestamp: Date.now() });
+  completed(opts: {
+    result?: "success" | "dry-run";
+    prUrl?: string;
+    filesChanged?: number;
+    elapsed: number;
+    diffStats?: Array<{ file: string; additions: number; deletions: number }>;
+    stepTimings?: Array<{ step: number; label: string; elapsed: number }>;
+  }): void {
+    this.emit({
+      type: "completed",
+      runId: this.runId,
+      result: opts.result ?? "success",
+      ...opts,
+      timestamp: Date.now(),
+    });
   }
 
   failed(error: string, elapsed: number, errorCode?: string, errorDetail?: string): void {
-    this.emit({ type: "completed", runId: this.runId, error, elapsed, errorCode, errorDetail, timestamp: Date.now() });
+    this.emit({
+      type: "completed",
+      runId: this.runId,
+      result: "failed",
+      error,
+      elapsed,
+      errorCode,
+      errorDetail,
+      timestamp: Date.now(),
+    });
   }
 }
