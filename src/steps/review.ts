@@ -1,15 +1,13 @@
 import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import type { PipelineContext } from "../config";
 import { execOrThrow, OneshotError } from "../exec";
 import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { PROMPTS_DIR } from "../paths";
 
 const loadPromptTemplate = (): string => {
-  return readFileSync(join(__dirname, "..", "..", "prompts", "review.txt"), "utf-8");
+  return readFileSync(join(PROMPTS_DIR, "review.txt"), "utf-8");
 };
 
 const getReviewModel = (ctx: PipelineContext): string =>

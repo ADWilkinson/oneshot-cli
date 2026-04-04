@@ -1,9 +1,8 @@
 import { readFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
+import { PKG_ROOT } from "./paths";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PACKAGE_JSON_PATH = join(__dirname, "..", "package.json");
+const PACKAGE_JSON_PATH = join(PKG_ROOT, "package.json");
 
 const loadVersion = (): string => {
   try {

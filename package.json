@@ -1,16 +1,17 @@
 {
   "name": "oneshot-ship",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Ship code in one command. Repo + task in, PR out.",
   "type": "module",
   "bin": {
-    "oneshot": "src/cli.ts"
+    "oneshot": "dist/cli.js"
   },
   "scripts": {
     "build": "bun build src/cli.ts --outdir dist --target bun",
     "dev": "bun run src/cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
   },
   "keywords": ["cli", "ai", "claude", "codex", "ssh", "bun", "code-review", "pull-request"],
   "author": "ADWilkinson",
@@ -25,8 +26,7 @@
     "typescript": "^5.7.0"
   },
   "files": [
-    "src/**/*.ts",
-    "!src/**/*.test.ts",
+    "dist",
     "prompts",
     "skills"
   ]
