@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>oneshot — Ship code in one command</title>
-  <meta name="description" content="Give it a repo and a task — it plans, executes, reviews, and opens a PR. Autonomous code shipping via Claude and Codex.">
-  <meta property="og:title" content="oneshot — Ship code in one command">
-  <meta property="og:description" content="Give it a repo and a task — it plans, executes, reviews, and opens a PR.">
+  <title>oneshot | Ship code in one command</title>
+  <meta name="description" content="Give it a repo and a task. It plans, executes, reviews, and opens a PR. Autonomous code shipping via Claude and Codex.">
+  <meta property="og:title" content="oneshot | Ship code in one command">
+  <meta property="og:description" content="Give it a repo and a task. It plans, executes, reviews, and opens a PR.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://adwilkinson.github.io/oneshot-cli">
   <meta name="twitter:card" content="summary_large_image">
@@ -43,7 +43,6 @@
       <a href="#linear" class="nav-link">Linear Integration</a>
       <a href="#customization" class="nav-link">Customization</a>
       <a href="#agent-skill" class="nav-link">Agent Skill</a>
-      <a href="#bounty-hunter" class="nav-link">Bounty Hunter</a>
     </nav>
 
     <div class="sidebar-footer">
@@ -88,7 +87,7 @@
         <span class="hero-accent">one</span>shot
       </h1>
       <p class="hero-subtitle">
-        Give it a repo and a task &mdash; it plans, executes, reviews, and opens a PR. One command. One shot. Ship it.
+        Give it a repo and a task. It plans, executes, reviews, and opens a PR. One command. One shot. Ship it.
       </p>
 
       <div class="hero-diagram">
@@ -137,14 +136,14 @@
           <p class="quick-command-desc">Plan, execute, review, and raise the PR from one command.</p>
         </article>
         <article class="quick-command-card">
-          <p class="quick-command-kicker">Check recent runs</p>
+          <p class="quick-command-kicker">Fire and forget</p>
           <div class="code-block compact">
-            <pre><code>oneshot stats</code></pre>
-            <button class="copy-btn" data-copy="oneshot stats" aria-label="Copy stats command">
+            <pre><code>oneshot acme/api "add caching" --bg</code></pre>
+            <button class="copy-btn" data-copy='oneshot acme/api "add caching" --bg' aria-label="Copy background command">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
           </div>
-          <p class="quick-command-desc">See delivered PRs, failures, and repo-level timing without digging through logs.</p>
+          <p class="quick-command-desc">Run detached in background. Returns PID + log path instantly.</p>
         </article>
       </div>
     </section>
@@ -152,7 +151,7 @@
     <!-- Pipeline -->
     <section id="pipeline" class="section">
       <h2 class="section-title">The Pipeline</h2>
-      <p class="section-desc">This page groups the flow into six high-level phases, while the CLI tracks eight concrete steps under the hood: validate, worktree, classify, plan, execute, draft PR, review, and finalize.</p>
+      <p class="section-desc">Eight steps, fully autonomous. Each run gets its own isolated git worktree. Your main branch is never touched.</p>
 
       <div class="pipeline">
         <div class="pipeline-step">
@@ -174,7 +173,7 @@
           </div>
           <h3 class="step-title">Worktree</h3>
           <span class="step-engine">git</span>
-          <p class="step-desc">Creates an isolated worktree so the run stays off your main checkout</p>
+          <p class="step-desc">Creates an isolated <code>/tmp</code> worktree from <code>origin/main</code></p>
         </div>
 
         <div class="pipeline-connector"></div>
@@ -182,17 +181,29 @@
         <div class="pipeline-step">
           <div class="step-number">3</div>
           <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
-          <h3 class="step-title">Plan</h3>
-          <span class="step-engine engine-claude">Claude</span>
-          <p class="step-desc">Reads the codebase, produces a structured implementation plan</p>
+          <h3 class="step-title">Classify</h3>
+          <span class="step-engine engine-claude">Haiku</span>
+          <p class="step-desc">Decides fast vs deep review mode based on task complexity</p>
         </div>
 
         <div class="pipeline-connector"></div>
 
         <div class="pipeline-step">
           <div class="step-number">4</div>
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <h3 class="step-title">Plan</h3>
+          <span class="step-engine engine-claude">Claude</span>
+          <p class="step-desc">Reads the codebase and produces a structured implementation plan</p>
+        </div>
+
+        <div class="pipeline-connector"></div>
+
+        <div class="pipeline-step">
+          <div class="step-number">5</div>
           <div class="step-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           </div>
@@ -204,31 +215,43 @@
         <div class="pipeline-connector"></div>
 
         <div class="pipeline-step">
-          <div class="step-number">5</div>
+          <div class="step-number">6</div>
           <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
           </div>
-          <h3 class="step-title">Review</h3>
-          <span class="step-engine engine-codex">Codex</span>
-          <p class="step-desc">Reviews the branch diff for bugs, types, and security before finalization</p>
+          <h3 class="step-title">Draft PR</h3>
+          <span class="step-engine engine-claude">Claude</span>
+          <p class="step-desc">Creates branch, commits, pushes, and opens a draft PR</p>
         </div>
 
         <div class="pipeline-connector"></div>
 
         <div class="pipeline-step">
-          <div class="step-number">6</div>
+          <div class="step-number">7</div>
+          <div class="step-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <h3 class="step-title">Review</h3>
+          <span class="step-engine engine-codex">Codex</span>
+          <p class="step-desc">Reviews the diff for bugs, types, and security. Fixes issues directly.</p>
+        </div>
+
+        <div class="pipeline-connector"></div>
+
+        <div class="pipeline-step">
+          <div class="step-number">8</div>
           <div class="step-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
-          <h3 class="step-title">PR</h3>
+          <h3 class="step-title">Finalize</h3>
           <span class="step-engine engine-claude">Claude</span>
-          <p class="step-desc">Creates a draft PR first, then marks it ready after review fixes are pushed</p>
+          <p class="step-desc">Pushes review fixes and marks the PR ready</p>
         </div>
       </div>
 
       <div class="pipeline-note">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        Worktrees are cleaned up after every run. Your main branch is never touched.
+        Worktrees are cleaned up after every run. Parallel runs on the same repo are safe, each gets its own worktree.
       </div>
     </section>
 
@@ -255,10 +278,10 @@
                 <h4>On your server</h4>
                 <ul>
                   <li><a href="https://bun.sh" target="_blank" rel="noopener">Bun</a></li>
-                  <li><a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank" rel="noopener">Claude Code</a></li>
+                  <li><a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank" rel="noopener">Claude Code CLI</a></li>
                   <li><a href="https://github.com/openai/codex" target="_blank" rel="noopener">Codex CLI</a></li>
                   <li><a href="https://cli.github.com" target="_blank" rel="noopener">GitHub CLI</a> (authenticated)</li>
-                  <li><code>ANTHROPIC_API_KEY</code> and <code>OPENAI_API_KEY</code> in environment</li>
+                  <li><code>ANTHROPIC_API_KEY</code> and <code>OPENAI_API_KEY</code> in env</li>
                 </ul>
               </div>
             </div>
@@ -302,11 +325,11 @@ cd oneshot-cli && bun install && bun link</code></pre>
               </button>
             </div>
             <p>Walks you through SSH host, workspace path, API keys, and model preferences. Saves to <code>~/.oneshot/config.json</code>.</p>
-            <p>Your repos on the server should be organized as <code>&lt;org&gt;/&lt;repo&gt;</code> under your workspace path:</p>
+            <p>Repos on the server should be organized as <code>&lt;org&gt;/&lt;repo&gt;</code> under your workspace path:</p>
             <div class="code-block">
               <pre><code>~/projects/
-  my-org/my-app/
-  my-org/my-api/</code></pre>
+  acme/api/
+  acme/web/</code></pre>
             </div>
           </div>
         </div>
@@ -318,8 +341,8 @@ cd oneshot-cli && bun install && bun link</code></pre>
           </div>
           <div class="numbered-step-body">
             <div class="code-block">
-              <pre><code>oneshot my-org/my-app "fix the login timeout bug"</code></pre>
-              <button class="copy-btn" data-copy='oneshot my-org/my-app "fix the login timeout bug"' aria-label="Copy">
+              <pre><code>oneshot acme/api "fix the login timeout bug"</code></pre>
+              <button class="copy-btn" data-copy='oneshot acme/api "fix the login timeout bug"' aria-label="Copy">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
             </div>
@@ -335,14 +358,16 @@ cd oneshot-cli && bun install && bun link</code></pre>
 
       <div class="code-block">
         <pre><code>oneshot &lt;repo&gt; "&lt;task&gt;"                 # ship a task
-oneshot &lt;repo&gt; &lt;linear-url&gt;              # fetch ticket as context
+oneshot &lt;repo&gt; &lt;linear-url&gt;              # ship from a Linear ticket
 oneshot &lt;repo&gt; "&lt;task&gt;" --bg             # fire and forget
 oneshot &lt;repo&gt; "&lt;task&gt;" --local          # run locally, no SSH
-oneshot &lt;repo&gt; "&lt;task&gt;" --model sonnet   # override model
+oneshot &lt;repo&gt; "&lt;task&gt;" --model sonnet   # override Claude model
+oneshot &lt;repo&gt; "&lt;task&gt;" --deep-review    # force exhaustive review
+oneshot &lt;repo&gt; "&lt;task&gt;" --branch staging # target a different branch
 oneshot &lt;repo&gt; --dry-run                 # validate only
 oneshot init                             # configure
-oneshot stats                            # recent runs + averages</code></pre>
-        <button class="copy-btn" data-copy='oneshot <repo> "<task>"\noneshot <repo> <linear-url>\noneshot <repo> "<task>" --bg\noneshot <repo> "<task>" --local\noneshot <repo> "<task>" --model sonnet\noneshot <repo> --dry-run\noneshot init\noneshot stats' aria-label="Copy usage examples">
+oneshot stats                            # recent runs + timing</code></pre>
+        <button class="copy-btn" data-copy='oneshot <repo> "<task>"' aria-label="Copy usage examples">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
       </div>
@@ -364,14 +389,14 @@ oneshot stats                            # recent runs + averages</code></pre>
               <td>Override the Claude model (e.g. <code>sonnet</code>, <code>opus</code>)</td>
             </tr>
             <tr>
-              <td><code>--deep-review</code></td>
-              <td></td>
-              <td>Force deep review mode before PR finalization</td>
+              <td><code>--branch</code></td>
+              <td><code>-b</code></td>
+              <td>Base branch (default: <code>main</code>)</td>
             </tr>
             <tr>
-              <td><code>--dry-run</code></td>
-              <td><code>-d</code></td>
-              <td>Validate repo exists without running the pipeline</td>
+              <td><code>--deep-review</code></td>
+              <td></td>
+              <td>Force exhaustive review mode (bypasses auto-classification)</td>
             </tr>
             <tr>
               <td><code>--local</code></td>
@@ -384,14 +409,14 @@ oneshot stats                            # recent runs + averages</code></pre>
               <td>Run detached in background (returns PID + log path)</td>
             </tr>
             <tr>
-              <td><code>--branch</code></td>
-              <td><code>-b</code></td>
-              <td>Base branch to use instead of <code>main</code></td>
+              <td><code>--dry-run</code></td>
+              <td><code>-d</code></td>
+              <td>Validate repo exists without running the pipeline</td>
             </tr>
             <tr>
               <td><code>--events-file</code></td>
               <td></td>
-              <td>Mirror JSONL events to an additional file</td>
+              <td>Mirror JSONL events to an additional file for machine consumption</td>
             </tr>
             <tr>
               <td><code>--help</code></td>
@@ -410,10 +435,10 @@ oneshot stats                            # recent runs + averages</code></pre>
       <h3 class="subsection-title">Examples</h3>
       <div class="examples-grid">
         <div class="example-card">
-          <h4>Basic usage</h4>
+          <h4>Ship a feature</h4>
           <div class="code-block compact">
             <pre><code>oneshot acme/api "add rate limiting to /auth endpoints"</code></pre>
-            <button class="copy-btn" data-copy='oneshot acme/api "add rate limiting to /auth endpoints"' aria-label="Copy basic usage example">
+            <button class="copy-btn" data-copy='oneshot acme/api "add rate limiting to /auth endpoints"' aria-label="Copy">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
           </div>
@@ -422,16 +447,18 @@ oneshot stats                            # recent runs + averages</code></pre>
           <h4>From a Linear ticket</h4>
           <div class="code-block compact">
             <pre><code>oneshot acme/api https://linear.app/acme/issue/ENG-142</code></pre>
-            <button class="copy-btn" data-copy="oneshot acme/api https://linear.app/acme/issue/ENG-142" aria-label="Copy Linear example">
+            <button class="copy-btn" data-copy="oneshot acme/api https://linear.app/acme/issue/ENG-142" aria-label="Copy">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
           </div>
         </div>
         <div class="example-card">
-          <h4>Background mode</h4>
+          <h4>Parallel background runs</h4>
           <div class="code-block compact">
-            <pre><code>oneshot acme/web "migrate to React 19" --bg</code></pre>
-            <button class="copy-btn" data-copy='oneshot acme/web "migrate to React 19" --bg' aria-label="Copy background example">
+            <pre><code>oneshot acme/api "fix auth bug" --bg
+oneshot acme/web "add dark mode" --bg</code></pre>
+            <button class="copy-btn" data-copy='oneshot acme/api "fix auth bug" --bg
+oneshot acme/web "add dark mode" --bg' aria-label="Copy">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
           </div>
@@ -440,7 +467,7 @@ oneshot stats                            # recent runs + averages</code></pre>
           <h4>Local execution</h4>
           <div class="code-block compact">
             <pre><code>oneshot acme/api "fix typo in README" --local</code></pre>
-            <button class="copy-btn" data-copy='oneshot acme/api "fix typo in README" --local' aria-label="Copy local execution example">
+            <button class="copy-btn" data-copy='oneshot acme/api "fix typo in README" --local' aria-label="Copy">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
           </div>
@@ -451,7 +478,7 @@ oneshot stats                            # recent runs + averages</code></pre>
     <!-- Configuration -->
     <section id="configuration" class="section">
       <h2 class="section-title">Configuration</h2>
-      <p class="section-desc">Created by <code>oneshot init</code> at <code>~/.oneshot/config.json</code>:</p>
+      <p class="section-desc">Created by <code>oneshot init</code> at <code>~/.oneshot/config.json</code>. Only <code>host</code> is required for SSH mode. Local mode works with built-in defaults.</p>
 
       <div class="code-block">
         <pre><code>{
@@ -466,72 +493,83 @@ oneshot stats                            # recent runs + averages</code></pre>
   "codex": {
     "model": "gpt-5.4-mini",
     "reasoningEffort": "xhigh",
+    "reviewModel": "gpt-5.4-mini",
+    "reviewReasoningEffort": "xhigh",
     "timeoutMinutes": 180
   },
   "stepTimeouts": {
     "planMinutes": 20,
     "executeMinutes": 60,
     "reviewMinutes": 20,
+    "deepReviewMinutes": 20,
     "prMinutes": 20
   }
 }</code></pre>
       </div>
 
-      <div class="config-details">
-        <h3 class="subsection-title">Options</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Required</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><code>host</code></td>
-                <td>SSH only</td>
-                <td>SSH target (e.g. <code>user@192.168.1.10</code>). Local mode can fall back to built-in defaults if no config file exists yet.</td>
-              </tr>
-              <tr>
-                <td><code>basePath</code></td>
-                <td>No</td>
-                <td>Root directory containing your repos. Defaults to <code>~/projects</code>.</td>
-              </tr>
-              <tr>
-                <td><code>anthropicApiKey</code></td>
-                <td>No</td>
-                <td>Falls back to <code>ANTHROPIC_API_KEY</code> env var.</td>
-              </tr>
-              <tr>
-                <td><code>linearApiKey</code></td>
-                <td>No</td>
-                <td>Enables Linear ticket integration.</td>
-              </tr>
-              <tr>
-                <td><code>claude.model</code></td>
-                <td>No</td>
-                <td>Claude model for Plan + PR steps. Default: <code>opus</code>.</td>
-              </tr>
-              <tr>
-                <td><code>codex.model</code></td>
-                <td>No</td>
-                <td>Codex model for Execute + Review steps. Default: <code>gpt-5.4-mini</code>.</td>
-              </tr>
-              <tr>
-                <td><code>codex.reasoningEffort</code></td>
-                <td>No</td>
-                <td>Reasoning effort level. Default: <code>xhigh</code>.</td>
-              </tr>
-              <tr>
-                <td><code>stepTimeouts</code></td>
-                <td>No</td>
-                <td>Per-step timeout overrides in minutes.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <h3 class="subsection-title">Options</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Required</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>host</code></td>
+              <td>SSH only</td>
+              <td>SSH target (e.g. <code>user@192.168.1.10</code>)</td>
+            </tr>
+            <tr>
+              <td><code>basePath</code></td>
+              <td>No</td>
+              <td>Root directory containing your repos. Default: <code>~/projects</code></td>
+            </tr>
+            <tr>
+              <td><code>anthropicApiKey</code></td>
+              <td>No</td>
+              <td>Falls back to <code>ANTHROPIC_API_KEY</code> env var</td>
+            </tr>
+            <tr>
+              <td><code>linearApiKey</code></td>
+              <td>No</td>
+              <td>Enables Linear ticket integration</td>
+            </tr>
+            <tr>
+              <td><code>claude.model</code></td>
+              <td>No</td>
+              <td>Claude model for Plan, Classify, and PR steps. Default: <code>opus</code></td>
+            </tr>
+            <tr>
+              <td><code>codex.model</code></td>
+              <td>No</td>
+              <td>Codex model for Execute step. Default: <code>gpt-5.4-mini</code></td>
+            </tr>
+            <tr>
+              <td><code>codex.reasoningEffort</code></td>
+              <td>No</td>
+              <td>Reasoning effort for execution. Default: <code>xhigh</code></td>
+            </tr>
+            <tr>
+              <td><code>codex.reviewModel</code></td>
+              <td>No</td>
+              <td>Separate model for the Review step. Default: same as <code>codex.model</code></td>
+            </tr>
+            <tr>
+              <td><code>codex.reviewReasoningEffort</code></td>
+              <td>No</td>
+              <td>Reasoning effort for review. Default: same as <code>codex.reasoningEffort</code></td>
+            </tr>
+            <tr>
+              <td><code>stepTimeouts</code></td>
+              <td>No</td>
+              <td>Per-step timeout overrides in minutes</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -555,7 +593,7 @@ oneshot stats                            # recent runs + averages</code></pre>
         </div>
         <div class="linear-step">
           <span class="linear-num">3</span>
-          <p>Uses the issue ID when generating the PR branch name (e.g. <code>oneshot/eng-142-1712345678901</code>)</p>
+          <p>Uses the issue ID in the PR branch name (e.g. <code>oneshot/eng-142-1712345678901</code>)</p>
         </div>
         <div class="linear-step">
           <span class="linear-num">4</span>
@@ -574,7 +612,7 @@ oneshot stats                            # recent runs + averages</code></pre>
         <div class="custom-card">
           <h3>CLAUDE.md</h3>
           <p>Drop a <code>CLAUDE.md</code> in any repo root to enforce conventions. oneshot reads it and passes it as context to both Claude and Codex at every step.</p>
-          <p class="text-muted">Use this for coding standards, architecture decisions, import patterns, testing requirements &mdash; anything you want the agents to follow.</p>
+          <p class="text-muted">Coding standards, architecture decisions, testing requirements. Anything you want the agents to follow.</p>
         </div>
 
         <div class="custom-card">
@@ -627,52 +665,6 @@ oneshot stats                            # recent runs + averages</code></pre>
       <p>Once installed, your agent uses it automatically when relevant, or invoke directly with <code>/oneshot-ship</code>.</p>
     </section>
 
-    <!-- Bounty Hunter -->
-    <section id="bounty-hunter" class="section">
-      <h2 class="section-title">The Bounty Hunter</h2>
-      <p class="section-desc">Pair oneshot with <a href="https://github.com/ADWilkinson/oneshot-bot" target="_blank" rel="noopener">oneshot-bot</a> to turn your ticket backlog into a bounty board.</p>
-
-      <div class="bounty-flow">
-        <div class="bounty-card">
-          <div class="bounty-card-header">
-            <span class="bounty-label label-oneshot">oneshot</span>
-            <span class="bounty-label label-repo">zkp2p-clients</span>
-          </div>
-          <h4>Label a Linear ticket</h4>
-          <p>Tag any ticket with <code>oneshot</code> + a repo label. The bot picks it up on its next sweep.</p>
-        </div>
-
-        <div class="bounty-arrow">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </div>
-
-        <div class="bounty-card">
-          <div class="bounty-card-header">
-            <span class="bounty-label label-ready">oneshot-ready</span>
-          </div>
-          <h4>Bot enriches with context</h4>
-          <p>Claude analyzes the codebase, adds a structured comment with relevant files and approach, relabels to <code>oneshot-ready</code>.</p>
-        </div>
-
-        <div class="bounty-arrow">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </div>
-
-        <div class="bounty-card">
-          <div class="bounty-card-header">
-            <span class="bounty-label label-shipped">PR opened</span>
-          </div>
-          <h4>Autopilot ships it</h4>
-          <p>The bot dispatches the enriched ticket to oneshot CLI. Minutes later, a PR drops in Slack.</p>
-        </div>
-      </div>
-
-      <div class="pipeline-note" style="margin-top: 1.5rem;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        The bot runs as a Slack app with Socket Mode &mdash; no public URL needed. Monitors up to 3 concurrent bounties.
-      </div>
-    </section>
-
     <!-- Footer -->
     <footer class="footer">
       <div class="footer-content">
@@ -684,7 +676,7 @@ oneshot stats                            # recent runs + averages</code></pre>
           </svg>
           <span>oneshot</span>
         </div>
-        <p class="footer-tagline">Built by <a href="https://github.com/ADWilkinson" target="_blank" rel="noopener">Davy Jones</a>. MIT License.</p>
+        <p class="footer-tagline">MIT License.</p>
       </div>
     </footer>
 

@@ -10,8 +10,7 @@ const RED = "\x1b[31m";
 const YELLOW = "\x1b[33m";
 const CYAN = "\x1b[36m";
 
-const HISTORY_FILES = [join(CONFIG_DIR, "history.json"), "/tmp/oneshot-bot-history.json"];
-const JOBS_FILE = "/tmp/oneshot-bot-jobs.json";
+const HISTORY_FILES = [join(CONFIG_DIR, "history.json")];
 
 interface CompletedRun {
   runId: string;
@@ -24,13 +23,6 @@ interface CompletedRun {
   timestamp: number;
   stepTimings: Array<{ step: number; label: string; elapsed: number }>;
   failedStep?: { step: number; label: string };
-}
-
-interface ActiveJob {
-  pid: string;
-  ticketId: string;
-  repo: string;
-  startedAt: number;
 }
 
 interface RepoHistory {
@@ -156,28 +148,8 @@ function loadHistory(): RepoHistory {
   return merged;
 }
 
-function loadActiveJobs(): ActiveJob[] {
-  try {
-    if (!existsSync(JOBS_FILE)) return [];
-    return JSON.parse(readFileSync(JOBS_FILE, "utf-8"));
-  } catch {
-    return [];
-  }
-}
-
 export const runStats = (): void => {
   console.log(`\n${BOLD}${CYAN}oneshot stats${RESET}\n`);
-
-  // Active jobs
-  const jobs = loadActiveJobs();
-  if (jobs.length > 0) {
-    console.log(`${BOLD}Active (${jobs.length})${RESET}`);
-    for (const j of jobs) {
-      const elapsed = formatTime(Date.now() - j.startedAt);
-      console.log(`  ${CYAN}\u25cf${RESET} ${pad(j.ticketId, 16)} ${DIM}\u2192${RESET} ${pad(j.repo, 30)} ${DIM}${elapsed} in${RESET} ${DIM}PID ${j.pid}${RESET}`);
-    }
-    console.log();
-  }
 
   // Recent runs
   const runs = scanRecentRuns();
