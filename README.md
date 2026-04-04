@@ -1,5 +1,8 @@
 # oneshot
 
+[![npm](https://img.shields.io/npm/v/oneshot-ship?color=black&label=npm)](https://www.npmjs.com/package/oneshot-ship)
+[![license](https://img.shields.io/github/license/ADWilkinson/oneshot-cli?color=black)](LICENSE)
+
 Ship code in one command. Repo + task in, PR out.
 
 ```
