@@ -2,7 +2,7 @@
   "name": "oneshot-ship",
   "version": "0.2.3",
   "description": "Ship code in one command. Repo + task in, PR out.",
-  "homepage": "https://github.com/ADWilkinson/oneshot-cli",
+  "homepage": "https://adwilkinson.github.io/oneshot-cli",
   "type": "module",
   "bin": {
     "oneshot": "src/cli.ts"

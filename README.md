@@ -2,6 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/oneshot-ship?color=black&label=npm)](https://www.npmjs.com/package/oneshot-ship)
 [![license](https://img.shields.io/github/license/ADWilkinson/oneshot-cli?color=black)](LICENSE)
+[![docs](https://img.shields.io/badge/docs-adwilkinson.github.io-black)](https://adwilkinson.github.io/oneshot-cli)
 
 Ship code in one command. Repo + task in, PR out.
 
