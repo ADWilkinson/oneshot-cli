@@ -1,7 +1,7 @@
 {
   "name": "oneshot-ship",
-  "version": "0.1.0",
-  "description": "Ship code autonomously via SSH -- plan, execute, review, PR in one shot",
+  "version": "0.2.0",
+  "description": "Ship code in one command. Repo + task in, PR out.",
   "homepage": "https://adwilkinson.github.io/oneshot-cli",
   "type": "module",
   "bin": {
@@ -13,19 +13,21 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
-  "keywords": ["cli", "automation", "ai", "claude", "codex", "ssh", "bun"],
+  "keywords": ["cli", "ai", "claude", "codex", "ssh", "bun", "code-review", "pull-request"],
   "author": "ADWilkinson",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/ADWilkinson/oneshot-cli.git"
+  "repository": "ADWilkinson/oneshot-cli",
+  "engines": {
+    "bun": ">=1.0.0"
   },
+  "os": ["darwin", "linux"],
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.7.0"
   },
   "files": [
-    "src",
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
     "prompts",
     "skills"
   ]
