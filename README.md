@@ -1,16 +1,16 @@
 # oneshot
 
-One command to ship code. Give it a repo and a task, it plans, executes, reviews, and opens a PR.
+Ship code in one command. Repo + task in, PR out.
 
 ```
-laptop → your server → Claude (plan) → Codex (execute) → Codex (review) → Claude (PR)
+laptop → server → Claude (plan) → Codex (execute) → Codex (review) → Claude (PR)
 ```
 
-Or run locally with `--local`, no SSH needed.
-
-**[Read the docs](https://adwilkinson.github.io/oneshot-cli)**
+Also runs locally with `--local`, no server needed.
 
 ## Install
+
+Requires [Bun](https://bun.sh). macOS and Linux.
 
 ```bash
 bun install -g oneshot-ship
@@ -23,18 +23,22 @@ oneshot init                                    # configure
 oneshot my-org/my-app "fix the login timeout"   # ship
 ```
 
-## The pipeline
+## How it works
 
-1. **Validate**: checks the repo exists, fetches latest from origin
-2. **Worktree**: creates a temp worktree from `origin/main`
-3. **Classify**: chooses fast or deep review mode based on task complexity
-4. **Plan**: Claude reads the codebase + `CLAUDE.md` conventions, outputs a plan
-5. **Execute**: Codex implements the plan
-6. **Draft PR**: Claude creates a branch, commits, pushes, and opens a draft PR
-7. **Review**: Codex reviews the branch diff for bugs, types, and security
-8. **Finalize**: pushes review fixes and marks the PR ready
+oneshot runs an 8-step pipeline. Each run gets its own git worktree in `/tmp`, so your main branch is never touched. Parallel runs on the same repo are safe.
 
-Each run gets its own isolated `/tmp` worktree. Parallel runs on the same repo are safe.
+| Step | Engine | What it does |
+|------|--------|-------------|
+| 1. Validate | git | Checks the repo exists, fetches latest |
+| 2. Worktree | git | Creates an isolated `/tmp` worktree from `origin/main` |
+| 3. Classify | Claude Haiku | Picks fast or deep review mode based on task complexity |
+| 4. Plan | Claude | Reads the codebase + `CLAUDE.md`, outputs an implementation plan |
+| 5. Execute | Codex | Implements the plan |
+| 6. Draft PR | Claude | Creates branch, commits, pushes, opens a draft PR |
+| 7. Review | Codex | Reviews the diff for bugs, types, security. Fixes issues directly |
+| 8. Finalize | Claude | Pushes review fixes, marks PR ready |
+
+If execute times out with partial changes, the draft PR is still created so nothing is lost.
 
 ## Usage
 
@@ -51,6 +55,8 @@ oneshot init                           # configure
 oneshot stats                          # recent runs + timing
 ```
 
+### Flags
+
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--model` | `-m` | Override Claude model |
@@ -60,10 +66,19 @@ oneshot stats                          # recent runs + timing
 | `--bg` | | Run detached in background (returns PID + log path) |
 | `--dry-run` | `-d` | Validate only |
 | `--events-file` | | Mirror JSONL events to an additional file |
-| `--help` | `-h` | Help |
-| `--version` | `-v` | Version |
 
-## Config
+## Prerequisites
+
+**On your laptop:** [Bun](https://bun.sh), SSH access to your server
+
+**On your server (or local machine with `--local`):**
+- [Bun](https://bun.sh)
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
+- [Codex CLI](https://github.com/openai/codex)
+- [GitHub CLI](https://cli.github.com) (authenticated)
+- `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` in env
+
+## Configuration
 
 `~/.oneshot/config.json`, created by `oneshot init`:
 
@@ -73,7 +88,10 @@ oneshot stats                          # recent runs + timing
   "basePath": "~/projects",
   "anthropicApiKey": "sk-ant-...",
   "linearApiKey": "lin_api_...",
-  "claude": { "model": "opus", "timeoutMinutes": 180 },
+  "claude": {
+    "model": "opus",
+    "timeoutMinutes": 180
+  },
   "codex": {
     "model": "gpt-5.4-mini",
     "reasoningEffort": "xhigh",
@@ -91,11 +109,62 @@ oneshot stats                          # recent runs + timing
 }
 ```
 
-Only `host` is required for SSH runs. Local mode works with built-in defaults even without a config file.
+Only `host` is required for SSH runs. Local mode works without a config file.
 
-## Structured events
+| Key | Required | Description |
+|-----|----------|-------------|
+| `host` | SSH only | SSH target, e.g. `user@192.168.1.10` |
+| `basePath` | No | Where repos live. Default: `~/projects` |
+| `anthropicApiKey` | No | Falls back to `ANTHROPIC_API_KEY` env var |
+| `linearApiKey` | No | Enables Linear ticket integration |
+| `claude.model` | No | Model for Plan, Classify, PR steps. Default: `opus` |
+| `codex.model` | No | Model for Execute step. Default: `gpt-5.4-mini` |
+| `codex.reasoningEffort` | No | Reasoning effort for execution. Default: `xhigh` |
+| `codex.reviewModel` | No | Model for Review step. Default: same as `codex.model` |
+| `codex.reviewReasoningEffort` | No | Reasoning effort for review. Default: same as `codex.reasoningEffort` |
+| `stepTimeouts` | No | Per-step timeout overrides in minutes |
 
-Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl`. Pass `--events-file <path>` to mirror events to an additional file:
+Repos on the server should live as `<org>/<repo>` under the base path:
+
+```
+~/projects/
+  acme/api/
+  acme/web/
+```
+
+## Linear integration
+
+Pass a Linear URL instead of a task string:
+
+```bash
+oneshot acme/api https://linear.app/acme/issue/ENG-142
+```
+
+1. Fetches issue title, description, and comments via GraphQL
+2. Uses ticket as context for the planning step
+3. Uses the issue ID in the branch name (`oneshot/eng-142-...`)
+4. Moves the ticket to "In Review" and comments the PR URL
+
+Requires `linearApiKey` in config.
+
+## Customization
+
+**CLAUDE.md**: put one in any repo root. oneshot passes it to Claude and Codex at every step. Use it for coding standards, architecture decisions, test requirements.
+
+**Prompt templates**: edit these to change pipeline behavior:
+
+| File | Controls |
+|------|----------|
+| `prompts/plan.txt` | How Claude explores and plans |
+| `prompts/execute.txt` | How Codex implements changes |
+| `prompts/review.txt` | How Codex reviews the diff |
+| `prompts/pr.txt` | How Claude creates the PR |
+
+Templates use `{{variable}}` placeholders replaced at runtime.
+
+## Events
+
+Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl`. Use `--events-file <path>` to mirror to another file:
 
 ```bash
 oneshot acme/api "fix bug" --local --events-file /tmp/run.events.jsonl
@@ -103,23 +172,9 @@ oneshot acme/api "fix bug" --local --events-file /tmp/run.events.jsonl
 
 Events: `started`, `classified`, `step` (running/done/failed), `completed` (success/failed/dry-run).
 
-## Safety
-
-- **Worktree isolation**: each run gets its own `/tmp` worktree, parallel runs are safe
-- **Branch sanitization**: rejects names containing `..`, leading `/`, or control characters
-- **Path traversal protection**: worktree paths verified to be under `/tmp`
-- **Atomic config writes**: saves use temp file + rename to prevent corruption
-- **Graceful degradation**: if execute times out with partial changes, the draft PR is still created
-
-## Customization
-
-Drop a `CLAUDE.md` in any repo root to enforce conventions. oneshot passes it as context to both Claude and Codex.
-
-Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipeline behavior.
-
 ## Agent skill
 
-Available as an [Agent Skill](https://agentskills.io) for Claude Code, Codex CLI, Cursor, and other skills-compatible agents.
+Works as an [Agent Skill](https://agentskills.io) in Claude Code, Codex CLI, Cursor, and other compatible agents.
 
 ```bash
 npx skills add ADWilkinson/oneshot-cli
@@ -130,6 +185,8 @@ Or via [ClawHub](https://clawhub.ai):
 ```bash
 clawhub install oneshot-ship
 ```
+
+Agents pick it up automatically, or call `/oneshot-ship` directly.
 
 ## License
 
