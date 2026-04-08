@@ -4,11 +4,15 @@ import type { PipelineContext } from "../config";
 import { exec, execOrThrow } from "../exec";
 import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
-import { PROMPTS_DIR } from "../paths";
+import { PROMPTS_DIR, CLAUDE_PLUGIN_DIR } from "../paths";
 
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "plan.txt"), "utf-8");
 };
+
+const pluginFlag = CLAUDE_PLUGIN_DIR
+  ? `--plugin-dir ${shellEscape(CLAUDE_PLUGIN_DIR)} `
+  : "";
 
 export const plan = async (ctx: PipelineContext): Promise<string> => {
   const { config, options, worktreePath } = ctx;
@@ -23,7 +27,7 @@ export const plan = async (ctx: PipelineContext): Promise<string> => {
   const timeoutMs = getStepTimeout(config, "planMinutes");
 
   const result = await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} --model ${shellEscape(model)} --no-session-persistence`,
+    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}--model ${shellEscape(model)} --no-session-persistence`,
     { timeoutMs, stream: true }
   );
 
