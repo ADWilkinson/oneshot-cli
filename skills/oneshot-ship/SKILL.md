@@ -4,14 +4,14 @@ description: Ship code with oneshot CLI. One command that plans, executes, revie
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "0.2.0"
+  version: "0.2.3"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, Claude Code CLI, Codex CLI, and GitHub CLI. SSH access to a server optional (can run locally with --local)
 ---
 
 # oneshot CLI
 
-Ship code with a single command. oneshot runs a full pipeline: plan (Claude) → execute (Codex) → review (Codex) → PR (Claude). Works over SSH to a remote server or locally with `--local`.
+Ship code with a single command. oneshot runs a full pipeline: classify + plan (Claude) → execute (Codex) → review (Codex) → PR/finalize (Claude). Works over SSH to a remote server or locally with `--local`.
 
 ## When to use this skill
 
@@ -53,6 +53,7 @@ oneshot <repo> "<task>"                 # ship a task
 oneshot <repo> <linear-url>            # ship from a Linear ticket
 oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
+oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
 oneshot <repo> "<task>" --model sonnet # override Claude model
 oneshot <repo> "<task>" --branch dev   # target a different branch
@@ -110,6 +111,7 @@ Only `host` is required for SSH runs. Local mode works without a config file.
 |------|-------|-------------|
 | `--model` | `-m` | Override Claude model |
 | `--branch` | `-b` | Base branch (default: main) |
+| `--mode` | | Skip classification and force `fast` or `deep` mode |
 | `--deep-review` | | Force exhaustive review mode |
 | `--local` | | Run locally instead of over SSH |
 | `--bg` | | Run in background, return PID + log path |

@@ -3,6 +3,8 @@ import { exec } from "../exec";
 
 export const classify = async (ctx: PipelineContext): Promise<ComplexityMode> => {
   const { worktreePath, options } = ctx;
+  if (options.mode) return options.mode;
+
   const task = options.task;
 
   // Quick heuristic check first

@@ -70,15 +70,23 @@ describe("parseArgs", () => {
       "--model requires a value"
     );
   });
+
+  test("rejects invalid mode overrides", () => {
+    expect(() => parseArgs(["my-org/my-repo", "ship it", "--mode", "turbo"])).toThrow(
+      '--mode must be "fast" or "deep"'
+    );
+  });
 });
 
 describe("buildLocalChildArgs", () => {
-  test("forwards dry-run and deep-review without injecting an empty task", () => {
+  test("forwards mode, dry-run, and deep-review without injecting an empty task", () => {
     const parsed = parseArgs([
       "my-org/my-repo",
       "--dry-run",
       "--local",
       "--bg",
+      "--mode",
+      "deep",
       "--deep-review",
       "--model",
       "sonnet",
@@ -89,6 +97,8 @@ describe("buildLocalChildArgs", () => {
       "my-org/my-repo",
       "--model",
       "sonnet",
+      "--mode",
+      "deep",
       "--dry-run",
       "--deep-review",
     ]);
@@ -97,13 +107,21 @@ describe("buildLocalChildArgs", () => {
 
 describe("buildRemoteCommandParts", () => {
   test("shell-escapes repo and task text", () => {
-    const parsed = parseArgs(["my-org/my-repo", "fix it's broken", "--dry-run"]);
+    const parsed = parseArgs([
+      "my-org/my-repo",
+      "fix it's broken",
+      "--mode",
+      "fast",
+      "--dry-run",
+    ]);
 
     expect(buildRemoteCommandParts(parsed)).toEqual([
       "~/.bun/bin/oneshot",
       "--local",
       "'my-org/my-repo'",
       "'fix it'\\''s broken'",
+      "--mode",
+      "'fast'",
       "--dry-run",
     ]);
   });

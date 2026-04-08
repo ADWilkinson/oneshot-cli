@@ -9,6 +9,7 @@ import { runStats } from "./stats";
 import { existsSync, openSync, closeSync } from "fs";
 import { shellEscape } from "./shell";
 import { VERSION } from "./version";
+import type { ComplexityMode } from "./config";
 
 export interface ParsedArgs extends OneshotOptions {
   local: boolean;
@@ -47,6 +48,7 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   const positional: string[] = [];
   let model: string | undefined;
   let branch: string | undefined;
+  let mode: ComplexityMode | undefined;
   let eventsFile: string | undefined;
   let dryRun = false;
   let deepReview = false;
@@ -57,6 +59,13 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     const arg = args[i];
     if (arg === "--model" || arg === "-m") {
       model = getFlagValue(args, i, arg);
+      i++;
+    } else if (arg === "--mode") {
+      const value = getFlagValue(args, i, arg).toLowerCase();
+      if (value !== "fast" && value !== "deep") {
+        throw new Error(`--mode must be "fast" or "deep"`);
+      }
+      mode = value;
       i++;
     } else if (arg === "--dry-run" || arg === "-d") {
       dryRun = true;
@@ -82,7 +91,18 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   if (positional.length < 1) { log.error("missing repo argument"); printUsage(); process.exit(1); }
   if (positional.length < 2 && !dryRun) { log.error("missing task description or Linear URL"); printUsage(); process.exit(1); }
 
-  return { repo: positional[0], task: positional[1] ?? "", model, branch, eventsFile, dryRun, deepReview, local, bg };
+  return {
+    repo: positional[0],
+    task: positional[1] ?? "",
+    model,
+    branch,
+    mode,
+    eventsFile,
+    dryRun,
+    deepReview,
+    local,
+    bg,
+  };
 };
 
 export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
@@ -90,6 +110,7 @@ export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
   if (parsed.task) parts.push(shellEscape(parsed.task));
   if (parsed.model) parts.push("--model", shellEscape(parsed.model));
   if (parsed.branch) parts.push("--branch", shellEscape(parsed.branch));
+  if (parsed.mode) parts.push("--mode", shellEscape(parsed.mode));
   if (parsed.eventsFile) parts.push("--events-file", shellEscape(parsed.eventsFile));
   if (parsed.dryRun) parts.push("--dry-run");
   if (parsed.deepReview) parts.push("--deep-review");
@@ -101,6 +122,7 @@ export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
   if (parsed.task) args.push(parsed.task);
   if (parsed.model) args.push("--model", parsed.model);
   if (parsed.branch) args.push("--branch", parsed.branch);
+  if (parsed.mode) args.push("--mode", parsed.mode);
   if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
   if (parsed.dryRun) args.push("--dry-run");
   if (parsed.deepReview) args.push("--deep-review");
@@ -120,6 +142,7 @@ Commands:
 Options:
   --model, -m <model>     Override Claude model (default: from config)
   --branch, -b <branch>   Base branch to work from and PR into (default: main)
+  --mode <fast|deep>      Skip classification and force the requested review mode
   --deep-review           Force deep review mode
   --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
@@ -288,6 +311,7 @@ const main = async () => {
       task: parsed.task,
       model: parsed.model,
       branch: parsed.branch,
+      mode: parsed.mode,
       dryRun: parsed.dryRun,
       deepReview: parsed.deepReview,
       eventsFile: parsed.eventsFile,

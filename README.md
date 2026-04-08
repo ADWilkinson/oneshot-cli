@@ -51,6 +51,7 @@ oneshot <repo> "<task>"                 # ship a task
 oneshot <repo> <linear-url>            # ship from a Linear ticket
 oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
+oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
 oneshot <repo> "<task>" --model sonnet # override Claude model
 oneshot <repo> "<task>" --branch dev   # target a different branch
@@ -65,6 +66,7 @@ oneshot stats                          # recent runs + timing
 |------|-------|-------------|
 | `--model` | `-m` | Override Claude model |
 | `--branch` | `-b` | Base branch (default: main) |
+| `--mode` | | Skip classification and force `fast` or `deep` mode |
 | `--deep-review` | | Force exhaustive review mode |
 | `--local` | | Run locally instead of over SSH |
 | `--bg` | | Run detached in background (returns PID + log path) |
@@ -165,6 +167,8 @@ Requires `linearApiKey` in config.
 | `prompts/pr.txt` | How Claude creates the PR |
 
 Templates use `{{variable}}` placeholders replaced at runtime.
+
+The repo's `CLAUDE.md` is also supplied to the planning and execution steps, so the task string is the primary operator input, not the only context the agents receive.
 
 ## Events
 
