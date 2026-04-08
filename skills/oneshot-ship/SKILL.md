@@ -105,7 +105,7 @@ Worktree is cleaned up after every run.
 ```
 
 Only `host` is required for SSH runs. Local mode works without a config file.
-Remote SSH runs automatically forward the configured `basePath` to the server, so the repo root stays accurate even if the server does not have its own oneshot config file.
+Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, model defaults, timeout settings, and configured Anthropic/Linear credentials stay aligned even if the server does not have its own oneshot config file.
 
 ## Flags
 

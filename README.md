@@ -118,7 +118,7 @@ oneshot stats                          # recent runs + timing
 ```
 
 Only `host` is required for SSH runs. Local mode works without a config file.
-Remote SSH runs automatically forward the configured `basePath` to the server, so you do not need a duplicate `~/.oneshot/config.json` there unless you want one.
+Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, model defaults, timeout settings, and configured Anthropic/Linear credentials stay aligned without requiring a duplicate `~/.oneshot/config.json` on the server.
 
 | Key | Required | Description |
 |-----|----------|-------------|

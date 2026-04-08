@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { buildLocalChildArgs, buildRemoteCommandParts, parseArgs } from "./cli";
+import {
+  buildLocalChildArgs,
+  buildRemoteBackgroundShellCommand,
+  buildRemoteCommandParts,
+  buildRemoteShellCommand,
+  parseArgs,
+} from "./cli";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -135,6 +141,37 @@ describe("buildRemoteCommandParts", () => {
   });
 });
 
+describe("remote shell wrappers", () => {
+  test("foreground wrapper streams config into a temp file and cleans it up", () => {
+    const command = buildRemoteShellCommand([
+      "~/.bun/bin/oneshot",
+      "--local",
+      "'demo/repo'",
+      "'fix bug'",
+    ]);
+
+    expect(command).toContain('tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1');
+    expect(command).toContain('cat > "$tmp_config"');
+    expect(command).toContain('ONESHOT_CONFIG_PATH="$0" "$@"; status=$?; rm -f "$0"; exit $status');
+    expect(command).toContain('~/.bun/bin/oneshot --local \'demo/repo\' \'fix bug\'');
+  });
+
+  test("background wrapper keeps the temp config alive for the detached run", () => {
+    const command = buildRemoteBackgroundShellCommand([
+      "~/.bun/bin/oneshot",
+      "--local",
+      "'demo/repo'",
+      "'fix bug'",
+    ], "/tmp/oneshot.log");
+
+    expect(command).toContain('nohup sh -c');
+    expect(command).toContain('cat > "$tmp_config"');
+    expect(command).toContain('> \'/tmp/oneshot.log\' 2>&1 &');
+    expect(command).toContain('echo "PID: $!"');
+    expect(command).toContain('echo "LOG: /tmp/oneshot.log"');
+  });
+});
+
 describe("CLI integration", () => {
   test("local dry-run works without an existing config file", async () => {
     const tempDir = makeTempDir();
@@ -196,6 +233,7 @@ describe("CLI integration", () => {
     const oneshotDir = join(home, ".oneshot");
     const binDir = join(tempDir, "bin");
     const sshArgsFile = join(tempDir, "ssh-args.txt");
+    const sshStdinFile = join(tempDir, "ssh-stdin.json");
     mkdirSync(oneshotDir, { recursive: true });
     mkdirSync(binDir, { recursive: true });
 
@@ -204,6 +242,8 @@ describe("CLI integration", () => {
       JSON.stringify({
         host: "example-host",
         basePath: "/srv/agent-workspace",
+        anthropicApiKey: "ant-test",
+        linearApiKey: "lin-test",
         claude: { model: "opus", timeoutMinutes: 180 },
         codex: { model: "gpt-5.4-mini", reasoningEffort: "xhigh", timeoutMinutes: 180 },
       })
@@ -212,7 +252,7 @@ describe("CLI integration", () => {
     const sshPath = join(binDir, "ssh");
     writeFileSync(
       sshPath,
-      "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$SSH_ARGS_FILE\"\nexit 0\n"
+      "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$SSH_ARGS_FILE\"\ncat > \"$SSH_STDIN_FILE\"\nexit 0\n"
     );
     chmodSync(sshPath, 0o755);
 
@@ -220,14 +260,21 @@ describe("CLI integration", () => {
       HOME: home,
       PATH: `${binDir}:${process.env.PATH ?? ""}`,
       SSH_ARGS_FILE: sshArgsFile,
+      SSH_STDIN_FILE: sshStdinFile,
     });
 
     expect(result.exitCode).toBe(0);
 
     const sshArgs = readFileSync(sshArgsFile, "utf-8");
     expect(sshArgs).toContain("example-host");
+    expect(sshArgs).toContain('tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1');
     expect(sshArgs).toContain("--base-path '/srv/agent-workspace'");
     expect(sshArgs).toContain("'demo/repo' 'dry run task'");
+
+    const forwardedConfig = JSON.parse(readFileSync(sshStdinFile, "utf-8"));
+    expect(forwardedConfig.basePath).toBe("/srv/agent-workspace");
+    expect(forwardedConfig.anthropicApiKey).toBe("ant-test");
+    expect(forwardedConfig.linearApiKey).toBe("lin-test");
   });
 
   test("stats renders dry-runs distinctly instead of unknown", async () => {

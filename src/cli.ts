@@ -123,6 +123,31 @@ export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
   return parts;
 };
 
+const REMOTE_CONFIG_RUNNER = 'ONESHOT_CONFIG_PATH="$0" "$@"; status=$?; rm -f "$0"; exit $status';
+
+export const buildRemoteShellCommand = (parts: string[]): string => {
+  return [
+    'tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1',
+    'cat > "$tmp_config"',
+    `sh -c ${shellEscape(REMOTE_CONFIG_RUNNER)} "$tmp_config" ${parts.join(" ")}`,
+  ].join('; ');
+};
+
+export const buildRemoteBackgroundShellCommand = (parts: string[], logFile: string): string => {
+  return [
+    'tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1',
+    'cat > "$tmp_config"',
+    `nohup sh -c ${shellEscape(REMOTE_CONFIG_RUNNER)} "$tmp_config" ${parts.join(" ")} > ${shellEscape(logFile)} 2>&1 &`,
+    'echo "PID: $!"',
+    `echo "LOG: ${logFile}"`,
+  ].join('; ');
+};
+
+const writeRemoteConfig = (proc: Bun.Subprocess<"pipe", "inherit" | "pipe", "inherit" | "pipe">, config: OneshotConfig): void => {
+  proc.stdin.write(JSON.stringify(config, null, 2) + "\n");
+  proc.stdin.end();
+};
+
 export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
   const args = ["--local", parsed.repo];
   if (parsed.task) args.push(parsed.task);
@@ -267,12 +292,13 @@ const main = async () => {
 
       if (parsed.bg) {
         const logFile = `/tmp/oneshot-${Date.now()}.log`;
-        const remoteCmd = `nohup ${parts.join(" ")} > ${logFile} 2>&1 & echo "PID: $!" && echo "LOG: ${logFile}"`;
+        const remoteCmd = buildRemoteBackgroundShellCommand(parts, logFile);
 
         const proc = Bun.spawn(
           ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, remoteCmd],
-          { stdout: "pipe", stderr: "inherit" }
+          { stdout: "pipe", stderr: "inherit", stdin: "pipe" }
         );
+        writeRemoteConfig(proc, config);
 
         const output = await new Response(proc.stdout).text();
         const exitCode = await proc.exited;
@@ -286,9 +312,10 @@ const main = async () => {
       }
 
       const proc = Bun.spawn(
-        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, parts.join(" ")],
-        { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
+        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, buildRemoteShellCommand(parts)],
+        { stdout: "inherit", stderr: "inherit", stdin: "pipe" }
       );
+      writeRemoteConfig(proc, config);
       await proc.exited;
       process.exit(proc.exitCode ?? 1);
     }
