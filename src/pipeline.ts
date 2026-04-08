@@ -17,11 +17,12 @@ import { moveToInReview, addPrComment } from "./linear";
 
 const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineContext => {
   const home = process.env.HOME ?? "/root";
-  const basePath = config.basePath.startsWith("~/")
-    ? join(home, config.basePath.slice(2))
-    : config.basePath === "~"
+  const configuredBasePath = options.basePath ?? config.basePath;
+  const basePath = configuredBasePath.startsWith("~/")
+    ? join(home, configuredBasePath.slice(2))
+    : configuredBasePath === "~"
       ? home
-      : config.basePath;
+      : configuredBasePath;
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   return {

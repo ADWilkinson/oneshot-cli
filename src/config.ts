@@ -33,6 +33,8 @@ export interface OneshotOptions {
   taskSummary?: string;
   model?: string;
   branch?: string;
+  basePath?: string;
+  mode?: ComplexityMode;
   dryRun?: boolean;
   deepReview?: boolean;
   linearIssueId?: string;
@@ -69,7 +71,7 @@ const DEFAULT_CONFIG: Omit<OneshotConfig, "host"> = {
 };
 
 export const CONFIG_DIR = join(homedir(), ".oneshot");
-export const CONFIG_PATH = join(CONFIG_DIR, "config.json");
+export const CONFIG_PATH = process.env.ONESHOT_CONFIG_PATH || join(CONFIG_DIR, "config.json");
 
 const asPositiveMinutes = (value: unknown, fallback: number): number => {
   return typeof value === "number" && Number.isFinite(value) && value > 0

@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { buildLocalChildArgs, buildRemoteCommandParts, parseArgs } from "./cli";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
+import {
+  buildLocalChildArgs,
+  buildRemoteBackgroundShellCommand,
+  buildRemoteCommandParts,
+  buildRemoteStatsShellCommand,
+  buildRemoteShellCommand,
+  parseArgs,
+} from "./cli";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -70,15 +77,25 @@ describe("parseArgs", () => {
       "--model requires a value"
     );
   });
+
+  test("rejects invalid mode overrides", () => {
+    expect(() => parseArgs(["my-org/my-repo", "ship it", "--mode", "turbo"])).toThrow(
+      '--mode must be "fast" or "deep"'
+    );
+  });
 });
 
 describe("buildLocalChildArgs", () => {
-  test("forwards dry-run and deep-review without injecting an empty task", () => {
+  test("forwards mode, dry-run, and deep-review without injecting an empty task", () => {
     const parsed = parseArgs([
       "my-org/my-repo",
       "--dry-run",
       "--local",
       "--bg",
+      "--base-path",
+      "/srv/workspace",
+      "--mode",
+      "deep",
       "--deep-review",
       "--model",
       "sonnet",
@@ -89,6 +106,10 @@ describe("buildLocalChildArgs", () => {
       "my-org/my-repo",
       "--model",
       "sonnet",
+      "--base-path",
+      "/srv/workspace",
+      "--mode",
+      "deep",
       "--dry-run",
       "--deep-review",
     ]);
@@ -97,15 +118,64 @@ describe("buildLocalChildArgs", () => {
 
 describe("buildRemoteCommandParts", () => {
   test("shell-escapes repo and task text", () => {
-    const parsed = parseArgs(["my-org/my-repo", "fix it's broken", "--dry-run"]);
+    const parsed = parseArgs([
+      "my-org/my-repo",
+      "fix it's broken",
+      "--base-path",
+      "/srv/work dir",
+      "--mode",
+      "fast",
+      "--dry-run",
+    ]);
 
     expect(buildRemoteCommandParts(parsed)).toEqual([
-      "~/.bun/bin/oneshot",
       "--local",
       "'my-org/my-repo'",
       "'fix it'\\''s broken'",
+      "--base-path",
+      "'/srv/work dir'",
+      "--mode",
+      "'fast'",
       "--dry-run",
     ]);
+  });
+});
+
+describe("remote shell wrappers", () => {
+  test("foreground wrapper streams config into a temp file and cleans it up", () => {
+    const command = buildRemoteShellCommand([
+      "--local",
+      "'demo/repo'",
+      "'fix bug'",
+    ]);
+
+    expect(command).toContain('tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1');
+    expect(command).toContain('cat > "$tmp_config"');
+    expect(command).toContain('command -v oneshot');
+    expect(command).toContain('ONESHOT_CONFIG_PATH="$0" "$oneshot_bin" "$@"; status=$?; rm -f "$0"; exit $status');
+    expect(command).toContain("--local 'demo/repo' 'fix bug'");
+  });
+
+  test("background wrapper keeps the temp config alive for the detached run", () => {
+    const command = buildRemoteBackgroundShellCommand([
+      "--local",
+      "'demo/repo'",
+      "'fix bug'",
+    ], "/tmp/oneshot.log");
+
+    expect(command).toContain('nohup sh -c');
+    expect(command).toContain('cat > "$tmp_config"');
+    expect(command).toContain('> \'/tmp/oneshot.log\' 2>&1 &');
+    expect(command).toContain('echo "PID: $!"');
+    expect(command).toContain('echo "LOG: /tmp/oneshot.log"');
+  });
+
+  test("stats wrapper resolves oneshot from the environment before falling back", () => {
+    const command = buildRemoteStatsShellCommand();
+
+    expect(command).toContain('command -v oneshot');
+    expect(command).toContain('BUN_INSTALL');
+    expect(command).toContain('exec "$oneshot_bin" stats --local');
   });
 });
 
@@ -162,6 +232,56 @@ describe("CLI integration", () => {
     expect(result.exitCode).toBe(255);
     expect(stripAnsi(result.stdout)).not.toContain("shipped to background on server");
     expect(stripAnsi(result.stderr)).toContain("fake ssh failure");
+  });
+
+  test("remote runs forward the configured basePath over ssh", async () => {
+    const tempDir = makeTempDir();
+    const home = join(tempDir, "home");
+    const oneshotDir = join(home, ".oneshot");
+    const binDir = join(tempDir, "bin");
+    const sshArgsFile = join(tempDir, "ssh-args.txt");
+    const sshStdinFile = join(tempDir, "ssh-stdin.json");
+    mkdirSync(oneshotDir, { recursive: true });
+    mkdirSync(binDir, { recursive: true });
+
+    writeFileSync(
+      join(oneshotDir, "config.json"),
+      JSON.stringify({
+        host: "example-host",
+        basePath: "/srv/agent-workspace",
+        anthropicApiKey: "ant-test",
+        linearApiKey: "lin-test",
+        claude: { model: "opus", timeoutMinutes: 180 },
+        codex: { model: "gpt-5.4-mini", reasoningEffort: "xhigh", timeoutMinutes: 180 },
+      })
+    );
+
+    const sshPath = join(binDir, "ssh");
+    writeFileSync(
+      sshPath,
+      "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$SSH_ARGS_FILE\"\ncat > \"$SSH_STDIN_FILE\"\nexit 0\n"
+    );
+    chmodSync(sshPath, 0o755);
+
+    const result = await runCli(["demo/repo", "dry run task", "--dry-run"], {
+      HOME: home,
+      PATH: `${binDir}:${process.env.PATH ?? ""}`,
+      SSH_ARGS_FILE: sshArgsFile,
+      SSH_STDIN_FILE: sshStdinFile,
+    });
+
+    expect(result.exitCode).toBe(0);
+
+    const sshArgs = readFileSync(sshArgsFile, "utf-8");
+    expect(sshArgs).toContain("example-host");
+    expect(sshArgs).toContain('tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1');
+    expect(sshArgs).toContain("--base-path '/srv/agent-workspace'");
+    expect(sshArgs).toContain("'demo/repo' 'dry run task'");
+
+    const forwardedConfig = JSON.parse(readFileSync(sshStdinFile, "utf-8"));
+    expect(forwardedConfig.basePath).toBe("/srv/agent-workspace");
+    expect(forwardedConfig.anthropicApiKey).toBe("ant-test");
+    expect(forwardedConfig.linearApiKey).toBe("lin-test");
   });
 
   test("stats renders dry-runs distinctly instead of unknown", async () => {

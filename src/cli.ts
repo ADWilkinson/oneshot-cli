@@ -9,6 +9,7 @@ import { runStats } from "./stats";
 import { existsSync, openSync, closeSync } from "fs";
 import { shellEscape } from "./shell";
 import { VERSION } from "./version";
+import type { ComplexityMode } from "./config";
 
 export interface ParsedArgs extends OneshotOptions {
   local: boolean;
@@ -47,6 +48,8 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   const positional: string[] = [];
   let model: string | undefined;
   let branch: string | undefined;
+  let basePath: string | undefined;
+  let mode: ComplexityMode | undefined;
   let eventsFile: string | undefined;
   let dryRun = false;
   let deepReview = false;
@@ -58,6 +61,13 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     if (arg === "--model" || arg === "-m") {
       model = getFlagValue(args, i, arg);
       i++;
+    } else if (arg === "--mode") {
+      const value = getFlagValue(args, i, arg).toLowerCase();
+      if (value !== "fast" && value !== "deep") {
+        throw new Error(`--mode must be "fast" or "deep"`);
+      }
+      mode = value;
+      i++;
     } else if (arg === "--dry-run" || arg === "-d") {
       dryRun = true;
     } else if (arg === "--deep-review") {
@@ -66,6 +76,9 @@ export const parseArgs = (args: string[]): ParsedArgs => {
       local = true;
     } else if (arg === "--branch" || arg === "-b") {
       branch = getFlagValue(args, i, arg);
+      i++;
+    } else if (arg === "--base-path") {
+      basePath = getFlagValue(args, i, arg);
       i++;
     } else if (arg === "--events-file") {
       eventsFile = getFlagValue(args, i, arg);
@@ -82,18 +95,72 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   if (positional.length < 1) { log.error("missing repo argument"); printUsage(); process.exit(1); }
   if (positional.length < 2 && !dryRun) { log.error("missing task description or Linear URL"); printUsage(); process.exit(1); }
 
-  return { repo: positional[0], task: positional[1] ?? "", model, branch, eventsFile, dryRun, deepReview, local, bg };
+  return {
+    repo: positional[0],
+    task: positional[1] ?? "",
+    model,
+    branch,
+    basePath,
+    mode,
+    eventsFile,
+    dryRun,
+    deepReview,
+    local,
+    bg,
+  };
 };
 
 export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
-  const parts = ["~/.bun/bin/oneshot", "--local", shellEscape(parsed.repo)];
+  const parts = ["--local", shellEscape(parsed.repo)];
   if (parsed.task) parts.push(shellEscape(parsed.task));
   if (parsed.model) parts.push("--model", shellEscape(parsed.model));
   if (parsed.branch) parts.push("--branch", shellEscape(parsed.branch));
+  if (parsed.basePath) parts.push("--base-path", shellEscape(parsed.basePath));
+  if (parsed.mode) parts.push("--mode", shellEscape(parsed.mode));
   if (parsed.eventsFile) parts.push("--events-file", shellEscape(parsed.eventsFile));
   if (parsed.dryRun) parts.push("--dry-run");
   if (parsed.deepReview) parts.push("--deep-review");
   return parts;
+};
+
+const REMOTE_ONESHOT_BIN_SETUP = [
+  'oneshot_bin="${ONESHOT_BIN:-}"',
+  'if [ -z "$oneshot_bin" ]; then oneshot_bin="$(command -v oneshot 2>/dev/null || true)"; fi',
+  'if [ -z "$oneshot_bin" ] && [ -n "$BUN_INSTALL" ] && [ -x "$BUN_INSTALL/bin/oneshot" ]; then oneshot_bin="$BUN_INSTALL/bin/oneshot"; fi',
+  'if [ -z "$oneshot_bin" ] && [ -x "$HOME/.bun/bin/oneshot" ]; then oneshot_bin="$HOME/.bun/bin/oneshot"; fi',
+  'if [ -z "$oneshot_bin" ]; then echo "oneshot binary not found in ONESHOT_BIN, PATH, BUN_INSTALL, or $HOME/.bun/bin" >&2; exit 127; fi',
+].join('; ');
+
+const REMOTE_CONFIG_RUNNER = [
+  REMOTE_ONESHOT_BIN_SETUP,
+  'ONESHOT_CONFIG_PATH="$0" "$oneshot_bin" "$@"; status=$?; rm -f "$0"; exit $status',
+].join('; ');
+
+export const buildRemoteShellCommand = (parts: string[]): string => {
+  return [
+    'tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1',
+    'cat > "$tmp_config"',
+    `sh -c ${shellEscape(REMOTE_CONFIG_RUNNER)} "$tmp_config" ${parts.join(" ")}`,
+  ].join('; ');
+};
+
+export const buildRemoteBackgroundShellCommand = (parts: string[], logFile: string): string => {
+  return [
+    'tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1',
+    'cat > "$tmp_config"',
+    `nohup sh -c ${shellEscape(REMOTE_CONFIG_RUNNER)} "$tmp_config" ${parts.join(" ")} > ${shellEscape(logFile)} 2>&1 &`,
+    'echo "PID: $!"',
+    `echo "LOG: ${logFile}"`,
+  ].join('; ');
+};
+
+export const buildRemoteStatsShellCommand = (): string => {
+  return `${REMOTE_ONESHOT_BIN_SETUP}; exec "$oneshot_bin" stats --local`;
+};
+
+const writeRemoteConfig = (proc: Bun.Subprocess<"pipe", "inherit" | "pipe", "inherit" | "pipe">, config: OneshotConfig): void => {
+  proc.stdin.write(JSON.stringify(config, null, 2) + "\n");
+  proc.stdin.end();
 };
 
 export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
@@ -101,6 +168,8 @@ export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
   if (parsed.task) args.push(parsed.task);
   if (parsed.model) args.push("--model", parsed.model);
   if (parsed.branch) args.push("--branch", parsed.branch);
+  if (parsed.basePath) args.push("--base-path", parsed.basePath);
+  if (parsed.mode) args.push("--mode", parsed.mode);
   if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
   if (parsed.dryRun) args.push("--dry-run");
   if (parsed.deepReview) args.push("--deep-review");
@@ -120,6 +189,8 @@ Commands:
 Options:
   --model, -m <model>     Override Claude model (default: from config)
   --branch, -b <branch>   Base branch to work from and PR into (default: main)
+  --base-path <path>      Override the workspace path used to locate the repo
+  --mode <fast|deep>      Skip classification and force the requested review mode
   --deep-review           Force deep review mode
   --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
@@ -218,7 +289,7 @@ const main = async () => {
       }
       const config = await loadConfig();
       const proc = Bun.spawn(
-        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, "~/.bun/bin/oneshot stats --local"],
+        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, buildRemoteStatsShellCommand()],
         { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
       );
       await proc.exited;
@@ -229,16 +300,20 @@ const main = async () => {
     const config = parsed.local ? await loadLocalConfig() : await loadConfig();
 
     if (!parsed.local) {
-      const parts = buildRemoteCommandParts(parsed);
+      const parts = buildRemoteCommandParts({
+        ...parsed,
+        basePath: parsed.basePath ?? config.basePath,
+      });
 
       if (parsed.bg) {
         const logFile = `/tmp/oneshot-${Date.now()}.log`;
-        const remoteCmd = `nohup ${parts.join(" ")} > ${logFile} 2>&1 & echo "PID: $!" && echo "LOG: ${logFile}"`;
+        const remoteCmd = buildRemoteBackgroundShellCommand(parts, logFile);
 
         const proc = Bun.spawn(
           ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, remoteCmd],
-          { stdout: "pipe", stderr: "inherit" }
+          { stdout: "pipe", stderr: "inherit", stdin: "pipe" }
         );
+        writeRemoteConfig(proc, config);
 
         const output = await new Response(proc.stdout).text();
         const exitCode = await proc.exited;
@@ -252,9 +327,10 @@ const main = async () => {
       }
 
       const proc = Bun.spawn(
-        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, parts.join(" ")],
-        { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
+        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, buildRemoteShellCommand(parts)],
+        { stdout: "inherit", stderr: "inherit", stdin: "pipe" }
       );
+      writeRemoteConfig(proc, config);
       await proc.exited;
       process.exit(proc.exitCode ?? 1);
     }
@@ -288,6 +364,8 @@ const main = async () => {
       task: parsed.task,
       model: parsed.model,
       branch: parsed.branch,
+      basePath: parsed.basePath,
+      mode: parsed.mode,
       dryRun: parsed.dryRun,
       deepReview: parsed.deepReview,
       eventsFile: parsed.eventsFile,
