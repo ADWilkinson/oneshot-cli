@@ -33,6 +33,7 @@ export interface OneshotOptions {
   taskSummary?: string;
   model?: string;
   branch?: string;
+  basePath?: string;
   mode?: ComplexityMode;
   dryRun?: boolean;
   deepReview?: boolean;

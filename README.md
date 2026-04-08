@@ -55,6 +55,7 @@ oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
 oneshot <repo> "<task>" --model sonnet # override Claude model
 oneshot <repo> "<task>" --branch dev   # target a different branch
+oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for this run
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
@@ -66,6 +67,7 @@ oneshot stats                          # recent runs + timing
 |------|-------|-------------|
 | `--model` | `-m` | Override Claude model |
 | `--branch` | `-b` | Base branch (default: main) |
+| `--base-path` | | Override the workspace path used to locate the repo |
 | `--mode` | | Skip classification and force `fast` or `deep` mode |
 | `--deep-review` | | Force exhaustive review mode |
 | `--local` | | Run locally instead of over SSH |
@@ -116,6 +118,7 @@ oneshot stats                          # recent runs + timing
 ```
 
 Only `host` is required for SSH runs. Local mode works without a config file.
+Remote SSH runs automatically forward the configured `basePath` to the server, so you do not need a duplicate `~/.oneshot/config.json` there unless you want one.
 
 | Key | Required | Description |
 |-----|----------|-------------|

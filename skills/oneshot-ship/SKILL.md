@@ -57,6 +57,7 @@ oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
 oneshot <repo> "<task>" --model sonnet # override Claude model
 oneshot <repo> "<task>" --branch dev   # target a different branch
+oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for this run
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
@@ -104,6 +105,7 @@ Worktree is cleaned up after every run.
 ```
 
 Only `host` is required for SSH runs. Local mode works without a config file.
+Remote SSH runs automatically forward the configured `basePath` to the server, so the repo root stays accurate even if the server does not have its own oneshot config file.
 
 ## Flags
 
@@ -111,6 +113,7 @@ Only `host` is required for SSH runs. Local mode works without a config file.
 |------|-------|-------------|
 | `--model` | `-m` | Override Claude model |
 | `--branch` | `-b` | Base branch (default: main) |
+| `--base-path` | | Override the workspace path used to locate the repo |
 | `--mode` | | Skip classification and force `fast` or `deep` mode |
 | `--deep-review` | | Force exhaustive review mode |
 | `--local` | | Run locally instead of over SSH |

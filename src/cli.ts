@@ -48,6 +48,7 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   const positional: string[] = [];
   let model: string | undefined;
   let branch: string | undefined;
+  let basePath: string | undefined;
   let mode: ComplexityMode | undefined;
   let eventsFile: string | undefined;
   let dryRun = false;
@@ -76,6 +77,9 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     } else if (arg === "--branch" || arg === "-b") {
       branch = getFlagValue(args, i, arg);
       i++;
+    } else if (arg === "--base-path") {
+      basePath = getFlagValue(args, i, arg);
+      i++;
     } else if (arg === "--events-file") {
       eventsFile = getFlagValue(args, i, arg);
       i++;
@@ -96,6 +100,7 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     task: positional[1] ?? "",
     model,
     branch,
+    basePath,
     mode,
     eventsFile,
     dryRun,
@@ -110,6 +115,7 @@ export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
   if (parsed.task) parts.push(shellEscape(parsed.task));
   if (parsed.model) parts.push("--model", shellEscape(parsed.model));
   if (parsed.branch) parts.push("--branch", shellEscape(parsed.branch));
+  if (parsed.basePath) parts.push("--base-path", shellEscape(parsed.basePath));
   if (parsed.mode) parts.push("--mode", shellEscape(parsed.mode));
   if (parsed.eventsFile) parts.push("--events-file", shellEscape(parsed.eventsFile));
   if (parsed.dryRun) parts.push("--dry-run");
@@ -122,6 +128,7 @@ export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
   if (parsed.task) args.push(parsed.task);
   if (parsed.model) args.push("--model", parsed.model);
   if (parsed.branch) args.push("--branch", parsed.branch);
+  if (parsed.basePath) args.push("--base-path", parsed.basePath);
   if (parsed.mode) args.push("--mode", parsed.mode);
   if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
   if (parsed.dryRun) args.push("--dry-run");
@@ -142,6 +149,7 @@ Commands:
 Options:
   --model, -m <model>     Override Claude model (default: from config)
   --branch, -b <branch>   Base branch to work from and PR into (default: main)
+  --base-path <path>      Override the workspace path used to locate the repo
   --mode <fast|deep>      Skip classification and force the requested review mode
   --deep-review           Force deep review mode
   --local                 Run locally instead of over SSH
@@ -252,7 +260,10 @@ const main = async () => {
     const config = parsed.local ? await loadLocalConfig() : await loadConfig();
 
     if (!parsed.local) {
-      const parts = buildRemoteCommandParts(parsed);
+      const parts = buildRemoteCommandParts({
+        ...parsed,
+        basePath: parsed.basePath ?? config.basePath,
+      });
 
       if (parsed.bg) {
         const logFile = `/tmp/oneshot-${Date.now()}.log`;
@@ -311,6 +322,7 @@ const main = async () => {
       task: parsed.task,
       model: parsed.model,
       branch: parsed.branch,
+      basePath: parsed.basePath,
       mode: parsed.mode,
       dryRun: parsed.dryRun,
       deepReview: parsed.deepReview,

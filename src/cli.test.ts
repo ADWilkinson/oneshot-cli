@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { buildLocalChildArgs, buildRemoteCommandParts, parseArgs } from "./cli";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -85,6 +85,8 @@ describe("buildLocalChildArgs", () => {
       "--dry-run",
       "--local",
       "--bg",
+      "--base-path",
+      "/srv/workspace",
       "--mode",
       "deep",
       "--deep-review",
@@ -97,6 +99,8 @@ describe("buildLocalChildArgs", () => {
       "my-org/my-repo",
       "--model",
       "sonnet",
+      "--base-path",
+      "/srv/workspace",
       "--mode",
       "deep",
       "--dry-run",
@@ -110,6 +114,8 @@ describe("buildRemoteCommandParts", () => {
     const parsed = parseArgs([
       "my-org/my-repo",
       "fix it's broken",
+      "--base-path",
+      "/srv/work dir",
       "--mode",
       "fast",
       "--dry-run",
@@ -120,6 +126,8 @@ describe("buildRemoteCommandParts", () => {
       "--local",
       "'my-org/my-repo'",
       "'fix it'\\''s broken'",
+      "--base-path",
+      "'/srv/work dir'",
       "--mode",
       "'fast'",
       "--dry-run",
@@ -180,6 +188,46 @@ describe("CLI integration", () => {
     expect(result.exitCode).toBe(255);
     expect(stripAnsi(result.stdout)).not.toContain("shipped to background on server");
     expect(stripAnsi(result.stderr)).toContain("fake ssh failure");
+  });
+
+  test("remote runs forward the configured basePath over ssh", async () => {
+    const tempDir = makeTempDir();
+    const home = join(tempDir, "home");
+    const oneshotDir = join(home, ".oneshot");
+    const binDir = join(tempDir, "bin");
+    const sshArgsFile = join(tempDir, "ssh-args.txt");
+    mkdirSync(oneshotDir, { recursive: true });
+    mkdirSync(binDir, { recursive: true });
+
+    writeFileSync(
+      join(oneshotDir, "config.json"),
+      JSON.stringify({
+        host: "example-host",
+        basePath: "/srv/agent-workspace",
+        claude: { model: "opus", timeoutMinutes: 180 },
+        codex: { model: "gpt-5.4-mini", reasoningEffort: "xhigh", timeoutMinutes: 180 },
+      })
+    );
+
+    const sshPath = join(binDir, "ssh");
+    writeFileSync(
+      sshPath,
+      "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$SSH_ARGS_FILE\"\nexit 0\n"
+    );
+    chmodSync(sshPath, 0o755);
+
+    const result = await runCli(["demo/repo", "dry run task", "--dry-run"], {
+      HOME: home,
+      PATH: `${binDir}:${process.env.PATH ?? ""}`,
+      SSH_ARGS_FILE: sshArgsFile,
+    });
+
+    expect(result.exitCode).toBe(0);
+
+    const sshArgs = readFileSync(sshArgsFile, "utf-8");
+    expect(sshArgs).toContain("example-host");
+    expect(sshArgs).toContain("--base-path '/srv/agent-workspace'");
+    expect(sshArgs).toContain("'demo/repo' 'dry run task'");
   });
 
   test("stats renders dry-runs distinctly instead of unknown", async () => {
