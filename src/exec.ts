@@ -11,6 +11,7 @@ export type ErrorCode =
   | 'ERR_GIT_AUTH'
   | 'ERR_BUILD_FAILED'
   | 'ERR_NO_CHANGES'
+  | 'ERR_REBASE_CONFLICT'
   | 'ERR_UNKNOWN';
 
 export class OneshotError extends Error {
