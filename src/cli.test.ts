@@ -3,6 +3,7 @@ import {
   buildLocalChildArgs,
   buildRemoteBackgroundShellCommand,
   buildRemoteCommandParts,
+  buildRemoteStatsShellCommand,
   buildRemoteShellCommand,
   parseArgs,
 } from "./cli";
@@ -128,7 +129,6 @@ describe("buildRemoteCommandParts", () => {
     ]);
 
     expect(buildRemoteCommandParts(parsed)).toEqual([
-      "~/.bun/bin/oneshot",
       "--local",
       "'my-org/my-repo'",
       "'fix it'\\''s broken'",
@@ -144,7 +144,6 @@ describe("buildRemoteCommandParts", () => {
 describe("remote shell wrappers", () => {
   test("foreground wrapper streams config into a temp file and cleans it up", () => {
     const command = buildRemoteShellCommand([
-      "~/.bun/bin/oneshot",
       "--local",
       "'demo/repo'",
       "'fix bug'",
@@ -152,13 +151,13 @@ describe("remote shell wrappers", () => {
 
     expect(command).toContain('tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1');
     expect(command).toContain('cat > "$tmp_config"');
-    expect(command).toContain('ONESHOT_CONFIG_PATH="$0" "$@"; status=$?; rm -f "$0"; exit $status');
-    expect(command).toContain('~/.bun/bin/oneshot --local \'demo/repo\' \'fix bug\'');
+    expect(command).toContain('command -v oneshot');
+    expect(command).toContain('ONESHOT_CONFIG_PATH="$0" "$oneshot_bin" "$@"; status=$?; rm -f "$0"; exit $status');
+    expect(command).toContain("--local 'demo/repo' 'fix bug'");
   });
 
   test("background wrapper keeps the temp config alive for the detached run", () => {
     const command = buildRemoteBackgroundShellCommand([
-      "~/.bun/bin/oneshot",
       "--local",
       "'demo/repo'",
       "'fix bug'",
@@ -169,6 +168,14 @@ describe("remote shell wrappers", () => {
     expect(command).toContain('> \'/tmp/oneshot.log\' 2>&1 &');
     expect(command).toContain('echo "PID: $!"');
     expect(command).toContain('echo "LOG: /tmp/oneshot.log"');
+  });
+
+  test("stats wrapper resolves oneshot from the environment before falling back", () => {
+    const command = buildRemoteStatsShellCommand();
+
+    expect(command).toContain('command -v oneshot');
+    expect(command).toContain('BUN_INSTALL');
+    expect(command).toContain('exec "$oneshot_bin" stats --local');
   });
 });
 

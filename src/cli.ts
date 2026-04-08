@@ -111,7 +111,7 @@ export const parseArgs = (args: string[]): ParsedArgs => {
 };
 
 export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
-  const parts = ["~/.bun/bin/oneshot", "--local", shellEscape(parsed.repo)];
+  const parts = ["--local", shellEscape(parsed.repo)];
   if (parsed.task) parts.push(shellEscape(parsed.task));
   if (parsed.model) parts.push("--model", shellEscape(parsed.model));
   if (parsed.branch) parts.push("--branch", shellEscape(parsed.branch));
@@ -123,7 +123,18 @@ export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
   return parts;
 };
 
-const REMOTE_CONFIG_RUNNER = 'ONESHOT_CONFIG_PATH="$0" "$@"; status=$?; rm -f "$0"; exit $status';
+const REMOTE_ONESHOT_BIN_SETUP = [
+  'oneshot_bin="${ONESHOT_BIN:-}"',
+  'if [ -z "$oneshot_bin" ]; then oneshot_bin="$(command -v oneshot 2>/dev/null || true)"; fi',
+  'if [ -z "$oneshot_bin" ] && [ -n "$BUN_INSTALL" ] && [ -x "$BUN_INSTALL/bin/oneshot" ]; then oneshot_bin="$BUN_INSTALL/bin/oneshot"; fi',
+  'if [ -z "$oneshot_bin" ] && [ -x "$HOME/.bun/bin/oneshot" ]; then oneshot_bin="$HOME/.bun/bin/oneshot"; fi',
+  'if [ -z "$oneshot_bin" ]; then echo "oneshot binary not found in ONESHOT_BIN, PATH, BUN_INSTALL, or $HOME/.bun/bin" >&2; exit 127; fi',
+].join('; ');
+
+const REMOTE_CONFIG_RUNNER = [
+  REMOTE_ONESHOT_BIN_SETUP,
+  'ONESHOT_CONFIG_PATH="$0" "$oneshot_bin" "$@"; status=$?; rm -f "$0"; exit $status',
+].join('; ');
 
 export const buildRemoteShellCommand = (parts: string[]): string => {
   return [
@@ -141,6 +152,10 @@ export const buildRemoteBackgroundShellCommand = (parts: string[], logFile: stri
     'echo "PID: $!"',
     `echo "LOG: ${logFile}"`,
   ].join('; ');
+};
+
+export const buildRemoteStatsShellCommand = (): string => {
+  return `${REMOTE_ONESHOT_BIN_SETUP}; exec "$oneshot_bin" stats --local`;
 };
 
 const writeRemoteConfig = (proc: Bun.Subprocess<"pipe", "inherit" | "pipe", "inherit" | "pipe">, config: OneshotConfig): void => {
@@ -274,7 +289,7 @@ const main = async () => {
       }
       const config = await loadConfig();
       const proc = Bun.spawn(
-        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, "~/.bun/bin/oneshot stats --local"],
+        ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, buildRemoteStatsShellCommand()],
         { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
       );
       await proc.exited;
