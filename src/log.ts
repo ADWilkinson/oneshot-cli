@@ -1,4 +1,5 @@
 import { VERSION } from "./version";
+import { ONESHOT_TOTAL_STEPS } from "./steps";
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
@@ -8,7 +9,7 @@ const RED = "\x1b[31m";
 const YELLOW = "\x1b[33m";
 const CYAN = "\x1b[36m";
 
-const STEPS_TOTAL = 8;
+const STEPS_TOTAL = ONESHOT_TOTAL_STEPS;
 
 export const log = {
   header: () => {

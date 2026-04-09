@@ -14,6 +14,7 @@ import { execute } from "./steps/execute";
 import { review } from "./steps/review";
 import { createDraftPr, finalizeAfterReview, getFilesChanged, getDiffStats } from "./steps/pr";
 import { moveToInReview, addPrComment } from "./linear";
+import { getStepLabel } from "./steps";
 
 const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineContext => {
   const home = process.env.HOME ?? "/root";
@@ -38,14 +39,19 @@ const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineC
   };
 };
 
-const stepTimings: Array<{ step: number; label: string; elapsed: number }> = [];
+interface StepTiming {
+  step: number;
+  label: string;
+  elapsed: number;
+}
 
 const runStep = async (
   step: number,
-  label: string,
   events: EventWriter,
+  timings: StepTiming[],
   fn: () => Promise<void>,
 ): Promise<void> => {
+  const label = getStepLabel(step);
   log.stepStart(step, label);
   events.stepRunning(step, label);
   const start = Date.now();
@@ -54,7 +60,7 @@ const runStep = async (
     const elapsed = Date.now() - start;
     log.stepDone(elapsed);
     events.stepDone(step, label, elapsed);
-    stepTimings.push({ step, label, elapsed });
+    timings.push({ step, label, elapsed });
   } catch (err) {
     const elapsed = Date.now() - start;
     log.stepFail(elapsed);
@@ -68,8 +74,7 @@ const runStep = async (
 export const runPipeline = async (config: OneshotConfig, options: OneshotOptions): Promise<void> => {
   const ctx = buildContext(config, options);
   const events = new EventWriter(options.eventsFile ?? null, ctx.runId);
-
-  stepTimings.length = 0;
+  const stepTimings: StepTiming[] = [];
 
   events.started(options.repo, options.task);
   log.header();
@@ -87,24 +92,24 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
   } catch { /* ignore */ }
 
   try {
-    await runStep(1, "Validating repo", events, () => validate(ctx));
+    await runStep(1, events, stepTimings, () => validate(ctx));
 
     if (options.dryRun) {
       log.dryRunSummary(ctx.repoPath);
-      events.completed({ result: "dry-run", elapsed: Date.now() - ctx.startTime });
+      events.completed({ result: "dry-run", elapsed: Date.now() - ctx.startTime, stepTimings: [...stepTimings] });
       return;
     }
 
-    await runStep(2, "Creating worktree", events, () => createWorktree(ctx));
-    await runStep(3, "Classifying task", events, async () => { ctx.mode = await classify(ctx); });
+    await runStep(2, events, stepTimings, () => createWorktree(ctx));
+    await runStep(3, events, stepTimings, async () => { ctx.mode = await classify(ctx); });
     log.info(`mode: ${ctx.mode}`);
     events.classified(ctx.mode);
 
-    await runStep(4, "Planning with Claude", events, async () => { ctx.plan = await plan(ctx); });
+    await runStep(4, events, stepTimings, async () => { ctx.plan = await plan(ctx); });
 
     // Graceful degradation on timeout: if execute times out but partial changes exist, continue
     try {
-      await runStep(5, "Executing with Codex", events, () => execute(ctx));
+      await runStep(5, events, stepTimings, () => execute(ctx));
     } catch (err) {
       if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {
         const { stdout: diffOut } = await exec(`cd "${ctx.worktreePath}" && git diff --stat`);
@@ -120,7 +125,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     }
 
     // Create draft PR BEFORE review so work is never lost to timeouts
-    await runStep(6, "Creating draft PR", events, async () => {
+    await runStep(6, events, stepTimings, async () => {
       ctx.prUrl = await createDraftPr(ctx);
     });
 
@@ -128,7 +133,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     // If review fails or times out, the draft PR still has all the execution work.
     let shouldFinalizePr = false;
     try {
-      await runStep(7, "Reviewing with Codex", events, () => review(ctx));
+      await runStep(7, events, stepTimings, () => review(ctx));
       shouldFinalizePr = true;
     } catch (err) {
       if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {
@@ -140,7 +145,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
 
     // Push review fixes (if any) and mark PR as ready
     if (shouldFinalizePr) {
-      await runStep(8, "Finalizing PR", events, () => finalizeAfterReview(ctx));
+      await runStep(8, events, stepTimings, () => finalizeAfterReview(ctx));
     }
 
     let filesChanged = 0;
