@@ -14,7 +14,7 @@ import { execute } from "./steps/execute";
 import { review } from "./steps/review";
 import { createDraftPr, finalizeAfterReview, getFilesChanged, getDiffStats } from "./steps/pr";
 import { moveToInReview, addPrComment } from "./linear";
-import { getStepLabel } from "./steps";
+import { getStepLabel } from "./pipeline-steps";
 
 const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineContext => {
   const home = process.env.HOME ?? "/root";

@@ -1,5 +1,5 @@
 import { VERSION } from "./version";
-import { ONESHOT_TOTAL_STEPS } from "./steps";
+import { ONESHOT_TOTAL_STEPS } from "./pipeline-steps";
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
