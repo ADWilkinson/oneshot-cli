@@ -1,20 +1,8 @@
-import { readFileSync } from "fs";
-import { join } from "path";
 import type { PipelineContext } from "../config";
 import { execOrThrow, OneshotError } from "../exec";
 import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
-import { PROMPTS_DIR } from "../paths";
-
-const loadPromptTemplate = (): string => {
-  return readFileSync(join(PROMPTS_DIR, "review.txt"), "utf-8");
-};
-
-const getReviewModel = (ctx: PipelineContext): string =>
-  ctx.config.codex.reviewModel ?? "gpt-5.4-mini";
-
-const getReviewEffort = (ctx: PipelineContext): string =>
-  ctx.config.codex.reviewReasoningEffort ?? "xhigh";
+import { codexEffortConfig, getReviewEffort, getReviewModel, loadPromptTemplate } from "./shared";
 
 export const review = async (ctx: PipelineContext): Promise<void> => {
   const { options, worktreePath } = ctx;
@@ -40,15 +28,12 @@ export const review = async (ctx: PipelineContext): Promise<void> => {
 const standardReview = async (ctx: PipelineContext): Promise<void> => {
   const { config, worktreePath, options } = ctx;
   const baseBranch = options.branch ?? "main";
-  const prompt = loadPromptTemplate()
+  const prompt = loadPromptTemplate("review.txt")
     .replace("{{task}}", options.task)
     .replace(/\{\{baseBranch\}\}/g, baseBranch);
   const timeoutMs = getStepTimeout(config, "reviewMinutes");
-  const model = getReviewModel(ctx);
-  const effort = getReviewEffort(ctx);
-  const effortConfig = `model_reasoning_effort="${effort}"`;
   await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && codex exec ${shellEscape(prompt)} --dangerously-bypass-approvals-and-sandbox -m ${shellEscape(model)} -c ${shellEscape(effortConfig)}`,
+    `cd ${shellEscape(worktreePath)} && codex exec ${shellEscape(prompt)} --dangerously-bypass-approvals-and-sandbox -m ${shellEscape(getReviewModel(ctx))} -c ${shellEscape(codexEffortConfig(getReviewEffort(ctx)))}`,
     { timeoutMs, stream: true }
   );
 };
@@ -57,8 +42,6 @@ const deepReview = async (ctx: PipelineContext): Promise<void> => {
   const { config, worktreePath, options } = ctx;
   const baseBranch = options.branch ?? "main";
   const timeoutMs = getStepTimeout(config, "deepReviewMinutes");
-  const model = getReviewModel(ctx);
-  const effort = getReviewEffort(ctx);
 
   const prompt = `You are reviewing code changes for a task.
 
@@ -72,9 +55,8 @@ Review ALL changes in this branch against origin/${baseBranch} (use git diff ori
 
 Fix any issues directly. Run typecheck and build to verify. Do NOT create commits.`;
 
-  const effortConfig = `model_reasoning_effort="${effort}"`;
   await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && codex exec ${shellEscape(prompt)} --dangerously-bypass-approvals-and-sandbox -m ${shellEscape(model)} -c ${shellEscape(effortConfig)}`,
+    `cd ${shellEscape(worktreePath)} && codex exec ${shellEscape(prompt)} --dangerously-bypass-approvals-and-sandbox -m ${shellEscape(getReviewModel(ctx))} -c ${shellEscape(codexEffortConfig(getReviewEffort(ctx)))}`,
     { timeoutMs, stream: true }
   );
 };

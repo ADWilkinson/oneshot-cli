@@ -143,7 +143,6 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       }
     }
 
-    // Push review fixes (if any) and mark PR as ready
     if (shouldFinalizePr) {
       await runStep(8, events, stepTimings, () => finalizeAfterReview(ctx));
     }

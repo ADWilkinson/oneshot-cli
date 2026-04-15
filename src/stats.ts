@@ -45,6 +45,16 @@ interface EventLine {
   filesChanged?: number;
 }
 
+type StepEventLine = EventLine & { step: number; label: string; elapsed: number };
+
+const isStepDone = (e: EventLine): e is StepEventLine =>
+  e.type === "step" && e.status === "done" && e.step != null && e.label != null && e.elapsed != null;
+
+type FailedStepLine = EventLine & { step: number; label: string };
+
+const isStepFailed = (e: EventLine): e is FailedStepLine =>
+  e.type === "step" && e.status === "failed" && e.step != null && e.label != null;
+
 const formatTime = (ms: number): string => {
   const seconds = Math.round(ms / 1000);
   if (seconds < 60) return `${seconds}s`;
@@ -100,10 +110,10 @@ function scanRecentRuns(): CompletedRun[] {
                 : "unknown";
 
         const stepTimings = events
-          .filter(e => e.type === "step" && e.status === "done" && e.step != null && e.label != null && e.elapsed != null)
-          .map(e => ({ step: e.step!, label: e.label!, elapsed: e.elapsed! }));
+          .filter(isStepDone)
+          .map(e => ({ step: e.step, label: e.label, elapsed: e.elapsed }));
 
-        const failed = events.find(e => e.type === "step" && e.status === "failed" && e.step != null && e.label != null);
+        const failed = events.find(isStepFailed);
 
         runs.push({
           runId: started?.runId ?? "unknown",
@@ -115,7 +125,7 @@ function scanRecentRuns(): CompletedRun[] {
           elapsed: completed.elapsed ?? 0,
           timestamp: completed.timestamp ?? file.mtime,
           stepTimings,
-          failedStep: failed ? { step: failed.step!, label: failed.label! } : undefined,
+          failedStep: failed ? { step: failed.step, label: failed.label } : undefined,
         });
       } catch {
         // skip corrupted files

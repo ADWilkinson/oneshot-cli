@@ -110,18 +110,22 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   };
 };
 
-export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
-  const parts = ["--local", shellEscape(parsed.repo)];
-  if (parsed.task) parts.push(shellEscape(parsed.task));
-  if (parsed.model) parts.push("--model", shellEscape(parsed.model));
-  if (parsed.branch) parts.push("--branch", shellEscape(parsed.branch));
-  if (parsed.basePath) parts.push("--base-path", shellEscape(parsed.basePath));
-  if (parsed.mode) parts.push("--mode", shellEscape(parsed.mode));
-  if (parsed.eventsFile) parts.push("--events-file", shellEscape(parsed.eventsFile));
+const buildPipelineArgs = (parsed: ParsedArgs, escape: boolean): string[] => {
+  const quote = (value: string) => (escape ? shellEscape(value) : value);
+  const parts = ["--local", quote(parsed.repo)];
+  if (parsed.task) parts.push(quote(parsed.task));
+  if (parsed.model) parts.push("--model", quote(parsed.model));
+  if (parsed.branch) parts.push("--branch", quote(parsed.branch));
+  if (parsed.basePath) parts.push("--base-path", quote(parsed.basePath));
+  if (parsed.mode) parts.push("--mode", quote(parsed.mode));
+  if (parsed.eventsFile) parts.push("--events-file", quote(parsed.eventsFile));
   if (parsed.dryRun) parts.push("--dry-run");
   if (parsed.deepReview) parts.push("--deep-review");
   return parts;
 };
+
+export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] =>
+  buildPipelineArgs(parsed, true);
 
 const REMOTE_ONESHOT_BIN_SETUP = [
   'oneshot_bin="${ONESHOT_BIN:-}"',
@@ -163,18 +167,8 @@ const writeRemoteConfig = (proc: Bun.Subprocess<"pipe", "inherit" | "pipe", "inh
   proc.stdin.end();
 };
 
-export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
-  const args = ["--local", parsed.repo];
-  if (parsed.task) args.push(parsed.task);
-  if (parsed.model) args.push("--model", parsed.model);
-  if (parsed.branch) args.push("--branch", parsed.branch);
-  if (parsed.basePath) args.push("--base-path", parsed.basePath);
-  if (parsed.mode) args.push("--mode", parsed.mode);
-  if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
-  if (parsed.dryRun) args.push("--dry-run");
-  if (parsed.deepReview) args.push("--deep-review");
-  return args;
-};
+export const buildLocalChildArgs = (parsed: ParsedArgs): string[] =>
+  buildPipelineArgs(parsed, false);
 
 const printUsage = () => {
   console.log(`

@@ -1,18 +1,8 @@
-import { readFileSync } from "fs";
-import { join } from "path";
 import type { PipelineContext } from "../config";
 import { execOrThrow, exec, OneshotError } from "../exec";
 import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
-import { PROMPTS_DIR, CLAUDE_PLUGIN_DIR } from "../paths";
-
-const pluginFlag = CLAUDE_PLUGIN_DIR
-  ? `--plugin-dir ${shellEscape(CLAUDE_PLUGIN_DIR)} `
-  : "";
-
-const loadPromptTemplate = (): string => {
-  return readFileSync(join(PROMPTS_DIR, "pr.txt"), "utf-8");
-};
+import { getPluginFlag, loadPromptTemplate } from "./shared";
 
 export const getPrModel = (ctx: PipelineContext): string =>
   ctx.options.model ?? ctx.config.claude.model;
@@ -32,7 +22,7 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const taskSummary = options.taskSummary ?? options.task;
 
   const model = getPrModel(ctx);
-  const prompt = loadPromptTemplate()
+  const prompt = loadPromptTemplate("pr.txt")
     .replace("{{task}}", taskSummary)
     .replace("{{branchName}}", branchName)
     .replace(/\{\{baseBranch\}\}/g, baseBranch);
@@ -40,7 +30,7 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const timeoutMs = getStepTimeout(config, "prMinutes");
 
   const result = await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}--dangerously-skip-permissions --model ${shellEscape(model)} --no-session-persistence`,
+    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${getPluginFlag()}--dangerously-skip-permissions --model ${shellEscape(model)} --no-session-persistence`,
     { timeoutMs, stream: true }
   );
 
@@ -66,7 +56,6 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
 export const finalizeAfterReview = async (ctx: PipelineContext): Promise<void> => {
   const { worktreePath, prUrl } = ctx;
 
-  // Check if review made any changes
   const diffCheck = await exec(`cd ${shellEscape(worktreePath)} && git diff --stat`);
   const untracked = await exec(
     `cd ${shellEscape(worktreePath)} && git ls-files --others --exclude-standard`
@@ -74,7 +63,6 @@ export const finalizeAfterReview = async (ctx: PipelineContext): Promise<void> =
   const hasChanges = !!(diffCheck.stdout.trim() || untracked.stdout.trim());
 
   if (hasChanges) {
-    // Stage and commit the review fixes
     await execOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
     await execOrThrow(`cd ${shellEscape(worktreePath)} && git commit -m "fix: address review findings"`);
 
@@ -116,10 +104,7 @@ export const finalizeAfterReview = async (ctx: PipelineContext): Promise<void> =
         // Abort so the worktree is clean for teardown. Swallow any failure
         // from the abort itself — if there's nothing to abort git will just
         // complain and we don't want to mask the original rebase error.
-        const abortResult = await exec(
-          `cd ${shellEscape(worktreePath)} && git rebase --abort`
-        );
-        void abortResult;
+        await exec(`cd ${shellEscape(worktreePath)} && git rebase --abort`);
         const detail = rebaseErr instanceof Error ? rebaseErr.message : String(rebaseErr);
         throw new OneshotError(
           `review fix commit could not be rebased onto ${branchName} — another process pushed conflicting changes while the review was running. PR left in draft.`,
@@ -136,7 +121,6 @@ export const finalizeAfterReview = async (ctx: PipelineContext): Promise<void> =
     );
   }
 
-  // Mark the PR as ready (remove draft status)
   const prNumber = prUrl.match(/\/pull\/(\d+)/)?.[1];
   if (!prNumber) throw new Error(`could not extract PR number from URL: ${prUrl}`);
   await execOrThrow(`cd ${shellEscape(worktreePath)} && gh pr ready ${shellEscape(prNumber)}`);
