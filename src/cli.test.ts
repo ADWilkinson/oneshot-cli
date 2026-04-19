@@ -168,6 +168,9 @@ describe("remote shell wrappers", () => {
     expect(command).toContain('> \'/tmp/oneshot.log\' 2>&1 &');
     expect(command).toContain('echo "PID: $!"');
     expect(command).toContain('echo "LOG: /tmp/oneshot.log"');
+    // Regression: bash rejects "&;" and "& ;". The background line ends in "&", so
+    // the wrapper must separate statements with a newline, not "; ".
+    expect(command).not.toMatch(/&\s*;/);
   });
 
   test("stats wrapper resolves oneshot from the environment before falling back", () => {

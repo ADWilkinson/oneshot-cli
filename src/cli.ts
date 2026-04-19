@@ -145,13 +145,14 @@ export const buildRemoteShellCommand = (parts: string[]): string => {
 };
 
 export const buildRemoteBackgroundShellCommand = (parts: string[], logFile: string): string => {
+  // Join with newlines, not "; ", because the nohup line ends in "&" and "&;" is a bash syntax error.
   return [
     'tmp_config=$(mktemp /tmp/oneshot-config.XXXXXX.json) || exit 1',
     'cat > "$tmp_config"',
     `nohup sh -c ${shellEscape(REMOTE_CONFIG_RUNNER)} "$tmp_config" ${parts.join(" ")} > ${shellEscape(logFile)} 2>&1 &`,
     'echo "PID: $!"',
     `echo "LOG: ${logFile}"`,
-  ].join('; ');
+  ].join('\n');
 };
 
 export const buildRemoteStatsShellCommand = (): string => {
