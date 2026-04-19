@@ -1,6 +1,6 @@
 {
   "name": "oneshot-ship",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Ship code in one command. Repo + task in, PR out.",
   "homepage": "https://adwilkinson.github.io/oneshot-cli",
   "type": "module",
@@ -13,14 +13,26 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
-  "keywords": ["cli", "ai", "claude", "codex", "ssh", "bun", "code-review", "pull-request"],
+  "keywords": [
+    "cli",
+    "ai",
+    "claude",
+    "codex",
+    "ssh",
+    "bun",
+    "code-review",
+    "pull-request"
+  ],
   "author": "ADWilkinson",
   "license": "MIT",
   "repository": "ADWilkinson/oneshot-cli",
   "engines": {
     "bun": ">=1.0.0"
   },
-  "os": ["darwin", "linux"],
+  "os": [
+    "darwin",
+    "linux"
+  ],
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.7.0"
