@@ -132,20 +132,35 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     // Review pushes fixes on top of the draft PR branch.
     // If review fails or times out, the draft PR still has all the execution work.
     let shouldFinalizePr = false;
+    let reviewTimedOut = false;
     try {
       await runStep(7, events, stepTimings, () => review(ctx));
       shouldFinalizePr = true;
     } catch (err) {
       if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {
-        log.warn("review timed out — draft PR preserved, skipping finalization");
+        reviewTimedOut = true;
+        log.warn("review timed out — salvaging partial changes before finalize");
       } else {
         log.warn(`review failed — draft PR preserved: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
-    // Push review fixes (if any) and mark PR as ready
+    // Push review fixes (if any) and mark PR as ready. On review timeout we
+    // still commit+push whatever codex wrote so the worktree isn't lost, but
+    // leave the PR in draft (markReady: false).
     if (shouldFinalizePr) {
       await runStep(8, events, stepTimings, () => finalizeAfterReview(ctx));
+    } else if (reviewTimedOut) {
+      try {
+        await runStep(8, events, stepTimings, () =>
+          finalizeAfterReview(ctx, {
+            markReady: false,
+            commitMessage: "fix: salvage partial review changes (timed out)",
+          })
+        );
+      } catch (salvageErr) {
+        log.warn(`salvage after review timeout failed: ${salvageErr instanceof Error ? salvageErr.message : String(salvageErr)}`);
+      }
     }
 
     let filesChanged = 0;

@@ -190,11 +190,11 @@ export const saveConfig = (config: OneshotConfig): void => {
 };
 
 const DEFAULT_STEP_TIMEOUTS = {
-  planMinutes: 20,
-  executeMinutes: 60,
-  reviewMinutes: 20,
-  deepReviewMinutes: 20,
-  prMinutes: 20,
+  planMinutes: 60,
+  executeMinutes: 180,
+  reviewMinutes: 60,
+  deepReviewMinutes: 60,
+  prMinutes: 60,
 };
 
 export type StepTimeoutKey = keyof typeof DEFAULT_STEP_TIMEOUTS;

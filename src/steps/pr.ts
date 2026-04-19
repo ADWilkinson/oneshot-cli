@@ -78,7 +78,11 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
  * If the rebase conflicts we abort cleanly and throw ERR_REBASE_CONFLICT so
  * the caller can distinguish "our review lost the race" from a real failure.
  */
-export const finalizeAfterReview = async (ctx: PipelineContext): Promise<void> => {
+export const finalizeAfterReview = async (
+  ctx: PipelineContext,
+  opts: { markReady?: boolean; commitMessage?: string } = {}
+): Promise<void> => {
+  const { markReady = true, commitMessage = "fix: address review findings" } = opts;
   const { worktreePath, prUrl } = ctx;
 
   // Check if review made any changes
@@ -91,7 +95,7 @@ export const finalizeAfterReview = async (ctx: PipelineContext): Promise<void> =
   if (hasChanges) {
     // Stage and commit the review fixes
     await execOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
-    await execOrThrow(`cd ${shellEscape(worktreePath)} && git commit -m "fix: address review findings"`);
+    await execOrThrow(`cd ${shellEscape(worktreePath)} && git commit -m ${shellEscape(commitMessage)}`);
 
     // Figure out which branch we're on (claude -p in createDraftPr should
     // have checked out an oneshot/... branch before committing the PR commit).
@@ -151,7 +155,10 @@ export const finalizeAfterReview = async (ctx: PipelineContext): Promise<void> =
     );
   }
 
-  // Mark the PR as ready (remove draft status)
+  // Mark the PR as ready (remove draft status). Skipped when the caller wants
+  // to preserve draft status — e.g. after a review timeout where work was
+  // committed but the review pass didn't complete.
+  if (!markReady) return;
   const prNumber = prUrl.match(/\/pull\/(\d+)/)?.[1];
   if (!prNumber) throw new Error(`could not extract PR number from URL: ${prUrl}`);
   await execOrThrow(`cd ${shellEscape(worktreePath)} && gh pr ready ${shellEscape(prNumber)}`);
