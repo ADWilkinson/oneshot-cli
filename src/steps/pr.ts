@@ -17,6 +17,21 @@ const loadPromptTemplate = (): string => {
 export const getPrModel = (ctx: PipelineContext): string =>
   ctx.options.model ?? ctx.config.claude.model;
 
+const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<string> => {
+  const { stdout } = await exec(
+    `cd ${shellEscape(worktreePath)} && git ls-remote --heads origin 'refs/heads/oneshot/${shellEscape(slug)}-*'`
+  );
+  const existing = stdout
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.replace(/.*refs\/heads\//, ""))
+    .sort()
+    .pop();
+  if (existing) return existing;
+  return `oneshot/${slug}-${Date.now()}`;
+};
+
 /**
  * Create a draft PR with all current changes committed and pushed.
  * Returns the PR URL. The PR is created as draft so review can push fixes on top.
@@ -27,7 +42,7 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const branchSlug = options.linearIssueId
     ? options.linearIssueId.toLowerCase()
     : slugify(options.taskSummary ?? options.task) || "task";
-  const branchName = `oneshot/${branchSlug}-${Date.now()}`;
+  const branchName = await findOrCreateBranch(worktreePath, branchSlug);
   const baseBranch = options.branch ?? "main";
   const taskSummary = options.taskSummary ?? options.task;
 

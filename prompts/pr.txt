@@ -10,14 +10,18 @@ You are creating a pull request for changes already made in this repository.
    - `git diff --stat origin/{{baseBranch}}...HEAD`
    - `git diff --name-only origin/{{baseBranch}}...HEAD`
    - `git diff origin/{{baseBranch}}...HEAD`
-2. Create and checkout a new branch named: {{branchName}}
+2. Check if branch `{{branchName}}` already exists on origin:
+   - If it exists: `git fetch origin {{branchName}} && git checkout -B {{branchName}} FETCH_HEAD` then reset to match your current working tree changes
+   - If it does not exist: `git checkout -b {{branchName}}`
 3. Stage all changes with git add -A
 4. Create a commit with a descriptive message:
    - Imperative mood, lowercase, no period
    - Prefix with feat:/fix:/refactor:/chore: as appropriate
    - Keep it concise (under 72 chars)
-5. Push the branch to origin
-6. Create a DRAFT PR using `gh pr create --draft` with:
+5. Push the branch to origin (use `--force-with-lease` if the branch already existed)
+6. Check if a PR already exists for this branch: `gh pr list --head {{branchName}} --json number --jq '.[0].number'`
+   - If a PR exists: update it with `gh pr edit <number> --title "..." --body "..."` and print the existing PR URL
+   - If no PR exists: Create a DRAFT PR using `gh pr create --draft` with:
    - Base branch: {{baseBranch}}
    - Pass `--base {{baseBranch}}` to `gh pr create`
    - A concise title (under 70 chars) that describes the change, not the ticket
