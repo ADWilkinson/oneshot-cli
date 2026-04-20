@@ -68,15 +68,117 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   throw new Error("could not extract PR URL from claude output");
 };
 
+const isAncestor = async (
+  worktreePath: string,
+  maybeAncestor: string,
+  descendant: string
+): Promise<boolean> => {
+  try {
+    await execOrThrow(
+      `cd ${shellEscape(worktreePath)} && git merge-base --is-ancestor ${shellEscape(maybeAncestor)} ${shellEscape(descendant)}`
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const abortRebaseQuietly = async (worktreePath: string): Promise<void> => {
+  try {
+    await execOrThrow(`cd ${shellEscape(worktreePath)} && git rebase --abort`);
+  } catch {
+    // Nothing in progress, or already aborted. Either way we don't want to
+    // mask the original rebase error that led us here.
+  }
+};
+
+const isPushRaceError = (err: unknown): boolean => {
+  const msg = err instanceof Error ? err.message : String(err);
+  const detail = err instanceof OneshotError ? err.detail ?? "" : "";
+  const combined = `${msg} ${detail}`.toLowerCase();
+  return (
+    combined.includes("non-fast-forward") ||
+    combined.includes("fetch first") ||
+    combined.includes("updates were rejected") ||
+    combined.includes("failed to push some refs") ||
+    combined.includes("rejected")
+  );
+};
+
+/**
+ * Fetch → rebase onto remote tip if it moved → push. Retries the full cycle
+ * on push-race (non-fast-forward) so we stay resilient when another pusher
+ * sneaks a commit in between our fetch and our push. A rebase *conflict*
+ * (semantic incompatibility with commits on the remote) is non-retryable and
+ * surfaces ERR_REBASE_CONFLICT immediately so the caller can distinguish
+ * "lost the race" from "code is fundamentally incompatible".
+ */
+const syncAndPushWithRetry = async (
+  worktreePath: string,
+  branchName: string,
+  maxAttempts = 3
+): Promise<void> => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await execOrThrow(
+      `cd ${shellEscape(worktreePath)} && git fetch origin ${shellEscape(branchName)}`
+    );
+
+    const localHead = (
+      await execOrThrow(`cd ${shellEscape(worktreePath)} && git rev-parse HEAD`)
+    ).trim();
+    const remoteTip = (
+      await execOrThrow(`cd ${shellEscape(worktreePath)} && git rev-parse FETCH_HEAD`)
+    ).trim();
+
+    // If the remote tip is already an ancestor of our local HEAD we're ahead
+    // and can push straight. Otherwise the remote has commits we don't have
+    // and we need to rebase before pushing.
+    if (localHead !== remoteTip && !(await isAncestor(worktreePath, remoteTip, localHead))) {
+      try {
+        await execOrThrow(
+          `cd ${shellEscape(worktreePath)} && git rebase ${shellEscape(remoteTip)}`
+        );
+      } catch (rebaseErr) {
+        await abortRebaseQuietly(worktreePath);
+        const detail = rebaseErr instanceof Error ? rebaseErr.message : String(rebaseErr);
+        throw new OneshotError(
+          `review fix commit could not be rebased onto ${branchName} — conflicting changes on the PR branch. PR left in draft.`,
+          "ERR_REBASE_CONFLICT",
+          detail
+        );
+      }
+    }
+
+    try {
+      await execOrThrow(
+        `cd ${shellEscape(worktreePath)} && git push origin HEAD:${shellEscape(`refs/heads/${branchName}`)}`
+      );
+      return;
+    } catch (pushErr) {
+      if (!isPushRaceError(pushErr) || attempt === maxAttempts) throw pushErr;
+      const delay = 500 * attempt;
+      console.warn(
+        `[oneshot] push raced on ${branchName}, retrying in ${delay}ms (${attempt}/${maxAttempts})`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw new OneshotError(
+    `syncAndPushWithRetry exhausted ${maxAttempts} attempts on ${branchName}`,
+    "ERR_UNKNOWN"
+  );
+};
+
 /**
  * After review, commit any fixes and push. Then mark the PR as ready.
  * If review made no changes, just marks the PR as ready.
  *
- * Handles the case where something else (e.g. oneshot-bot's auto-fixer) has
- * raced us and pushed to the PR branch while the review step was running:
- * fetch the remote, rebase our review commit onto the new tip, and push.
- * If the rebase conflicts we abort cleanly and throw ERR_REBASE_CONFLICT so
- * the caller can distinguish "our review lost the race" from a real failure.
+ * Handles concurrent pushers on the same PR branch (another oneshot run
+ * sharing the branch, oneshot-bot's auto-fixer, a human pushing manually)
+ * via syncAndPushWithRetry: fetch → rebase → push with retry on push-race.
+ * A semantic rebase conflict still surfaces ERR_REBASE_CONFLICT so the
+ * draft PR is preserved and a human can take over.
  */
 export const finalizeAfterReview = async (
   ctx: PipelineContext,
@@ -85,7 +187,6 @@ export const finalizeAfterReview = async (
   const { markReady = true, commitMessage = "fix: address review findings" } = opts;
   const { worktreePath, prUrl } = ctx;
 
-  // Check if review made any changes
   const diffCheck = await exec(`cd ${shellEscape(worktreePath)} && git diff --stat`);
   const untracked = await exec(
     `cd ${shellEscape(worktreePath)} && git ls-files --others --exclude-standard`
@@ -93,12 +194,9 @@ export const finalizeAfterReview = async (
   const hasChanges = !!(diffCheck.stdout.trim() || untracked.stdout.trim());
 
   if (hasChanges) {
-    // Stage and commit the review fixes
     await execOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
     await execOrThrow(`cd ${shellEscape(worktreePath)} && git commit -m ${shellEscape(commitMessage)}`);
 
-    // Figure out which branch we're on (claude -p in createDraftPr should
-    // have checked out an oneshot/... branch before committing the PR commit).
     const branchResult = await execOrThrow(
       `cd ${shellEscape(worktreePath)} && git rev-parse --abbrev-ref HEAD`
     );
@@ -110,54 +208,9 @@ export const finalizeAfterReview = async (
       );
     }
 
-    // Fetch the remote branch to see whether anything raced us while review ran.
-    await execOrThrow(
-      `cd ${shellEscape(worktreePath)} && git fetch origin ${shellEscape(branchName)}`
-    );
-
-    // HEAD^ is the commit the review commit was built on (the PR's feat commit).
-    // If FETCH_HEAD points at the same SHA, nothing raced us and we can push
-    // straight. Otherwise the remote has moved and we need to rebase our review
-    // commit onto the new tip before pushing.
-    const localBase = (
-      await execOrThrow(`cd ${shellEscape(worktreePath)} && git rev-parse HEAD^`)
-    ).trim();
-    const remoteTip = (
-      await execOrThrow(`cd ${shellEscape(worktreePath)} && git rev-parse FETCH_HEAD`)
-    ).trim();
-
-    if (localBase !== remoteTip) {
-      try {
-        await execOrThrow(
-          `cd ${shellEscape(worktreePath)} && git rebase FETCH_HEAD`
-        );
-      } catch (rebaseErr) {
-        // Abort so the worktree is clean for teardown. Swallow any failure
-        // from the abort itself — if there's nothing to abort git will just
-        // complain and we don't want to mask the original rebase error.
-        const abortResult = await exec(
-          `cd ${shellEscape(worktreePath)} && git rebase --abort`
-        );
-        void abortResult;
-        const detail = rebaseErr instanceof Error ? rebaseErr.message : String(rebaseErr);
-        throw new OneshotError(
-          `review fix commit could not be rebased onto ${branchName} — another process pushed conflicting changes while the review was running. PR left in draft.`,
-          "ERR_REBASE_CONFLICT",
-          detail
-        );
-      }
-    }
-
-    // Use an explicit refspec so push works even if the local branch doesn't
-    // have an upstream configured (claude -p may push without --set-upstream).
-    await execOrThrow(
-      `cd ${shellEscape(worktreePath)} && git push origin HEAD:${shellEscape(`refs/heads/${branchName}`)}`
-    );
+    await syncAndPushWithRetry(worktreePath, branchName);
   }
 
-  // Mark the PR as ready (remove draft status). Skipped when the caller wants
-  // to preserve draft status — e.g. after a review timeout where work was
-  // committed but the review pass didn't complete.
   if (!markReady) return;
   const prNumber = prUrl.match(/\/pull\/(\d+)/)?.[1];
   if (!prNumber) throw new Error(`could not extract PR number from URL: ${prUrl}`);
