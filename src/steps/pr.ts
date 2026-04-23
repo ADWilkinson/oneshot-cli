@@ -33,11 +33,85 @@ const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<s
 };
 
 /**
+ * Best-effort snapshot of current worktree commits to origin on a dedicated
+ * salvage branch BEFORE we hand off to claude for PR creation. Execute-phase
+ * work is therefore durable even if claude, gh, or the PR-extraction regex
+ * fails. Idempotent; pushes are force-with-lease to the salvage namespace
+ * so we don't race with the prompt's own push of the final branch.
+ */
+const snapshotWorktreeToOrigin = async (
+  worktreePath: string,
+  branchSlug: string,
+  runId: string
+): Promise<void> => {
+  const diffCheck = await exec(
+    `cd ${shellEscape(worktreePath)} && git diff --stat`
+  );
+  const untrackedCheck = await exec(
+    `cd ${shellEscape(worktreePath)} && git ls-files --others --exclude-standard`
+  );
+  const hasUncommittedChanges = !!(
+    diffCheck.stdout.trim() || untrackedCheck.stdout.trim()
+  );
+
+  if (hasUncommittedChanges) {
+    try {
+      await execOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
+      await execOrThrow(
+        `cd ${shellEscape(worktreePath)} && git -c user.email=oneshot@local -c user.name=oneshot commit -m ${shellEscape("chore: oneshot safety snapshot")}`
+      );
+    } catch {
+      // Commit may fail if nothing staged; non-fatal.
+    }
+  }
+
+  const aheadCheck = await exec(
+    `cd ${shellEscape(worktreePath)} && git rev-list --count origin/main..HEAD`
+  );
+  if (parseInt(aheadCheck.stdout.trim() || "0", 10) === 0) return;
+
+  const safetyBranch = `oneshot-salvage/${branchSlug}-${runId}`;
+  try {
+    await execOrThrow(
+      `cd ${shellEscape(worktreePath)} && git push origin HEAD:${shellEscape(`refs/heads/${safetyBranch}`)} --force-with-lease`
+    );
+  } catch {
+    // Best effort. Caller continues to PR creation regardless.
+  }
+};
+
+/**
+ * Fallback: if claude's output regex missed but a PR does exist on origin for
+ * this branch, recover its URL via the GitHub API. Cheap, idempotent, and
+ * narrowly scoped — returns null on any failure so the caller can decide.
+ */
+const findExistingPrForBranch = async (
+  worktreePath: string,
+  branchName: string
+): Promise<string | null> => {
+  try {
+    const { stdout } = await exec(
+      `cd ${shellEscape(worktreePath)} && gh pr list --head ${shellEscape(branchName)} --state all --json url --jq '.[0].url // empty'`
+    );
+    const url = stdout.trim();
+    return url || null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Create a draft PR with all current changes committed and pushed.
  * Returns the PR URL. The PR is created as draft so review can push fixes on top.
+ *
+ * Resilience: before invoking claude we push a salvage snapshot to
+ * `oneshot-salvage/<slug>-<runId>`, so even if claude's PR creation or output
+ * parsing fails, execute-phase work survives on origin. After claude runs,
+ * if neither regex matches, we fall back to `gh pr list --head` before
+ * throwing — claude may have opened the PR but decorated the URL unexpectedly.
  */
 export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
-  const { config, options, worktreePath } = ctx;
+  const { config, options, worktreePath, runId } = ctx;
 
   const branchSlug = options.linearIssueId
     ? options.linearIssueId.toLowerCase()
@@ -45,6 +119,8 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const branchName = await findOrCreateBranch(worktreePath, branchSlug);
   const baseBranch = options.branch ?? "main";
   const taskSummary = options.taskSummary ?? options.task;
+
+  await snapshotWorktreeToOrigin(worktreePath, branchSlug, runId);
 
   const model = getPrModel(ctx);
   const prompt = loadPromptTemplate()
@@ -65,7 +141,13 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const urlMatch = result.match(/https:\/\/github\.com\/[^\s]+\/pull\/\d+/);
   if (urlMatch) return urlMatch[0];
 
-  throw new Error("could not extract PR URL from claude output");
+  const fallbackUrl = await findExistingPrForBranch(worktreePath, branchName);
+  if (fallbackUrl) return fallbackUrl;
+
+  throw new OneshotError(
+    `could not extract PR URL from claude output (branch '${branchName}', salvage snapshot at oneshot-salvage/${branchSlug}-${runId})`,
+    "ERR_UNKNOWN"
+  );
 };
 
 const isAncestor = async (

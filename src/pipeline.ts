@@ -201,9 +201,20 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     const errorCode = err instanceof OneshotError ? err.code : undefined;
     const errorDetail = err instanceof OneshotError ? err.detail : undefined;
     events.failed(msg, Date.now() - ctx.startTime, errorCode, errorDetail);
+    log.warn(
+      `pipeline failed; preserving worktree for recovery at ${ctx.worktreePath}`
+    );
+    log.warn(
+      `inspect with: ssh <host> 'cd ${ctx.worktreePath} && git log --oneline -5 && git status'`
+    );
     throw err;
   } finally {
-    if (!options.dryRun) {
+    // Only clean up the worktree on successful runs (or dry-runs). On failure
+    // we keep it on disk so a human can salvage work. createDraftPr also
+    // pushes a best-effort snapshot to `oneshot-salvage/<slug>-<runId>` so
+    // even without shell access, the commits survive on origin.
+    const succeeded = !!ctx.prUrl || options.dryRun;
+    if (!options.dryRun && succeeded) {
       try { await removeWorktree(ctx); } catch {
         log.warn(`failed to clean up worktree at ${ctx.worktreePath}`);
       }
