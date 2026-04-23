@@ -8,7 +8,7 @@ const makeContext = (modelOverride?: string): PipelineContext =>
       host: "example-host",
       basePath: "~/projects",
       claude: { model: "opus-from-config", timeoutMinutes: 180 },
-      codex: { model: "gpt-5.4-mini", reasoningEffort: "xhigh", timeoutMinutes: 180 },
+      codex: { model: "gpt-5.5", reasoningEffort: "xhigh", timeoutMinutes: 180 },
     },
     options: {
       repo: "demo/repo",

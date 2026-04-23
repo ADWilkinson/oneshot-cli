@@ -11,7 +11,7 @@ const loadPromptTemplate = (): string => {
 };
 
 const getReviewModel = (ctx: PipelineContext): string =>
-  ctx.config.codex.reviewModel ?? "gpt-5.4-mini";
+  ctx.config.codex.reviewModel ?? "gpt-5.5";
 
 const getReviewEffort = (ctx: PipelineContext): string =>
   ctx.config.codex.reviewReasoningEffort ?? "xhigh";

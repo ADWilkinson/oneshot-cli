@@ -62,9 +62,9 @@ const DEFAULT_CONFIG: Omit<OneshotConfig, "host"> = {
     timeoutMinutes: 180,
   },
   codex: {
-    model: "gpt-5.4-mini",
+    model: "gpt-5.5",
     reasoningEffort: "xhigh",
-    reviewModel: "gpt-5.4-mini",
+    reviewModel: "gpt-5.5",
     reviewReasoningEffort: "xhigh",
     timeoutMinutes: 180,
   },

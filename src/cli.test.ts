@@ -219,7 +219,7 @@ describe("CLI integration", () => {
         host: "example-host",
         basePath: "~/projects",
         claude: { model: "opus", timeoutMinutes: 180 },
-        codex: { model: "gpt-5.4-mini", reasoningEffort: "xhigh", timeoutMinutes: 180 },
+        codex: { model: "gpt-5.5", reasoningEffort: "xhigh", timeoutMinutes: 180 },
       })
     );
 
@@ -255,7 +255,7 @@ describe("CLI integration", () => {
         anthropicApiKey: "ant-test",
         linearApiKey: "lin-test",
         claude: { model: "opus", timeoutMinutes: 180 },
-        codex: { model: "gpt-5.4-mini", reasoningEffort: "xhigh", timeoutMinutes: 180 },
+        codex: { model: "gpt-5.5", reasoningEffort: "xhigh", timeoutMinutes: 180 },
       })
     );
 

@@ -101,9 +101,9 @@ oneshot stats                          # recent runs + timing
     "timeoutMinutes": 180
   },
   "codex": {
-    "model": "gpt-5.4-mini",
+    "model": "gpt-5.5",
     "reasoningEffort": "xhigh",
-    "reviewModel": "gpt-5.4-mini",
+    "reviewModel": "gpt-5.5",
     "reviewReasoningEffort": "xhigh",
     "timeoutMinutes": 180
   },
@@ -127,7 +127,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `anthropicApiKey` | No | Falls back to `ANTHROPIC_API_KEY` env var |
 | `linearApiKey` | No | Enables Linear ticket integration |
 | `claude.model` | No | Model for Plan, Classify, PR steps. Default: `opus` |
-| `codex.model` | No | Model for Execute step. Default: `gpt-5.4-mini` |
+| `codex.model` | No | Model for Execute step. Default: `gpt-5.5` |
 | `codex.reasoningEffort` | No | Reasoning effort for execution. Default: `xhigh` |
 | `codex.reviewModel` | No | Model for Review step. Default: same as `codex.model` |
 | `codex.reviewReasoningEffort` | No | Reasoning effort for review. Default: same as `codex.reasoningEffort` |
