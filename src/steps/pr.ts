@@ -1,10 +1,24 @@
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import type { PipelineContext } from "../config";
 import { execOrThrow, exec, OneshotError } from "../exec";
 import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR, CLAUDE_PLUGIN_DIR } from "../paths";
+
+const PR_TITLE_FILE = ".oneshot-pr-title.txt";
+const PR_BODY_FILE = ".oneshot-pr-body.txt";
+
+const readPrMetadataFile = (worktreePath: string, filename: string): string | null => {
+  const path = join(worktreePath, filename);
+  if (!existsSync(path)) return null;
+  try {
+    const content = readFileSync(path, "utf-8").trim();
+    return content || null;
+  } catch {
+    return null;
+  }
+};
 
 const pluginFlag = CLAUDE_PLUGIN_DIR
   ? `--plugin-dir ${shellEscape(CLAUDE_PLUGIN_DIR)} `
@@ -101,14 +115,76 @@ const findExistingPrForBranch = async (
 };
 
 /**
+ * Push the branch to origin. Force-with-lease so re-runs on the same branch
+ * overwrite cleanly without clobbering unknown upstream work. Retries a
+ * couple times on transient git network errors via gitRetry semantics
+ * inherited from exec. Throws on persistent failure.
+ */
+const pushBranchToOrigin = async (
+  worktreePath: string,
+  branchName: string
+): Promise<void> => {
+  await execOrThrow(
+    `cd ${shellEscape(worktreePath)} && git push -u origin HEAD:${shellEscape(`refs/heads/${branchName}`)} --force-with-lease`
+  );
+};
+
+/**
+ * Use `gh pr edit` (if a PR exists) or `gh pr create --draft` to open a
+ * PR with our own title + body, captured directly from `gh` stdout. No
+ * regex parsing of claude's conversational output — the URL on the last
+ * non-empty stdout line from `gh pr create` is the canonical format
+ * (`https://github.com/<org>/<repo>/pull/<n>`).
+ */
+const openOrUpdateDraftPr = async (
+  worktreePath: string,
+  branchName: string,
+  baseBranch: string,
+  title: string,
+  body: string
+): Promise<string> => {
+  const existingUrl = await findExistingPrForBranch(worktreePath, branchName);
+  if (existingUrl) {
+    await execOrThrow(
+      `cd ${shellEscape(worktreePath)} && gh pr edit ${shellEscape(existingUrl)} --title ${shellEscape(title)} --body ${shellEscape(body)}`
+    );
+    return existingUrl;
+  }
+
+  const stdout = await execOrThrow(
+    `cd ${shellEscape(worktreePath)} && gh pr create --draft --base ${shellEscape(baseBranch)} --head ${shellEscape(branchName)} --title ${shellEscape(title)} --body ${shellEscape(body)}`
+  );
+  const urlMatch = stdout.match(/https:\/\/github\.com\/[^\s]+\/pull\/\d+/);
+  if (!urlMatch) {
+    throw new OneshotError(
+      `gh pr create succeeded but returned no URL (branch '${branchName}')`,
+      "ERR_UNKNOWN",
+      stdout.slice(0, 500)
+    );
+  }
+  return urlMatch[0];
+};
+
+/**
  * Create a draft PR with all current changes committed and pushed.
- * Returns the PR URL. The PR is created as draft so review can push fixes on top.
  *
- * Resilience: before invoking claude we push a salvage snapshot to
- * `oneshot-salvage/<slug>-<runId>`, so even if claude's PR creation or output
- * parsing fails, execute-phase work survives on origin. After claude runs,
- * if neither regex matches, we fall back to `gh pr list --head` before
- * throwing — claude may have opened the PR but decorated the URL unexpectedly.
+ * Control flow — the runtime owns push + PR creation, not claude:
+ *
+ * 1. Push a salvage snapshot of the execute-phase commits to
+ *    `oneshot-salvage/<slug>-<runId>` so the work survives even if anything
+ *    below this point explodes.
+ * 2. Invoke claude with a prompt that INSTRUCTS IT TO NOT push or open a PR;
+ *    it only commits and writes `.oneshot-pr-title.txt` +
+ *    `.oneshot-pr-body.txt` at the worktree root.
+ * 3. Read those two files (fall back to task text if either is missing).
+ * 4. Push the branch ourselves via `git push --force-with-lease`.
+ * 5. Open or update the PR ourselves via `gh pr edit` / `gh pr create --draft`,
+ *    capturing the URL directly from `gh` stdout — no regex on claude output.
+ *
+ * This replaces the prior flow where claude did the push + `gh pr create`
+ * and we parsed its conversational stdout for a `PR_URL:` line. That flow
+ * broke whenever claude decorated the URL differently than the regex
+ * expected, and dropped all execute-phase work on the floor.
  */
 export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const { config, options, worktreePath, runId } = ctx;
@@ -120,6 +196,10 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const baseBranch = options.branch ?? "main";
   const taskSummary = options.taskSummary ?? options.task;
 
+  // Belt-and-suspenders: the runtime now owns the push, but keep the salvage
+  // branch push too so ANY branching of this flow that fails mid-way (e.g.
+  // claude times out before writing the title/body files) still leaves
+  // recoverable work on origin.
   await snapshotWorktreeToOrigin(worktreePath, branchSlug, runId);
 
   const model = getPrModel(ctx);
@@ -130,24 +210,20 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
 
   const timeoutMs = getStepTimeout(config, "prMinutes");
 
-  const result = await execOrThrow(
+  await execOrThrow(
     `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}--dangerously-skip-permissions --model ${shellEscape(model)} --no-session-persistence`,
     { timeoutMs, stream: true }
   );
 
-  const prUrlMatch = result.match(/PR_URL:\s*(https:\/\/github\.com\/\S+)/);
-  if (prUrlMatch) return prUrlMatch[1];
+  const title =
+    readPrMetadataFile(worktreePath, PR_TITLE_FILE) ??
+    taskSummary.slice(0, 70);
+  const body =
+    readPrMetadataFile(worktreePath, PR_BODY_FILE) ??
+    `## Summary\n\n${taskSummary}\n\n## Test plan\n\nNot run (PR metadata file missing; fallback to task text).\n`;
 
-  const urlMatch = result.match(/https:\/\/github\.com\/[^\s]+\/pull\/\d+/);
-  if (urlMatch) return urlMatch[0];
-
-  const fallbackUrl = await findExistingPrForBranch(worktreePath, branchName);
-  if (fallbackUrl) return fallbackUrl;
-
-  throw new OneshotError(
-    `could not extract PR URL from claude output (branch '${branchName}', salvage snapshot at oneshot-salvage/${branchSlug}-${runId})`,
-    "ERR_UNKNOWN"
-  );
+  await pushBranchToOrigin(worktreePath, branchName);
+  return openOrUpdateDraftPr(worktreePath, branchName, baseBranch, title, body);
 };
 
 const isAncestor = async (

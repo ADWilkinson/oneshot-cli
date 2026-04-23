@@ -1,42 +1,72 @@
-You are creating a pull request for changes already made in this repository.
+You are finalizing a commit and preparing pull-request metadata for changes
+already made in this repository. **You are NOT pushing or creating a PR.**
+The oneshot-cli runtime handles the push and `gh pr create` itself, using the
+metadata you write to disk. Your job is only: inspect, branch, commit, and
+write the title + body files.
 
 ## Task
 {{task}}
 
 ## Instructions
 
-1. Before writing the PR, inspect the actual shipped changes:
+1. Inspect the actual shipped changes before writing anything:
    - `git status --short`
    - `git diff --stat origin/{{baseBranch}}...HEAD`
    - `git diff --name-only origin/{{baseBranch}}...HEAD`
-   - `git diff origin/{{baseBranch}}...HEAD`
-2. Check if branch `{{branchName}}` already exists on origin:
-   - If it exists: `git fetch origin {{branchName}} && git checkout -B {{branchName}} FETCH_HEAD` then reset to match your current working tree changes
-   - If it does not exist: `git checkout -b {{branchName}}`
-3. Stage all changes with git add -A
-4. Create a commit with a descriptive message:
-   - Imperative mood, lowercase, no period
-   - Prefix with feat:/fix:/refactor:/chore: as appropriate
-   - Keep it concise (under 72 chars)
-5. Push the branch to origin (use `--force-with-lease` if the branch already existed)
-6. Check if a PR already exists for this branch: `gh pr list --head {{branchName}} --json number --jq '.[0].number'`
-   - If a PR exists: update it with `gh pr edit <number> --title "..." --body "..."` and print the existing PR URL
-   - If no PR exists: Create a DRAFT PR using `gh pr create --draft` with:
-   - Base branch: {{baseBranch}}
-   - Pass `--base {{baseBranch}}` to `gh pr create`
-   - A concise title (under 70 chars) that describes the change, not the ticket
-   - A body that is richer but still tightly scannable
+   - `git diff origin/{{baseBranch}}...HEAD` (read the diff; don't paste it).
+
+2. Prepare the branch named `{{branchName}}`:
+   - Check if it already exists on origin with
+     `git ls-remote --heads origin {{branchName}}`.
+   - If it exists: `git fetch origin {{branchName}} && git checkout -B {{branchName}} FETCH_HEAD`,
+     then copy any uncommitted changes from the previous HEAD onto it as
+     needed.
+   - If it does NOT exist: `git checkout -b {{branchName}}`.
+
+3. Stage all changes and create exactly ONE commit (amend or squash as
+   needed so the branch carries exactly one new commit on top of its
+   previous origin state):
+   - Run `git add -A`.
+   - Commit with a message that will also be the PR title:
+     - Imperative mood, lowercase, no period.
+     - Prefix with `feat:` / `fix:` / `refactor:` / `chore:` / `docs:` /
+       `test:` as appropriate.
+     - Under 72 chars.
+
+4. Write the PR title to `.oneshot-pr-title.txt` at the worktree root.
+   - Single line, no trailing newline.
+   - Under 70 chars.
+   - Describes the change, not the ticket.
+
+5. Write the PR body to `.oneshot-pr-body.txt` at the worktree root.
+   - Markdown.
    - Keep these sections in this order for compatibility:
-     - `## Summary` -- 2-4 bullets covering the user-visible outcome and the most important implementation changes
-     - `## Why` -- 1 short paragraph or 1-2 bullets explaining the motivation / problem being solved
-     - `## Changes` -- grouped bullets for the main code or product areas touched
-     - `## Test plan` -- exact commands actually run, plus concise outcomes; if nothing was run, explicitly say `Not run`
-   - Optional sections after `## Test plan` only when they add real value:
+     - `## Summary` — 2-4 bullets covering the user-visible outcome and
+       the most important implementation changes.
+     - `## Why` — one short paragraph or 1-2 bullets explaining the
+       motivation / problem being solved.
+     - `## Changes` — grouped bullets for the main code or product areas
+       touched.
+     - `## Test plan` — exact commands actually run and their outcomes;
+       say `Not run` if nothing was run.
+   - Optional sections only when they add real value:
      - `## Risks / Follow-ups`
      - `## Context`
-   - Keep it grounded in the actual diff. Do not invent tests, risks, or behavior changes.
-   - Do not paste raw diff output or exhaustive file inventories.
-   - Prefer concrete language over generic PR filler.
-7. Print the PR URL on the last line prefixed with "PR_URL:"
+   - Keep grounded in the actual diff. Do not invent tests, risks, or
+     behavior changes. Do not paste raw diff output or exhaustive file
+     inventories. Prefer concrete language over generic PR filler.
 
-Do NOT modify any code. Only create the branch, commit, push, and open the draft PR.
+6. Verify the two files were written:
+   - `test -s .oneshot-pr-title.txt && test -s .oneshot-pr-body.txt`
+     — they must be non-empty.
+
+7. **Do NOT push. Do NOT run `gh pr create`. Do NOT print `PR_URL:`.**
+   The oneshot-cli runtime pushes the branch and creates / updates the PR
+   itself using the title + body files you just wrote. Trying to push or
+   open the PR yourself races with the runtime and is explicitly forbidden.
+
+8. When you are done, exit cleanly. Your final stdout may summarize what
+   you did but is not parsed for URLs or state.
+
+Do NOT modify any code. Only create the branch, make the one commit, and
+write the two PR-metadata files.
