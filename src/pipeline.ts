@@ -1,7 +1,7 @@
 import type { PipelineContext, OneshotConfig, OneshotOptions } from "./config";
 import { CONFIG_DIR } from "./config";
 import { join } from "path";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { log } from "./log";
 import { formatTime } from "./log";
 import { EventWriter } from "./events";
@@ -194,7 +194,10 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       if (!history[options.repo]) history[options.repo] = [];
       history[options.repo].push(totalElapsed);
       if (history[options.repo].length > 20) history[options.repo] = history[options.repo].slice(-20);
-      writeFileSync(historyPath, JSON.stringify(history, null, 2));
+      mkdirSync(CONFIG_DIR, { recursive: true });
+      const tmpPath = `${historyPath}.${process.pid}.tmp`;
+      writeFileSync(tmpPath, JSON.stringify(history, null, 2));
+      renameSync(tmpPath, historyPath);
     } catch { /* ignore */ }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

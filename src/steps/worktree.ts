@@ -1,6 +1,7 @@
 import { resolve } from "path";
 import type { PipelineContext } from "../config";
 import { exec, gitRetry } from "../exec";
+import { shellEscape } from "../shell";
 
 const WORKTREE_ROOT = "/tmp";
 
@@ -33,15 +34,15 @@ export const createWorktree = async (ctx: PipelineContext): Promise<void> => {
   const baseBranch = sanitizeBranch(ctx.options.branch ?? "main");
   ensureWithinRoot(worktreePath);
 
-  await gitRetry(`cd "${repoPath}" && git fetch origin '${baseBranch}'`);
+  await gitRetry(`cd ${shellEscape(repoPath)} && git fetch origin ${shellEscape(baseBranch)}`);
   await gitRetry(
-    `cd "${repoPath}" && git worktree add "${worktreePath}" 'origin/${baseBranch}' --detach`
+    `cd ${shellEscape(repoPath)} && git worktree add ${shellEscape(worktreePath)} ${shellEscape(`origin/${baseBranch}`)} --detach`
   );
 };
 
 export const removeWorktree = async (ctx: PipelineContext): Promise<void> => {
   ensureWithinRoot(ctx.worktreePath);
   await exec(
-    `cd "${ctx.repoPath}" && git worktree remove --force "${ctx.worktreePath}"`
+    `cd ${shellEscape(ctx.repoPath)} && git worktree remove --force ${shellEscape(ctx.worktreePath)}`
   );
 };

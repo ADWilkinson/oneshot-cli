@@ -1,5 +1,6 @@
 import type { PipelineContext, ComplexityMode } from "../config";
 import { exec } from "../exec";
+import { shellEscape } from "../shell";
 
 export const classify = async (ctx: PipelineContext): Promise<ComplexityMode> => {
   const { worktreePath, options } = ctx;
@@ -15,7 +16,7 @@ export const classify = async (ctx: PipelineContext): Promise<ComplexityMode> =>
   const escapedTask = task.replace(/'/g, "'\\''");
   try {
     const result = await exec(
-      `cd "${worktreePath}" && claude -p 'Classify this task as FAST or DEEP. Reply with ONLY one word.\n\nFAST if: typo fix, copy change, config tweak, rename, dependency bump, single-file change, simple bug fix\nDEEP if: multi-file feature, refactor, new service, complex bug, architectural change\n\nTask: ${escapedTask}' --model haiku --no-session-persistence`,
+      `cd ${shellEscape(worktreePath)} && claude -p 'Classify this task as FAST or DEEP. Reply with ONLY one word.\n\nFAST if: typo fix, copy change, config tweak, rename, dependency bump, single-file change, simple bug fix\nDEEP if: multi-file feature, refactor, new service, complex bug, architectural change\n\nTask: ${escapedTask}' --model haiku --no-session-persistence`,
       { timeoutMs: 30_000 }
     );
     const answer = result.stdout.trim().toLowerCase();

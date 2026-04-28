@@ -13,7 +13,7 @@ const loadPromptTemplate = (): string => {
 export const execute = async (ctx: PipelineContext): Promise<void> => {
   const { config, options, worktreePath } = ctx;
 
-  const claudeMd = await exec(`cat "${worktreePath}/CLAUDE.md" 2>/dev/null || echo "No CLAUDE.md found"`);
+  const claudeMd = await exec(`cat ${shellEscape(`${worktreePath}/CLAUDE.md`)} 2>/dev/null || echo "No CLAUDE.md found"`);
 
   const prompt = loadPromptTemplate()
     .replace("{{task}}", options.task)

@@ -35,22 +35,19 @@ const classifyError = (stderr: string, stdout: string): ErrorCode => {
 };
 
 const killProcessTree = (pid: number): void => {
+  // Bun.spawn does not setpgid the child, so signaling -pid would either
+  // ESRCH or hit the parent group. Signal the child directly; if it has
+  // descendants they will be reaped when the shell exits.
   try {
-    // Kill entire process group (negative PID) to catch child processes
-    process.kill(-pid, "SIGTERM");
+    process.kill(pid, "SIGTERM");
   } catch {
-    // Process group kill failed, fall back to direct kill
-    try {
-      process.kill(pid, "SIGKILL");
-    } catch {
-      // Already dead
-    }
+    // Already dead
   }
 
   // Follow up with SIGKILL after 5s in case SIGTERM is ignored
   setTimeout(() => {
     try {
-      process.kill(-pid, "SIGKILL");
+      process.kill(pid, "SIGKILL");
     } catch {
       // Already dead
     }

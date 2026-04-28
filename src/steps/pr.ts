@@ -33,7 +33,7 @@ export const getPrModel = (ctx: PipelineContext): string =>
 
 const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<string> => {
   const { stdout } = await exec(
-    `cd ${shellEscape(worktreePath)} && git ls-remote --heads origin 'refs/heads/oneshot/${shellEscape(slug)}-*'`
+    `cd ${shellEscape(worktreePath)} && git ls-remote --heads origin ${shellEscape(`refs/heads/oneshot/${slug}-*`)}`
   );
   const existing = stdout
     .trim()

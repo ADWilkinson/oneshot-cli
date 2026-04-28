@@ -4,7 +4,7 @@ description: Ship code with oneshot CLI. One command that plans, executes, revie
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "0.2.3"
+  version: "0.2.4"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, Claude Code CLI, Codex CLI, and GitHub CLI. SSH access to a server optional (can run locally with --local)
 ---

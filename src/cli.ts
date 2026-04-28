@@ -94,6 +94,9 @@ export const parseArgs = (args: string[]): ParsedArgs => {
 
   if (positional.length < 1) { log.error("missing repo argument"); printUsage(); process.exit(1); }
   if (positional.length < 2 && !dryRun) { log.error("missing task description or Linear URL"); printUsage(); process.exit(1); }
+  if (mode === "fast" && deepReview) {
+    throw new Error("--mode fast is incompatible with --deep-review");
+  }
 
   return {
     repo: positional[0],
@@ -288,7 +291,15 @@ const main = async () => {
         runStats();
         return;
       }
-      const config = await loadConfig();
+      // Fall back to local stats when no config exists -- stats is read-only
+      // and shouldn't require remote setup.
+      let config: OneshotConfig;
+      try {
+        config = await loadConfig();
+      } catch {
+        runStats();
+        return;
+      }
       const proc = Bun.spawn(
         ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, buildRemoteStatsShellCommand()],
         { stdout: "inherit", stderr: "inherit", stdin: "inherit" }

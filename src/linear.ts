@@ -38,7 +38,7 @@ const gql = async (config: OneshotConfig, query: string, variables: Record<strin
 };
 
 export const isLinearUrl = (input: string): boolean => {
-  return input.startsWith("https://linear.app/");
+  return /^https:\/\/linear\.app\/[^\/]+\/issue\/[A-Z0-9]+-\d+/i.test(input);
 };
 
 export const extractIssueId = (url: string): string => {

@@ -1,4 +1,26 @@
-import { appendFileSync, writeFileSync } from "fs";
+import { appendFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
+
+const EVENTS_REAP_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+const reapOldEventsFiles = (): void => {
+  try {
+    const now = Date.now();
+    for (const name of readdirSync("/tmp")) {
+      if (!name.startsWith("oneshot-") || !name.endsWith(".events.jsonl")) continue;
+      const path = `/tmp/${name}`;
+      try {
+        const { mtimeMs } = statSync(path);
+        if (now - mtimeMs > EVENTS_REAP_MAX_AGE_MS) unlinkSync(path);
+      } catch {
+        // best effort
+      }
+    }
+  } catch {
+    // /tmp not accessible or readdir failed -- never throw from reaper
+  }
+};
+
+reapOldEventsFiles();
 
 export interface StartedEvent {
   readonly type: "started";
@@ -119,8 +141,8 @@ export class EventWriter {
     this.emit({
       type: "completed",
       runId: this.runId,
-      result: opts.result ?? "success",
       ...opts,
+      result: opts.result ?? "success",
       timestamp: Date.now(),
     });
   }
