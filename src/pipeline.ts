@@ -112,8 +112,12 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       await runStep(5, events, stepTimings, () => execute(ctx));
     } catch (err) {
       if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {
-        const { stdout: diffOut } = await exec(`cd "${ctx.worktreePath}" && git diff --stat`);
-        const { stdout: untrackedOut } = await exec(`cd "${ctx.worktreePath}" && git ls-files --others --exclude-standard`);
+        // Generous timeout for the salvage probe -- git status on a worktree
+        // codex was still writing into can be slow, and the default 120s
+        // would hide partial-changes signal behind a second ERR_TIMEOUT.
+        const probeTimeoutMs = 5 * 60 * 1000;
+        const { stdout: diffOut } = await exec(`cd "${ctx.worktreePath}" && git diff --stat`, { timeoutMs: probeTimeoutMs });
+        const { stdout: untrackedOut } = await exec(`cd "${ctx.worktreePath}" && git ls-files --others --exclude-standard`, { timeoutMs: probeTimeoutMs });
         if (diffOut.trim() || untrackedOut.trim()) {
           log.warn("execute timed out but partial changes exist, continuing with degraded review");
         } else {
