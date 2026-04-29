@@ -9,6 +9,13 @@ import { PROMPTS_DIR, CLAUDE_PLUGIN_DIR } from "../paths";
 const PR_TITLE_FILE = ".oneshot-pr-title.txt";
 const PR_BODY_FILE = ".oneshot-pr-body.txt";
 
+// Per-op timeout for git/gh commands inside the PR step. The default
+// 120s in exec() is too tight for `git push` / `gh pr create` on large
+// diffs or slow networks. 10 min is generous without hanging forever.
+const PR_OP_TIMEOUT_MS = 10 * 60 * 1000;
+const prExec = (command: string) => exec(command, { timeoutMs: PR_OP_TIMEOUT_MS });
+const prExecOrThrow = (command: string) => execOrThrow(command, { timeoutMs: PR_OP_TIMEOUT_MS });
+
 const readPrMetadataFile = (worktreePath: string, filename: string): string | null => {
   const path = join(worktreePath, filename);
   if (!existsSync(path)) return null;
@@ -32,7 +39,7 @@ export const getPrModel = (ctx: PipelineContext): string =>
   ctx.options.model ?? ctx.config.claude.model;
 
 const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<string> => {
-  const { stdout } = await exec(
+  const { stdout } = await prExec(
     `cd ${shellEscape(worktreePath)} && git ls-remote --heads origin ${shellEscape(`refs/heads/oneshot/${slug}-*`)}`
   );
   const existing = stdout
@@ -58,10 +65,10 @@ const snapshotWorktreeToOrigin = async (
   branchSlug: string,
   runId: string
 ): Promise<void> => {
-  const diffCheck = await exec(
+  const diffCheck = await prExec(
     `cd ${shellEscape(worktreePath)} && git diff --stat`
   );
-  const untrackedCheck = await exec(
+  const untrackedCheck = await prExec(
     `cd ${shellEscape(worktreePath)} && git ls-files --others --exclude-standard`
   );
   const hasUncommittedChanges = !!(
@@ -70,8 +77,8 @@ const snapshotWorktreeToOrigin = async (
 
   if (hasUncommittedChanges) {
     try {
-      await execOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
-      await execOrThrow(
+      await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
+      await prExecOrThrow(
         `cd ${shellEscape(worktreePath)} && git -c user.email=oneshot@local -c user.name=oneshot commit -m ${shellEscape("chore: oneshot safety snapshot")}`
       );
     } catch {
@@ -79,14 +86,14 @@ const snapshotWorktreeToOrigin = async (
     }
   }
 
-  const aheadCheck = await exec(
+  const aheadCheck = await prExec(
     `cd ${shellEscape(worktreePath)} && git rev-list --count origin/main..HEAD`
   );
   if (parseInt(aheadCheck.stdout.trim() || "0", 10) === 0) return;
 
   const safetyBranch = `oneshot-salvage/${branchSlug}-${runId}`;
   try {
-    await execOrThrow(
+    await prExecOrThrow(
       `cd ${shellEscape(worktreePath)} && git push origin HEAD:${shellEscape(`refs/heads/${safetyBranch}`)} --force-with-lease`
     );
   } catch {
@@ -104,7 +111,7 @@ const findExistingPrForBranch = async (
   branchName: string
 ): Promise<string | null> => {
   try {
-    const { stdout } = await exec(
+    const { stdout } = await prExec(
       `cd ${shellEscape(worktreePath)} && gh pr list --head ${shellEscape(branchName)} --state all --json url --jq '.[0].url // empty'`
     );
     const url = stdout.trim();
@@ -124,7 +131,7 @@ const pushBranchToOrigin = async (
   worktreePath: string,
   branchName: string
 ): Promise<void> => {
-  await execOrThrow(
+  await prExecOrThrow(
     `cd ${shellEscape(worktreePath)} && git push -u origin HEAD:${shellEscape(`refs/heads/${branchName}`)} --force-with-lease`
   );
 };
@@ -145,13 +152,13 @@ const openOrUpdateDraftPr = async (
 ): Promise<string> => {
   const existingUrl = await findExistingPrForBranch(worktreePath, branchName);
   if (existingUrl) {
-    await execOrThrow(
+    await prExecOrThrow(
       `cd ${shellEscape(worktreePath)} && gh pr edit ${shellEscape(existingUrl)} --title ${shellEscape(title)} --body ${shellEscape(body)}`
     );
     return existingUrl;
   }
 
-  const stdout = await execOrThrow(
+  const stdout = await prExecOrThrow(
     `cd ${shellEscape(worktreePath)} && gh pr create --draft --base ${shellEscape(baseBranch)} --head ${shellEscape(branchName)} --title ${shellEscape(title)} --body ${shellEscape(body)}`
   );
   const urlMatch = stdout.match(/https:\/\/github\.com\/[^\s]+\/pull\/\d+/);
@@ -232,7 +239,7 @@ const isAncestor = async (
   descendant: string
 ): Promise<boolean> => {
   try {
-    await execOrThrow(
+    await prExecOrThrow(
       `cd ${shellEscape(worktreePath)} && git merge-base --is-ancestor ${shellEscape(maybeAncestor)} ${shellEscape(descendant)}`
     );
     return true;
@@ -243,7 +250,7 @@ const isAncestor = async (
 
 const abortRebaseQuietly = async (worktreePath: string): Promise<void> => {
   try {
-    await execOrThrow(`cd ${shellEscape(worktreePath)} && git rebase --abort`);
+    await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git rebase --abort`);
   } catch {
     // Nothing in progress, or already aborted. Either way we don't want to
     // mask the original rebase error that led us here.
@@ -277,15 +284,15 @@ const syncAndPushWithRetry = async (
   maxAttempts = 3
 ): Promise<void> => {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await execOrThrow(
+    await prExecOrThrow(
       `cd ${shellEscape(worktreePath)} && git fetch origin ${shellEscape(branchName)}`
     );
 
     const localHead = (
-      await execOrThrow(`cd ${shellEscape(worktreePath)} && git rev-parse HEAD`)
+      await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git rev-parse HEAD`)
     ).trim();
     const remoteTip = (
-      await execOrThrow(`cd ${shellEscape(worktreePath)} && git rev-parse FETCH_HEAD`)
+      await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git rev-parse FETCH_HEAD`)
     ).trim();
 
     // If the remote tip is already an ancestor of our local HEAD we're ahead
@@ -293,7 +300,7 @@ const syncAndPushWithRetry = async (
     // and we need to rebase before pushing.
     if (localHead !== remoteTip && !(await isAncestor(worktreePath, remoteTip, localHead))) {
       try {
-        await execOrThrow(
+        await prExecOrThrow(
           `cd ${shellEscape(worktreePath)} && git rebase ${shellEscape(remoteTip)}`
         );
       } catch (rebaseErr) {
@@ -308,7 +315,7 @@ const syncAndPushWithRetry = async (
     }
 
     try {
-      await execOrThrow(
+      await prExecOrThrow(
         `cd ${shellEscape(worktreePath)} && git push origin HEAD:${shellEscape(`refs/heads/${branchName}`)}`
       );
       return;
@@ -345,17 +352,17 @@ export const finalizeAfterReview = async (
   const { markReady = true, commitMessage = "fix: address review findings" } = opts;
   const { worktreePath, prUrl } = ctx;
 
-  const diffCheck = await exec(`cd ${shellEscape(worktreePath)} && git diff --stat`);
-  const untracked = await exec(
+  const diffCheck = await prExec(`cd ${shellEscape(worktreePath)} && git diff --stat`);
+  const untracked = await prExec(
     `cd ${shellEscape(worktreePath)} && git ls-files --others --exclude-standard`
   );
   const hasChanges = !!(diffCheck.stdout.trim() || untracked.stdout.trim());
 
   if (hasChanges) {
-    await execOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
-    await execOrThrow(`cd ${shellEscape(worktreePath)} && git commit -m ${shellEscape(commitMessage)}`);
+    await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
+    await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git commit -m ${shellEscape(commitMessage)}`);
 
-    const branchResult = await execOrThrow(
+    const branchResult = await prExecOrThrow(
       `cd ${shellEscape(worktreePath)} && git rev-parse --abbrev-ref HEAD`
     );
     const branchName = branchResult.trim();
@@ -372,12 +379,12 @@ export const finalizeAfterReview = async (
   if (!markReady) return;
   const prNumber = prUrl.match(/\/pull\/(\d+)/)?.[1];
   if (!prNumber) throw new Error(`could not extract PR number from URL: ${prUrl}`);
-  await execOrThrow(`cd ${shellEscape(worktreePath)} && gh pr ready ${shellEscape(prNumber)}`);
+  await prExecOrThrow(`cd ${shellEscape(worktreePath)} && gh pr ready ${shellEscape(prNumber)}`);
 };
 
 export const getFilesChanged = async (ctx: PipelineContext): Promise<number> => {
   const baseBranch = ctx.options.branch ?? "main";
-  const result = await execOrThrow(
+  const result = await prExecOrThrow(
     `cd ${shellEscape(ctx.worktreePath)} && git diff --stat ${shellEscape(`origin/${baseBranch}...HEAD`)} | tail -1`
   );
   const match = result.match(/(\d+) files? changed/);
@@ -387,7 +394,7 @@ export const getFilesChanged = async (ctx: PipelineContext): Promise<number> => 
 export const getDiffStats = async (ctx: PipelineContext): Promise<Array<{ file: string; additions: number; deletions: number }>> => {
   try {
     const baseBranch = ctx.options.branch ?? "main";
-    const result = await execOrThrow(
+    const result = await prExecOrThrow(
       `cd ${shellEscape(ctx.worktreePath)} && git diff --numstat ${shellEscape(`origin/${baseBranch}...HEAD`)}`
     );
     return result.trim().split('\n').filter(Boolean).map(line => {
