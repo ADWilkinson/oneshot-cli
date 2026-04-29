@@ -36,8 +36,10 @@ const classifyError = (stderr: string, stdout: string): ErrorCode => {
 
 const killProcessTree = (pid: number): void => {
   try {
-    process.kill(pid, "SIGTERM");
     process.kill(-pid, "SIGTERM");
+  } catch {}
+  try {
+    process.kill(pid, "SIGTERM");
   } catch {
     // Already dead
   }
@@ -45,8 +47,10 @@ const killProcessTree = (pid: number): void => {
   // Follow up with SIGKILL after 5s in case SIGTERM is ignored
   setTimeout(() => {
     try {
-      process.kill(pid, "SIGKILL");
       process.kill(-pid, "SIGKILL");
+    } catch {}
+    try {
+      process.kill(pid, "SIGKILL");
     } catch {
       // Already dead
     }

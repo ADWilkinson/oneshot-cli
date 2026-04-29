@@ -1,0 +1,39 @@
+## Summary
+
+- Group-signal the process tree in `exec.ts` so a `claude -p` grandchild actually dies when the step timeout fires (root cause of the GAL-738 80+ min wedges).
+- Emit a 2-minute heartbeat log inside step 4 so operators can distinguish "slow" from "wedged" instead of staring at a frozen `[4/8] Planning with Claude…` line.
+- Bump `planMinutes` default from 60 to 90 to cover deep-mode plans on monorepos with 3000+ line target files.
+- New `src/exec.test.ts` asserts the grandchild-sleep scenario is cleaned up on Linux.
+
+## Why
+
+Two recent `oneshot --local --bg` dispatches against `personal/galleonlabs-zkp2p` stalled inside step 4 for 96 min and 3h52m. The child `claude -p` process stayed alive because `killProcessTree` only signalled the top-level bash PID — the grandchild was reparented to PID 1 and kept burning CPU. Meanwhile, no log output was emitted after the step started, so the operator had no way to tell "still working" from "stuck". The 60-min default was also too tight for deep-mode plans that routinely run 40-80 min.
+
+Relates to GAL-739 and GAL-738.
+
+## Changes
+
+**`src/exec.ts` — process group kill**
+- Spawn bash with `detached: true` so the child gets its own process group
+- Signal both the leader PID and the negated PID (process group) in `killProcessTree` for both SIGTERM and the follow-up SIGKILL
+
+**`src/steps/plan.ts` — heartbeat**
+- Start a 2-minute `setInterval` before awaiting `execOrThrow` that logs elapsed time and the `planMinutes` limit via `log.info`
+- Clear the interval in a `finally` block
+
+**`src/config.ts` — timeout bump**
+- `DEFAULT_STEP_TIMEOUTS.planMinutes`: 60 → 90
+
+**`src/exec.test.ts` (new)**
+- One test case: spawns `bash -c "sleep 30"` through the `exec` helper with a 2s timeout, waits 6s, then asserts via `pgrep` that no orphan `sleep 30` process remains
+- Skipped on non-Linux platforms
+
+## Test plan
+
+Not run — typecheck and test execution deferred to CI / operator verification. The spec commands are:
+
+```
+bun run typecheck
+bun run test
+bun test src/exec.test.ts
+```

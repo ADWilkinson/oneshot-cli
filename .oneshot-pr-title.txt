@@ -1,0 +1,1 @@
+fix: kill child process tree on timeout + heartbeat step 4 (GAL-739)
