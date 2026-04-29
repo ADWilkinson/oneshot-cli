@@ -35,11 +35,9 @@ const classifyError = (stderr: string, stdout: string): ErrorCode => {
 };
 
 const killProcessTree = (pid: number): void => {
-  // Bun.spawn does not setpgid the child, so signaling -pid would either
-  // ESRCH or hit the parent group. Signal the child directly; if it has
-  // descendants they will be reaped when the shell exits.
   try {
     process.kill(pid, "SIGTERM");
+    process.kill(-pid, "SIGTERM");
   } catch {
     // Already dead
   }
@@ -48,6 +46,7 @@ const killProcessTree = (pid: number): void => {
   setTimeout(() => {
     try {
       process.kill(pid, "SIGKILL");
+      process.kill(-pid, "SIGKILL");
     } catch {
       // Already dead
     }
@@ -60,7 +59,9 @@ export const exec = async (
 ): Promise<ExecResult> => {
   const { timeoutMs = 120_000, stream = false } = options;
 
+  // Run the child in its own process group so timeout signals reach the full tree.
   const proc = Bun.spawn(["bash", "-c", command], {
+    detached: true,
     stdout: "pipe",
     stderr: "pipe",
   });

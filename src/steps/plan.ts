@@ -3,6 +3,7 @@ import { join } from "path";
 import type { PipelineContext } from "../config";
 import { exec, execOrThrow } from "../exec";
 import { getStepTimeout } from "../config";
+import { log } from "../log";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR, CLAUDE_PLUGIN_DIR } from "../paths";
 
@@ -25,11 +26,21 @@ export const plan = async (ctx: PipelineContext): Promise<string> => {
 
   const model = options.model ?? config.claude.model;
   const timeoutMs = getStepTimeout(config, "planMinutes");
+  const stepStart = Date.now();
+  const heartbeat = setInterval(() => {
+    const elapsed = Math.round((Date.now() - stepStart) / 60_000);
+    const limit = timeoutMs / 60_000;
+    log.info(`planning: still working after ${elapsed}m (planMinutes limit = ${limit})`);
+  }, 120_000);
 
-  const result = await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}--model ${shellEscape(model)} --no-session-persistence`,
-    { timeoutMs, stream: true }
-  );
+  try {
+    const result = await execOrThrow(
+      `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}--model ${shellEscape(model)} --no-session-persistence`,
+      { timeoutMs, stream: true }
+    );
 
-  return result.trim();
+    return result.trim();
+  } finally {
+    clearInterval(heartbeat);
+  }
 };

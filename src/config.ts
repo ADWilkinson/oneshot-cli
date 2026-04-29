@@ -189,8 +189,10 @@ export const saveConfig = (config: OneshotConfig): void => {
   renameSync(tmpPath, CONFIG_PATH);
 };
 
+// Deep-mode planning on monorepos with 3000+ line files routinely runs 40-80 min.
+// The previous 60 min default caused silent kills on GAL-738.
 const DEFAULT_STEP_TIMEOUTS = {
-  planMinutes: 60,
+  planMinutes: 90,
   executeMinutes: 180,
   reviewMinutes: 60,
   deepReviewMinutes: 60,
