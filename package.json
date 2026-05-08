@@ -1,6 +1,6 @@
 {
   "name": "oneshot-ship",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Ship code in one command. Repo + task in, PR out.",
   "homepage": "https://adwilkinson.github.io/oneshot-cli",
   "type": "module",
@@ -25,7 +25,10 @@
   ],
   "author": "ADWilkinson",
   "license": "MIT",
-  "repository": "ADWilkinson/oneshot-cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ADWilkinson/oneshot-cli.git"
+  },
   "engines": {
     "bun": ">=1.0.0"
   },
