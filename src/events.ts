@@ -65,7 +65,47 @@ export interface ClassifiedEvent {
   readonly timestamp: number;
 }
 
-export type OneshotEvent = StartedEvent | StepEvent | CompletedEvent | ClassifiedEvent;
+export type AgentEventPhase = "started" | "updated" | "completed";
+
+export type AgentEventKind =
+  | "command"
+  | "file_change"
+  | "note"
+  | "session"
+  | "todo"
+  | "tool"
+  | "turn"
+  | "warning"
+  | "web_search";
+
+export interface AgentActionEvent {
+  readonly type: "agent";
+  readonly runId: string;
+  readonly step: number;
+  readonly label: string;
+  readonly source: "codex";
+  readonly phase: AgentEventPhase;
+  readonly kind: AgentEventKind;
+  readonly title: string;
+  readonly ok?: boolean;
+  readonly detail?: Record<string, unknown>;
+  readonly timestamp: number;
+}
+
+export interface AgentActionPayload {
+  readonly phase: AgentEventPhase;
+  readonly kind: AgentEventKind;
+  readonly title: string;
+  readonly ok?: boolean;
+  readonly detail?: Record<string, unknown>;
+}
+
+export type OneshotEvent =
+  | StartedEvent
+  | StepEvent
+  | CompletedEvent
+  | ClassifiedEvent
+  | AgentActionEvent;
 
 export const getDefaultEventsFile = (runId: string): string => {
   return `/tmp/oneshot-${runId}.events.jsonl`;
@@ -116,6 +156,18 @@ export class EventWriter {
 
   classified(mode: string): void {
     this.emit({ type: "classified", runId: this.runId, mode, timestamp: Date.now() });
+  }
+
+  agentAction(step: number, label: string, action: AgentActionPayload): void {
+    this.emit({
+      type: "agent",
+      runId: this.runId,
+      step,
+      label,
+      source: "codex",
+      ...action,
+      timestamp: Date.now(),
+    });
   }
 
   stepRunning(step: number, label: string): void {

@@ -109,7 +109,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
 
     // Graceful degradation on timeout: if execute times out but partial changes exist, continue
     try {
-      await runStep(5, events, stepTimings, () => execute(ctx));
+      await runStep(5, events, stepTimings, () => execute(ctx, events));
     } catch (err) {
       if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {
         // Generous timeout for the salvage probe -- git status on a worktree
@@ -138,7 +138,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     let shouldFinalizePr = false;
     let reviewTimedOut = false;
     try {
-      await runStep(7, events, stepTimings, () => review(ctx));
+      await runStep(7, events, stepTimings, () => review(ctx, events));
       shouldFinalizePr = true;
     } catch (err) {
       if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {

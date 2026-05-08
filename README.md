@@ -181,7 +181,10 @@ Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl`. Use `--eve
 oneshot acme/api "fix bug" --local --events-file /tmp/run.events.jsonl
 ```
 
-Events: `started`, `classified`, `step` (running/done/failed), `completed` (success/failed/dry-run).
+Events:
+
+- `started`, `classified`, `step` (running/done/failed), `completed` (success/failed/dry-run)
+- `agent` for live Codex activity during execute/review: commands, tools, file changes, todos, web searches, warnings, and turn/session markers
 
 ## Agent skill
 

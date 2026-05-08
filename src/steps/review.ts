@@ -5,6 +5,8 @@ import { execOrThrow, OneshotError } from "../exec";
 import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
+import type { EventWriter } from "../events";
+import { runCodexJson } from "../codex-runner";
 
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "review.txt"), "utf-8");
@@ -16,7 +18,7 @@ const getReviewModel = (ctx: PipelineContext): string =>
 const getReviewEffort = (ctx: PipelineContext): string =>
   ctx.config.codex.reviewReasoningEffort ?? "xhigh";
 
-export const review = async (ctx: PipelineContext): Promise<void> => {
+export const review = async (ctx: PipelineContext, events: EventWriter): Promise<void> => {
   const { options, worktreePath } = ctx;
   const baseBranch = options.branch ?? "main";
   const range = `origin/${baseBranch}...HEAD`;
@@ -31,13 +33,13 @@ export const review = async (ctx: PipelineContext): Promise<void> => {
   }
 
   if (options.deepReview || ctx.mode === "deep") {
-    await deepReview(ctx);
+    await deepReview(ctx, events);
   } else {
-    await standardReview(ctx);
+    await standardReview(ctx, events);
   }
 };
 
-const standardReview = async (ctx: PipelineContext): Promise<void> => {
+const standardReview = async (ctx: PipelineContext, events: EventWriter): Promise<void> => {
   const { config, worktreePath, options } = ctx;
   const baseBranch = options.branch ?? "main";
   const prompt = loadPromptTemplate()
@@ -46,14 +48,18 @@ const standardReview = async (ctx: PipelineContext): Promise<void> => {
   const timeoutMs = getStepTimeout(config, "reviewMinutes");
   const model = getReviewModel(ctx);
   const effort = getReviewEffort(ctx);
-  const effortConfig = `model_reasoning_effort="${effort}"`;
-  await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && codex exec ${shellEscape(prompt)} --dangerously-bypass-approvals-and-sandbox -m ${shellEscape(model)} -c ${shellEscape(effortConfig)}`,
-    { timeoutMs, stream: true }
-  );
+  await runCodexJson({
+    worktreePath,
+    prompt,
+    model,
+    reasoningEffort: effort,
+    timeoutMs,
+    step: 7,
+    events,
+  });
 };
 
-const deepReview = async (ctx: PipelineContext): Promise<void> => {
+const deepReview = async (ctx: PipelineContext, events: EventWriter): Promise<void> => {
   const { config, worktreePath, options } = ctx;
   const baseBranch = options.branch ?? "main";
   const timeoutMs = getStepTimeout(config, "deepReviewMinutes");
@@ -72,9 +78,13 @@ Review ALL changes in this branch against origin/${baseBranch} (use git diff ori
 
 Fix any issues directly. Run typecheck and build to verify. Do NOT create commits.`;
 
-  const effortConfig = `model_reasoning_effort="${effort}"`;
-  await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && codex exec ${shellEscape(prompt)} --dangerously-bypass-approvals-and-sandbox -m ${shellEscape(model)} -c ${shellEscape(effortConfig)}`,
-    { timeoutMs, stream: true }
-  );
+  await runCodexJson({
+    worktreePath,
+    prompt,
+    model,
+    reasoningEffort: effort,
+    timeoutMs,
+    step: 7,
+    events,
+  });
 };

@@ -4,6 +4,14 @@ export interface ExecResult {
   exitCode: number;
 }
 
+export interface ExecOptions {
+  timeoutMs?: number;
+  stream?: boolean;
+  streamStdout?: boolean;
+  onStdoutLine?: (line: string) => void;
+  onStderrLine?: (line: string) => void;
+}
+
 export type ErrorCode =
   | 'ERR_TIMEOUT'
   | 'ERR_GIT_LOCK'
@@ -56,9 +64,9 @@ const killProcessTree = (pid: number): void => {
 
 export const exec = async (
   command: string,
-  options: { timeoutMs?: number; stream?: boolean } = {}
+  options: ExecOptions = {}
 ): Promise<ExecResult> => {
-  const { timeoutMs = 120_000, stream = false } = options;
+  const { timeoutMs = 120_000, stream = false, streamStdout = stream } = options;
 
   const proc = Bun.spawn(["bash", "-c", command], {
     stdout: "pipe",
@@ -71,22 +79,36 @@ export const exec = async (
   const readStream = async (
     reader: ReadableStream<Uint8Array>,
     chunks: string[],
-    writer?: Pick<typeof process.stdout, "write">
+    writer?: Pick<typeof process.stdout, "write">,
+    onLine?: (line: string) => void,
   ) => {
     const r = reader.getReader();
     const decoder = new TextDecoder();
+    let lineBuffer = "";
+    const noteText = (text: string) => {
+      if (!text || !onLine) return;
+      lineBuffer += text;
+      const lines = lineBuffer.split(/\r?\n/);
+      lineBuffer = lines.pop() ?? "";
+      for (const line of lines) onLine(line);
+    };
+
     while (true) {
       const { done, value } = await r.read();
       if (done) break;
       const text = decoder.decode(value, { stream: true });
       if (!text) continue;
       chunks.push(text);
+      noteText(text);
       writer?.write(text);
     }
     const trailing = decoder.decode();
-    if (!trailing) return;
-    chunks.push(trailing);
-    writer?.write(trailing);
+    if (trailing) {
+      chunks.push(trailing);
+      noteText(trailing);
+      writer?.write(trailing);
+    }
+    if (lineBuffer) onLine?.(lineBuffer);
   };
 
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -101,8 +123,8 @@ export const exec = async (
   try {
     await Promise.race([
       Promise.all([
-        readStream(proc.stdout, stdoutChunks, stream ? process.stdout : undefined),
-        readStream(proc.stderr, stderrChunks, stream ? process.stderr : undefined),
+        readStream(proc.stdout, stdoutChunks, streamStdout ? process.stdout : undefined, options.onStdoutLine),
+        readStream(proc.stderr, stderrChunks, stream ? process.stderr : undefined, options.onStderrLine),
         proc.exited,
       ]),
       timeout,
@@ -120,7 +142,7 @@ export const exec = async (
 
 export const execOrThrow = async (
   command: string,
-  options: { timeoutMs?: number; stream?: boolean } = {}
+  options: ExecOptions = {}
 ): Promise<string> => {
   const result = await exec(command, options);
   if (result.exitCode !== 0) {

@@ -27,6 +27,13 @@ describe("EventWriter", () => {
 
     const writer = new EventWriter(customFile, runId);
     writer.started("my-org/my-repo", "ship it");
+    writer.agentAction(5, "Executing with Codex", {
+      phase: "completed",
+      kind: "command",
+      title: "bun test",
+      ok: true,
+      detail: { exitCode: 0 },
+    });
     writer.completed({ elapsed: 123 });
 
     expect(existsSync(defaultFile)).toBe(true);
@@ -35,7 +42,21 @@ describe("EventWriter", () => {
     const defaultEvents = readFileSync(defaultFile, "utf-8").trim().split("\n");
     const customEvents = readFileSync(customFile, "utf-8").trim().split("\n");
 
-    expect(defaultEvents).toHaveLength(2);
+    expect(defaultEvents).toHaveLength(3);
     expect(customEvents).toEqual(defaultEvents);
+
+    const agentEvent = JSON.parse(defaultEvents[1]);
+    expect(agentEvent).toMatchObject({
+      type: "agent",
+      runId,
+      step: 5,
+      label: "Executing with Codex",
+      source: "codex",
+      phase: "completed",
+      kind: "command",
+      title: "bun test",
+      ok: true,
+      detail: { exitCode: 0 },
+    });
   });
 });
