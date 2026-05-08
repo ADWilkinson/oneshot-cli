@@ -71,6 +71,7 @@ export type AgentEventKind =
   | "command"
   | "file_change"
   | "note"
+  | "pr"
   | "session"
   | "todo"
   | "tool"

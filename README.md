@@ -184,7 +184,7 @@ oneshot acme/api "fix bug" --local --events-file /tmp/run.events.jsonl
 Events:
 
 - `started`, `classified`, `step` (running/done/failed), `completed` (success/failed/dry-run)
-- `agent` for live Codex activity during execute/review: commands, tools, file changes, todos, web searches, warnings, and turn/session markers
+- `agent` for live agent activity: commands, tools, file changes, todos, web searches, warnings, draft PR creation, and turn/session markers
 
 ## Agent skill
 

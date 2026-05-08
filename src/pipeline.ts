@@ -131,6 +131,13 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     // Create draft PR BEFORE review so work is never lost to timeouts
     await runStep(6, events, stepTimings, async () => {
       ctx.prUrl = await createDraftPr(ctx);
+      events.agentAction(6, getStepLabel(6), {
+        phase: "completed",
+        kind: "pr",
+        title: "draft PR created",
+        ok: true,
+        detail: { prUrl: ctx.prUrl },
+      });
     });
 
     // Review pushes fixes on top of the draft PR branch.
