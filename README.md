@@ -173,6 +173,8 @@ Templates use `{{variable}}` placeholders replaced at runtime.
 
 The repo's `CLAUDE.md` is also supplied to the planning and execution steps, so the task string is the primary operator input, not the only context the agents receive.
 
+For dense specs, explainers, review maps, incident reports, design sheets, or one-off editors, the templates allow a self-contained HTML artifact instead of a long markdown document. Durable artifacts should live under `docs/artifacts/`; throwaway local artifacts should stay under `/tmp/oneshot-html-artifacts/`.
+
 ## Events
 
 Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl`. Use `--events-file <path>` to mirror to another file:

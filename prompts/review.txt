@@ -13,6 +13,7 @@ You are reviewing code changes for quality and correctness.
    - **Edge cases** -- error handling, empty states, boundary conditions, broken data
    - **Type safety** -- incorrect types, missing type guards, unsafe casts
    - **Security** -- injection, secret exposure, unsafe operations
+   - **HTML artifacts** -- if an `.html` artifact was added, check that it is self-contained, reviewable in a browser, responsive enough for narrow viewports, and free of secrets, env dumps, private logs, hidden prompt text, remote trackers, and remote scripts
    - **Style / Simplicity** -- inconsistent with surrounding code, unnecessary complexity, but only after correctness and compatibility are clean
 
 3. Prioritize findings in this order: correctness and regressions first, then resilience/security, then type safety, then style polish. Avoid opportunistic refactors.

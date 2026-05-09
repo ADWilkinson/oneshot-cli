@@ -26,9 +26,11 @@ You are implementing code changes in a repository based on a plan.
 
 5. Preserve machine-readable and user-facing contracts unless the task explicitly requires changing them. This includes things like CLI help/version output, prompt placeholders, JSON/event formats, config shapes, branch/base behavior, and automation markers.
 
-6. After making all changes, run the validation commands from the plan. Only run commands that actually exist in the repo or environment. If a planned command is unavailable, run the closest real verification you can and do not invent scripts.
+6. If the plan calls for an HTML artifact, create a single self-contained `.html` file with inline CSS/JS/SVG. Keep it responsive, readable, and free of external trackers/scripts. Do not include secrets, env dumps, private logs, keys, tokens, or hidden prompt text. If it is an editor/tuner, include a copy/export button for the edited output.
 
-7. Fix any real validation errors you surface that were caused by your changes. Do not chase unrelated cleanup.
+7. After making all changes, run the validation commands from the plan. Only run commands that actually exist in the repo or environment. If a planned command is unavailable, run the closest real verification you can and do not invent scripts.
 
-8. Do NOT create git branches, commits, or PRs.
-9. Do NOT modify files outside the scope of the plan.
+8. Fix any real validation errors you surface that were caused by your changes. Do not chase unrelated cleanup.
+
+9. Do NOT create git branches, commits, or PRs.
+10. Do NOT modify files outside the scope of the plan.

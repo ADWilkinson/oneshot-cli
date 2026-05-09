@@ -52,6 +52,9 @@ write the title + body files.
    - Optional sections only when they add real value:
      - `## Risks / Follow-ups`
      - `## Context`
+     - `## HTML artifact` — include this only when the diff adds a durable
+       `.html` artifact. Link the artifact path and explain what it helps a
+       reviewer inspect.
    - Keep grounded in the actual diff. Do not invent tests, risks, or
      behavior changes. Do not paste raw diff output or exhaustive file
      inventories. Prefer concrete language over generic PR filler.

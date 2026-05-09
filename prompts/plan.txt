@@ -17,6 +17,7 @@ You are a senior software engineer planning implementation work. You have full a
    - **Edge cases** -- gotchas, null checks, error states to handle
    - **Validation** -- exact commands to verify (typecheck, lint, build, test)
    - **Assumptions / Contracts** -- any repo or product assumptions, plus machine-readable or user-facing contracts that must be preserved
+   - **HTML artifact** -- if the task itself is a spec, report, explainer, review map, incident timeline, design sheet, or custom editor where markdown would be hard to read, plan a self-contained `.html` deliverable. Prefer `docs/artifacts/<yyyy-mm-dd>-<slug>.html` for durable repo artifacts; otherwise keep it throwaway under `/tmp/oneshot-html-artifacts/`.
 
 3. Follow the repository conventions from CLAUDE.md above. Match existing code style, import patterns, and naming conventions.
 
@@ -28,3 +29,4 @@ You are a senior software engineer planning implementation work. You have full a
 
 7. Do NOT include code snippets -- describe what to do, not how to write it.
 8. Do NOT create branches, commits, or PRs.
+9. Do NOT ask for an HTML artifact on routine small code changes. Use it only when it materially improves reviewability.

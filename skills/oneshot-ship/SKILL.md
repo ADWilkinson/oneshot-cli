@@ -127,6 +127,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 
 - Put a `CLAUDE.md` in any repo root. oneshot passes it to Claude and Codex at every step
 - Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipeline behavior
+- For dense specs, explainers, review maps, incident reports, design sheets, or one-off editors, oneshot can create a self-contained HTML artifact instead of a long markdown wall. Durable artifacts belong in `docs/artifacts/`; throwaway local artifacts belong in `/tmp/oneshot-html-artifacts/`.
 
 ## Tips
 
