@@ -4,6 +4,7 @@ import type { PipelineContext } from "../config";
 import { exec, execOrThrow } from "../exec";
 import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
+import { internalClaudeFlags } from "../claude-flags";
 import { PROMPTS_DIR, CLAUDE_PLUGIN_DIR } from "../paths";
 
 const loadPromptTemplate = (): string => {
@@ -27,7 +28,7 @@ export const plan = async (ctx: PipelineContext): Promise<string> => {
   const timeoutMs = getStepTimeout(config, "planMinutes");
 
   const result = await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}--model ${shellEscape(model)} --no-session-persistence`,
+    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}${internalClaudeFlags()} --model ${shellEscape(model)} --no-session-persistence`,
     { timeoutMs, stream: true }
   );
 

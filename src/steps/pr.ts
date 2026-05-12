@@ -4,6 +4,7 @@ import type { PipelineContext } from "../config";
 import { execOrThrow, exec, OneshotError } from "../exec";
 import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
+import { internalClaudeFlags } from "../claude-flags";
 import { PROMPTS_DIR, CLAUDE_PLUGIN_DIR } from "../paths";
 
 const PR_TITLE_FILE = ".oneshot-pr-title.txt";
@@ -218,7 +219,7 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const timeoutMs = getStepTimeout(config, "prMinutes");
 
   await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}--dangerously-skip-permissions --model ${shellEscape(model)} --no-session-persistence`,
+    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}${internalClaudeFlags()} --dangerously-skip-permissions --model ${shellEscape(model)} --no-session-persistence`,
     { timeoutMs, stream: true }
   );
 
