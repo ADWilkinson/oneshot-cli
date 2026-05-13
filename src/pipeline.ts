@@ -9,6 +9,7 @@ import { EventWriter } from "./events";
 import { OneshotError, exec } from "./exec";
 import { VERSION } from "./version";
 import { expandHome } from "./path-utils";
+import { resolveRepoPath } from "./repo";
 import { validate } from "./steps/validate";
 import { createWorktree, removeWorktree } from "./steps/worktree";
 import { classify } from "./steps/classify";
@@ -28,7 +29,7 @@ const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineC
     config,
     options,
     runId: id,
-    repoPath: `${basePath}/${options.repo}`,
+    repoPath: resolveRepoPath(basePath, options.repo),
     worktreePath: `${worktreeRoot.replace(/\/+$/, "")}/oneshot-${id}`,
     worktreeRoot,
     plan: "",
@@ -76,9 +77,11 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
   const stepTimings: StepTiming[] = [];
 
   events.started(options.repo, options.task, undefined, {
-    cliVersion: VERSION,
-    host: hostname(),
-    platform: process.platform,
+      cliVersion: VERSION,
+      host: hostname(),
+      pid: process.pid,
+      cwd: process.cwd(),
+      platform: process.platform,
     node: process.version,
     worktreeRoot: ctx.worktreeRoot,
     basePath: options.basePath ?? config.basePath,

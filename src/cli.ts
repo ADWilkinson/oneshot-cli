@@ -18,6 +18,7 @@ export interface ParsedArgs extends OneshotOptions {
   command?: string;
   deepReview: boolean;
   json: boolean;
+  doctorRepo?: string;
 }
 
 const parsePositiveInt = (value: string, fallback: number): number => {
@@ -61,11 +62,23 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   }
 
   if (args[0] === "doctor") {
-    const invalid = args.slice(1).filter((arg) => arg !== "--local" && arg !== "--json");
-    if (invalid.length > 0) {
-      throw new Error(`doctor only accepts --local and --json; unknown option: ${invalid[0]}`);
+    let local = false;
+    let json = false;
+    let doctorRepo: string | undefined;
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === "--local") {
+        local = true;
+      } else if (arg === "--json") {
+        json = true;
+      } else if (arg === "--repo") {
+        doctorRepo = getFlagValue(args, i, arg);
+        i++;
+      } else {
+        throw new Error(`doctor only accepts --local, --json, and --repo; unknown option: ${arg}`);
+      }
     }
-    return { command: "doctor", repo: "", task: "", local: args.includes("--local"), bg: false, deepReview: false, json: args.includes("--json") };
+    return { command: "doctor", repo: "", task: "", local, bg: false, deepReview: false, json, doctorRepo };
   }
 
   const positional: string[] = [];
@@ -217,6 +230,7 @@ Usage: oneshot <repo> "<task or linear url>" [options]
        oneshot init
        oneshot stats
        oneshot doctor
+       oneshot doctor --repo <owner/repo>
 
 Commands:
   init                    Set up ~/.oneshot/config.json interactively
@@ -233,6 +247,7 @@ Options:
   --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
   --events-file <path>    Mirror JSONL events to an additional file
+  --repo <owner/repo>     With doctor, verify a specific checkout exists
   --bg                    Run detached in background (returns PID + log path)
   --help, -h              Show this help
   --version, -v           Show version
@@ -246,6 +261,7 @@ Examples:
   oneshot my-org/my-repo --dry-run
   oneshot stats
   oneshot doctor
+  oneshot doctor --repo my-org/my-repo
 `);
 };
 
@@ -353,7 +369,7 @@ const main = async () => {
       } catch {
         if (parsed.local) config = await loadLocalConfig();
       }
-      const report = await buildDoctorReport(config, { local: parsed.local });
+      const report = await buildDoctorReport(config, { local: parsed.local, repo: parsed.doctorRepo });
       if (parsed.json) {
         console.log(JSON.stringify(report, null, 2));
       } else {

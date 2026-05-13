@@ -97,16 +97,17 @@ describe("parseArgs", () => {
   });
 
   test("parses doctor command with json output", () => {
-    expect(parseArgs(["doctor", "--local", "--json"])).toMatchObject({
+    expect(parseArgs(["doctor", "--local", "--json", "--repo", "zkp2p/pay"])).toMatchObject({
       command: "doctor",
       local: true,
       json: true,
+      doctorRepo: "zkp2p/pay",
     });
   });
 
   test("rejects unsupported doctor options", () => {
     expect(() => parseArgs(["doctor", "--bg"])).toThrow(
-      "doctor only accepts --local and --json; unknown option: --bg"
+      "doctor only accepts --local, --json, and --repo; unknown option: --bg"
     );
   });
 });
@@ -357,9 +358,10 @@ describe("CLI integration", () => {
     const binDir = join(tempDir, "bin");
     mkdirSync(binDir, { recursive: true });
 
-    for (const name of ["bun", "git", "gh", "claude", "codex"]) {
+    for (const name of ["bun", "git", "gh", "claude", "codex", "npm"]) {
       const bin = join(binDir, name);
-      writeFileSync(bin, `#!/bin/sh\necho '${name} test'\n`);
+      const output = name === "npm" ? "0.2.9" : `${name} test`;
+      writeFileSync(bin, `#!/bin/sh\necho '${output}'\n`);
       chmodSync(bin, 0o755);
     }
 
@@ -371,7 +373,34 @@ describe("CLI integration", () => {
     expect(result.exitCode).toBe(0);
     const report = JSON.parse(result.stdout);
     expect(report.target).toBe("local");
+    expect(report.latestVersion).toBe("0.2.9");
     expect(report.checks.some((item: { name: string; status: string }) => item.name === "config" && item.status === "warn")).toBe(true);
     expect(report.checks.some((item: { name: string; status: string }) => item.name === "codex" && item.status === "ok")).toBe(true);
+  });
+
+  test("doctor local can verify a configured repo checkout", async () => {
+    const tempDir = makeTempDir();
+    const home = join(tempDir, "home");
+    const repoPath = join(home, "projects", "demo", "repo", ".git");
+    const binDir = join(tempDir, "bin");
+    mkdirSync(repoPath, { recursive: true });
+    mkdirSync(binDir, { recursive: true });
+
+    for (const name of ["bun", "git", "gh", "claude", "codex", "npm"]) {
+      const bin = join(binDir, name);
+      const output = name === "npm" ? "0.2.9" : `${name} test`;
+      writeFileSync(bin, `#!/bin/sh\necho '${output}'\n`);
+      chmodSync(bin, 0o755);
+    }
+
+    const result = await runCli(["doctor", "--local", "--json", "--repo", "demo/repo"], {
+      HOME: home,
+      PATH: `${binDir}:${process.env.PATH ?? ""}`,
+    });
+
+    expect(result.exitCode).toBe(0);
+    const report = JSON.parse(result.stdout);
+    expect(report.repo).toBe("demo/repo");
+    expect(report.checks.some((item: { name: string; status: string }) => item.name === "repo" && item.status === "ok")).toBe(true);
   });
 });

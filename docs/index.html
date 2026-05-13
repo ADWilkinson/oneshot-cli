@@ -321,8 +321,8 @@ cd oneshot-cli && bun install && bun link</code></pre>
               </button>
             </div>
             <p>Sets up SSH host, workspace path, API keys, model preferences. Saves to <code>~/.oneshot/config.json</code>.</p>
-            <p>Then run <code>oneshot doctor</code> to verify local binaries, SSH reachability, remote binaries, and recent event streams.</p>
-            <p>Repos should live as <code>&lt;org&gt;/&lt;repo&gt;</code> under your workspace path:</p>
+            <p>Then run <code>oneshot doctor</code> to verify package freshness, local binaries, SSH reachability, remote binaries, and recent event streams.</p>
+            <p>Repos should live as <code>&lt;org&gt;/&lt;repo&gt;</code> under your workspace path. Repo slugs are strict <code>owner/repo</code> values; nested paths and <code>..</code> are rejected before filesystem access.</p>
             <div class="code-block">
               <pre><code>~/projects/
   acme/api/
@@ -364,7 +364,8 @@ oneshot &lt;repo&gt; "&lt;task&gt;" --branch staging # target a different branch
 oneshot &lt;repo&gt; --dry-run                 # validate only
 oneshot init                             # configure
 oneshot stats                            # recent runs + timing
-oneshot doctor                           # setup and remote health checks</code></pre>
+oneshot doctor                           # setup and remote health checks
+oneshot doctor --repo acme/api           # setup + checkout health</code></pre>
         <button class="copy-btn" data-copy='oneshot <repo> "<task>"' aria-label="Copy usage examples">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
@@ -425,6 +426,11 @@ oneshot doctor                           # setup and remote health checks</code>
               <td><code>--events-file</code></td>
               <td></td>
               <td>Mirror JSONL events to an additional file for machine consumption</td>
+            </tr>
+            <tr>
+              <td><code>--repo</code></td>
+              <td></td>
+              <td>With <code>doctor</code>, verify a specific <code>owner/repo</code> checkout exists</td>
             </tr>
             <tr>
               <td><code>--help</code></td>

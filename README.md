@@ -25,6 +25,7 @@ bun install -g oneshot-ship
 ```bash
 oneshot init                                    # configure
 oneshot doctor                                  # check local + remote setup
+oneshot doctor --repo my-org/my-app             # verify a checkout target
 oneshot my-org/my-app "fix the login timeout"   # ship
 ```
 
@@ -61,6 +62,7 @@ oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
 oneshot doctor                         # setup and remote health checks
+oneshot doctor --repo my-org/my-app    # setup + checkout health
 ```
 
 ### Flags
@@ -77,6 +79,7 @@ oneshot doctor                         # setup and remote health checks
 | `--bg` | | Run detached in background (returns PID + log path) |
 | `--dry-run` | `-d` | Validate only |
 | `--events-file` | | Mirror JSONL events to an additional file |
+| `--repo` | | With `doctor`, verify a specific `owner/repo` checkout exists |
 
 ## Prerequisites
 
@@ -137,7 +140,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `codex.reviewReasoningEffort` | No | Reasoning effort for review. Default: same as `codex.reasoningEffort` |
 | `stepTimeouts` | No | Per-step timeout overrides in minutes |
 
-Repos on the server should live as `<org>/<repo>` under the base path:
+Repos on the server should live as `<org>/<repo>` under the base path. Repo slugs are intentionally strict: exactly `owner/repo`, using only letters, numbers, dot, underscore, and hyphen. Nested paths and `..` are rejected before any filesystem access.
 
 ```
 ~/projects/
@@ -189,12 +192,19 @@ oneshot acme/api "fix bug" --local --events-file /tmp/run.events.jsonl
 
 Events:
 
-- `started` (includes runtime metadata such as CLI version, host, platform, and worktree root), `classified`, `step` (running/done/failed), `completed` (success/failed/dry-run)
+- `started` (includes runtime metadata such as CLI version, host, pid, cwd, platform, and worktree root), `classified`, `step` (running/done/failed), `completed` (success/failed/dry-run)
 - `agent` for live agent activity: commands, tools, file changes, todos, web searches, warnings, draft PR creation, and turn/session markers
 
 ## Doctor and recovery
 
-`oneshot doctor` checks the local prerequisites, config file, recent event stream, SSH reachability, and remote binaries when a remote host is configured. Use `oneshot doctor --local --json` for machine-readable local checks.
+`oneshot doctor` checks the installed package freshness against npm, local prerequisites, config file, recent event stream, SSH reachability, and remote binaries when a remote host is configured. Use `oneshot doctor --local --json` for machine-readable local checks.
+
+Add `--repo <owner/repo>` to verify the configured local or remote base path actually contains the checkout before dispatch:
+
+```bash
+oneshot doctor --repo zkp2p/pay
+oneshot doctor --local --repo zkp2p/pay --json
+```
 
 Failed runs preserve the worktree under the configured `worktreeRoot` and write a failed `completed` event with the error code and completed step timings. Start with `oneshot stats`, then inspect the event file or preserved worktree path printed in the logs.
 

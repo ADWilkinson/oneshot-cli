@@ -4,7 +4,7 @@ description: Ship code with oneshot CLI. One command that plans, executes, revie
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "0.2.6"
+  version: "0.2.9"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, Claude Code CLI, Codex CLI, and GitHub CLI. SSH access to a server optional (can run locally with --local)
 ---
@@ -61,6 +61,8 @@ oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for th
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
+oneshot doctor                         # package, tool, SSH, and event health
+oneshot doctor --repo zkp2p/pay        # health plus checkout existence
 ```
 
 ## Pipeline
@@ -120,6 +122,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `--bg` | | Run in background, return PID + log path |
 | `--dry-run` | `-d` | Validate only |
 | `--events-file` | | Mirror JSONL events to an additional file |
+| `--repo` | | With `doctor`, verify a specific `owner/repo` checkout exists |
 | `--help` | `-h` | Help |
 | `--version` | `-v` | Version |
 
@@ -137,3 +140,5 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 - Worktree isolation means your main branch is never touched
 - Task classification picks `fast` or `deep` mode automatically. Use `--deep-review` to force deep
 - Duration estimates come from historical runs per repo (`~/.oneshot/history.json`)
+- Repo slugs must be exact `owner/repo` values. Nested paths and `..` are rejected before dispatch
+- `doctor` compares the running CLI version with the npm registry and can verify a specific checkout with `--repo`

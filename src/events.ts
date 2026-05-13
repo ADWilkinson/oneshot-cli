@@ -32,6 +32,8 @@ export interface StartedEvent {
   readonly runtime?: {
     readonly cliVersion?: string;
     readonly host?: string;
+    readonly pid?: number;
+    readonly cwd?: string;
     readonly platform?: string;
     readonly node?: string;
     readonly worktreeRoot?: string;
