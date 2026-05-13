@@ -9,6 +9,8 @@
   },
   "scripts": {
     "build": "bun build src/cli.ts --outdir dist --target bun",
+    "check": "bun run typecheck && bun test && bun run docs:check",
+    "docs:check": "node scripts/check-docs.mjs",
     "dev": "bun run src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync, renameSync } from "fs";
 import { homedir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 
 export interface OneshotConfig {
   host: string;
@@ -96,7 +96,7 @@ const parseConfigFile = async (): Promise<Partial<OneshotConfig>> => {
   return raw;
 };
 
-const normalizeConfig = (
+export const normalizeConfig = (
   raw: Partial<OneshotConfig>,
   options: { requireHost: boolean }
 ): OneshotConfig => {
@@ -104,6 +104,9 @@ const normalizeConfig = (
   if (options.requireHost && !host) {
     throw new Error("host is required in ~/.oneshot/config.json");
   }
+  const codexModel = asOptionalString(raw.codex?.model) ?? DEFAULT_CONFIG.codex.model;
+  const codexReasoningEffort =
+    asOptionalString(raw.codex?.reasoningEffort) ?? DEFAULT_CONFIG.codex.reasoningEffort;
 
   return {
     ...DEFAULT_CONFIG,
@@ -124,14 +127,11 @@ const normalizeConfig = (
     codex: {
       ...DEFAULT_CONFIG.codex,
       ...raw.codex,
-      model: asOptionalString(raw.codex?.model) ?? DEFAULT_CONFIG.codex.model,
-      reasoningEffort:
-        asOptionalString(raw.codex?.reasoningEffort) ?? DEFAULT_CONFIG.codex.reasoningEffort,
-      reviewModel:
-        asOptionalString(raw.codex?.reviewModel) ?? DEFAULT_CONFIG.codex.reviewModel,
+      model: codexModel,
+      reasoningEffort: codexReasoningEffort,
+      reviewModel: asOptionalString(raw.codex?.reviewModel) ?? codexModel,
       reviewReasoningEffort:
-        asOptionalString(raw.codex?.reviewReasoningEffort) ??
-        DEFAULT_CONFIG.codex.reviewReasoningEffort,
+        asOptionalString(raw.codex?.reviewReasoningEffort) ?? codexReasoningEffort,
       timeoutMinutes: asPositiveMinutes(
         raw.codex?.timeoutMinutes,
         DEFAULT_CONFIG.codex.timeoutMinutes
@@ -183,7 +183,7 @@ export const loadLocalConfig = async (): Promise<OneshotConfig> => {
 };
 
 export const saveConfig = (config: OneshotConfig): void => {
-  mkdirSync(CONFIG_DIR, { recursive: true });
+  mkdirSync(dirname(CONFIG_PATH), { recursive: true });
   const tmpPath = `${CONFIG_PATH}.${process.pid}.tmp`;
   writeFileSync(tmpPath, JSON.stringify(config, null, 2) + "\n");
   renameSync(tmpPath, CONFIG_PATH);
