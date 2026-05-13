@@ -24,6 +24,7 @@ bun install -g oneshot-ship
 
 ```bash
 oneshot init                                    # configure
+oneshot doctor                                  # check local + remote setup
 oneshot my-org/my-app "fix the login timeout"   # ship
 ```
 
@@ -59,6 +60,7 @@ oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for th
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
+oneshot doctor                         # setup and remote health checks
 ```
 
 ### Flags
@@ -68,6 +70,7 @@ oneshot stats                          # recent runs + timing
 | `--model` | `-m` | Override Claude model |
 | `--branch` | `-b` | Base branch (default: main) |
 | `--base-path` | | Override the workspace path used to locate the repo |
+| `--worktree-root` | | Override where temporary git worktrees are created |
 | `--mode` | | Skip classification and force `fast` or `deep` mode |
 | `--deep-review` | | Force exhaustive review mode |
 | `--local` | | Run locally instead of over SSH |
@@ -124,6 +127,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 |-----|----------|-------------|
 | `host` | SSH only | SSH target, e.g. `user@192.168.1.10` |
 | `basePath` | No | Where repos live. Default: `~/projects` |
+| `worktreeRoot` | No | Scratch directory for temporary git worktrees. Default: `/tmp` |
 | `anthropicApiKey` | No | Falls back to `ANTHROPIC_API_KEY` env var |
 | `linearApiKey` | No | Enables Linear ticket integration |
 | `claude.model` | No | Model for Plan, Classify, PR steps. Default: `opus` |
@@ -185,8 +189,14 @@ oneshot acme/api "fix bug" --local --events-file /tmp/run.events.jsonl
 
 Events:
 
-- `started`, `classified`, `step` (running/done/failed), `completed` (success/failed/dry-run)
+- `started` (includes runtime metadata such as CLI version, host, platform, and worktree root), `classified`, `step` (running/done/failed), `completed` (success/failed/dry-run)
 - `agent` for live agent activity: commands, tools, file changes, todos, web searches, warnings, draft PR creation, and turn/session markers
+
+## Doctor and recovery
+
+`oneshot doctor` checks the local prerequisites, config file, recent event stream, SSH reachability, and remote binaries when a remote host is configured. Use `oneshot doctor --local --json` for machine-readable local checks.
+
+Failed runs preserve the worktree under the configured `worktreeRoot` and write a failed `completed` event with the error code and completed step timings. Start with `oneshot stats`, then inspect the event file or preserved worktree path printed in the logs.
 
 ## Agent skill
 

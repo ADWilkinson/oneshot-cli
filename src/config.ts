@@ -5,6 +5,7 @@ import { dirname, join } from "path";
 export interface OneshotConfig {
   host: string;
   basePath: string;
+  worktreeRoot?: string;
   linearApiKey?: string;
   anthropicApiKey?: string;
   claude: {
@@ -34,6 +35,7 @@ export interface OneshotOptions {
   model?: string;
   branch?: string;
   basePath?: string;
+  worktreeRoot?: string;
   mode?: ComplexityMode;
   dryRun?: boolean;
   deepReview?: boolean;
@@ -49,6 +51,7 @@ export interface PipelineContext {
   runId: string;
   repoPath: string;
   worktreePath: string;
+  worktreeRoot: string;
   plan: string;
   prUrl: string;
   startTime: number;
@@ -57,6 +60,7 @@ export interface PipelineContext {
 
 const DEFAULT_CONFIG: Omit<OneshotConfig, "host"> = {
   basePath: "~/projects",
+  worktreeRoot: "/tmp",
   claude: {
     model: "opus",
     timeoutMinutes: 180,
@@ -113,6 +117,7 @@ export const normalizeConfig = (
     ...raw,
     host: host ?? "local",
     basePath: asOptionalString(raw.basePath) ?? DEFAULT_CONFIG.basePath,
+    worktreeRoot: asOptionalString(raw.worktreeRoot) ?? DEFAULT_CONFIG.worktreeRoot,
     linearApiKey: asOptionalString(raw.linearApiKey),
     anthropicApiKey: asOptionalString(raw.anthropicApiKey),
     claude: {

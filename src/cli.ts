@@ -10,12 +10,14 @@ import { existsSync, openSync, closeSync } from "fs";
 import { shellEscape } from "./shell";
 import { VERSION } from "./version";
 import type { ComplexityMode } from "./config";
+import { buildDoctorReport, printDoctorReport } from "./doctor";
 
 export interface ParsedArgs extends OneshotOptions {
   local: boolean;
   bg: boolean;
   command?: string;
   deepReview: boolean;
+  json: boolean;
 }
 
 const parsePositiveInt = (value: string, fallback: number): number => {
@@ -47,7 +49,7 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     if (args.length > 1) {
       throw new Error(`init does not accept arguments: ${args.slice(1).join(" ")}`);
     }
-    return { command: "init", repo: "", task: "", local: false, bg: false, deepReview: false };
+    return { command: "init", repo: "", task: "", local: false, bg: false, deepReview: false, json: false };
   }
 
   if (args[0] === "stats") {
@@ -55,7 +57,15 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     if (invalid.length > 0) {
       throw new Error(`stats only accepts --local; unknown option: ${invalid[0]}`);
     }
-    return { command: "stats", repo: "", task: "", local: args.includes("--local"), bg: false, deepReview: false };
+    return { command: "stats", repo: "", task: "", local: args.includes("--local"), bg: false, deepReview: false, json: false };
+  }
+
+  if (args[0] === "doctor") {
+    const invalid = args.slice(1).filter((arg) => arg !== "--local" && arg !== "--json");
+    if (invalid.length > 0) {
+      throw new Error(`doctor only accepts --local and --json; unknown option: ${invalid[0]}`);
+    }
+    return { command: "doctor", repo: "", task: "", local: args.includes("--local"), bg: false, deepReview: false, json: args.includes("--json") };
   }
 
   const positional: string[] = [];
@@ -64,6 +74,7 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   let basePath: string | undefined;
   let mode: ComplexityMode | undefined;
   let eventsFile: string | undefined;
+  let worktreeRoot: string | undefined;
   let dryRun = false;
   let deepReview = false;
   let local = false;
@@ -96,6 +107,9 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     } else if (arg === "--events-file") {
       eventsFile = getFlagValue(args, i, arg);
       i++;
+    } else if (arg === "--worktree-root") {
+      worktreeRoot = getFlagValue(args, i, arg);
+      i++;
     } else if (arg === "--bg") {
       bg = true;
     } else if (!arg.startsWith("-")) {
@@ -117,10 +131,12 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     model,
     branch,
     basePath,
+    worktreeRoot,
     mode,
     eventsFile,
     dryRun,
     deepReview,
+    json: false,
     local,
     bg,
   };
@@ -132,6 +148,7 @@ export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
   if (parsed.model) parts.push("--model", shellEscape(parsed.model));
   if (parsed.branch) parts.push("--branch", shellEscape(parsed.branch));
   if (parsed.basePath) parts.push("--base-path", shellEscape(parsed.basePath));
+  if (parsed.worktreeRoot) parts.push("--worktree-root", shellEscape(parsed.worktreeRoot));
   if (parsed.mode) parts.push("--mode", shellEscape(parsed.mode));
   if (parsed.eventsFile) parts.push("--events-file", shellEscape(parsed.eventsFile));
   if (parsed.dryRun) parts.push("--dry-run");
@@ -186,6 +203,7 @@ export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
   if (parsed.model) args.push("--model", parsed.model);
   if (parsed.branch) args.push("--branch", parsed.branch);
   if (parsed.basePath) args.push("--base-path", parsed.basePath);
+  if (parsed.worktreeRoot) args.push("--worktree-root", parsed.worktreeRoot);
   if (parsed.mode) args.push("--mode", parsed.mode);
   if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
   if (parsed.dryRun) args.push("--dry-run");
@@ -198,15 +216,18 @@ const printUsage = () => {
 Usage: oneshot <repo> "<task or linear url>" [options]
        oneshot init
        oneshot stats
+       oneshot doctor
 
 Commands:
   init                    Set up ~/.oneshot/config.json interactively
   stats                   Show recent runs, success rates, per-repo averages
+  doctor                  Check local and remote oneshot prerequisites
 
 Options:
   --model, -m <model>     Override Claude model (default: from config)
   --branch, -b <branch>   Base branch to work from and PR into (default: main)
   --base-path <path>      Override the workspace path used to locate the repo
+  --worktree-root <path>  Override where temporary git worktrees are created
   --mode <fast|deep>      Skip classification and force the requested review mode
   --deep-review           Force deep review mode
   --local                 Run locally instead of over SSH
@@ -224,6 +245,7 @@ Examples:
   oneshot my-org/my-repo "fix staging bug" --branch staging
   oneshot my-org/my-repo --dry-run
   oneshot stats
+  oneshot doctor
 `);
 };
 
@@ -254,6 +276,7 @@ const runInit = async () => {
   if (!host) { log.error("host is required"); process.exit(1); }
 
   const basePath = await prompt("  workspace path on server", "~/projects");
+  const worktreeRoot = await prompt("  worktree scratch path", "/tmp");
 
   console.log("\napi keys (stored in ~/.oneshot/config.json):\n");
 
@@ -271,6 +294,7 @@ const runInit = async () => {
   const config: OneshotConfig = {
     host,
     basePath,
+    worktreeRoot,
     claude: {
       model: claudeModel,
       timeoutMinutes: parsePositiveInt(claudeTimeout, 180),
@@ -320,6 +344,22 @@ const main = async () => {
       await proc.exited;
       process.exit(proc.exitCode ?? 1);
       return;
+    }
+
+    if (parsed.command === "doctor") {
+      let config: OneshotConfig | null = null;
+      try {
+        config = parsed.local ? await loadLocalConfig() : await loadConfig();
+      } catch {
+        if (parsed.local) config = await loadLocalConfig();
+      }
+      const report = await buildDoctorReport(config, { local: parsed.local });
+      if (parsed.json) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        printDoctorReport(report);
+      }
+      process.exit(report.ok ? 0 : 1);
     }
 
     const config = parsed.local ? await loadLocalConfig() : await loadConfig();
@@ -390,6 +430,7 @@ const main = async () => {
       model: parsed.model,
       branch: parsed.branch,
       basePath: parsed.basePath,
+      worktreeRoot: parsed.worktreeRoot,
       mode: parsed.mode,
       dryRun: parsed.dryRun,
       deepReview: parsed.deepReview,

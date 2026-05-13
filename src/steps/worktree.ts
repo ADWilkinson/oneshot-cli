@@ -1,9 +1,9 @@
+import { mkdirSync } from "fs";
 import { resolve } from "path";
 import type { PipelineContext } from "../config";
 import { exec, gitRetry } from "../exec";
 import { shellEscape } from "../shell";
-
-const WORKTREE_ROOT = "/tmp";
+import { isWithinRoot } from "../path-utils";
 
 const sanitizeBranch = (branch: string): string => {
   // Allowlist: only alphanumeric, hyphen, underscore, dot, forward slash
@@ -19,11 +19,12 @@ const sanitizeBranch = (branch: string): string => {
   return branch;
 };
 
-const ensureWithinRoot = (worktreePath: string): void => {
+const ensureWithinRoot = (worktreePath: string, root: string): void => {
   const resolved = resolve(worktreePath);
-  if (!resolved.startsWith(WORKTREE_ROOT + "/")) {
+  const resolvedRoot = resolve(root);
+  if (!isWithinRoot(resolved, resolvedRoot) || resolved === resolvedRoot) {
     throw new Error(
-      `worktree path "${resolved}" is not under ${WORKTREE_ROOT} -- possible path traversal`
+      `worktree path "${resolved}" is not under ${resolvedRoot} -- possible path traversal`
     );
   }
 };
@@ -32,7 +33,8 @@ export const createWorktree = async (ctx: PipelineContext): Promise<void> => {
   const { repoPath, worktreePath } = ctx;
 
   const baseBranch = sanitizeBranch(ctx.options.branch ?? "main");
-  ensureWithinRoot(worktreePath);
+  ensureWithinRoot(worktreePath, ctx.worktreeRoot);
+  mkdirSync(ctx.worktreeRoot, { recursive: true });
 
   await gitRetry(`cd ${shellEscape(repoPath)} && git fetch origin ${shellEscape(baseBranch)}`);
   await gitRetry(
@@ -41,7 +43,7 @@ export const createWorktree = async (ctx: PipelineContext): Promise<void> => {
 };
 
 export const removeWorktree = async (ctx: PipelineContext): Promise<void> => {
-  ensureWithinRoot(ctx.worktreePath);
+  ensureWithinRoot(ctx.worktreePath, ctx.worktreeRoot);
   await exec(
     `cd ${shellEscape(ctx.repoPath)} && git worktree remove --force ${shellEscape(ctx.worktreePath)}`
   );

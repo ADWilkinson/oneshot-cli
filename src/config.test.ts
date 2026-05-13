@@ -22,6 +22,7 @@ describe("normalizeConfig", () => {
     expect(config.codex.reasoningEffort).toBe("high");
     expect(config.codex.reviewModel).toBe("gpt-custom");
     expect(config.codex.reviewReasoningEffort).toBe("high");
+    expect(config.worktreeRoot).toBe("/tmp");
   });
 
   test("explicit review model and effort still win", () => {

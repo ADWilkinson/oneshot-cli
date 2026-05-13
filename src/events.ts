@@ -29,6 +29,15 @@ export interface StartedEvent {
   readonly repo: string;
   readonly task: string;
   readonly mode?: string;
+  readonly runtime?: {
+    readonly cliVersion?: string;
+    readonly host?: string;
+    readonly platform?: string;
+    readonly node?: string;
+    readonly worktreeRoot?: string;
+    readonly basePath?: string;
+    readonly remote?: boolean;
+  };
   readonly timestamp: number;
 }
 
@@ -153,8 +162,8 @@ export class EventWriter {
     }
   }
 
-  started(repo: string, task: string, mode?: string): void {
-    this.emit({ type: "started", runId: this.runId, repo, task, mode, timestamp: Date.now() });
+  started(repo: string, task: string, mode?: string, runtime?: StartedEvent["runtime"]): void {
+    this.emit({ type: "started", runId: this.runId, repo, task, mode, runtime, timestamp: Date.now() });
   }
 
   classified(mode: string): void {

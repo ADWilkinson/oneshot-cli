@@ -39,7 +39,7 @@ const runCli = async (
   args: string[],
   env: Record<string, string>
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> => {
-  const proc = Bun.spawn(["bun", "run", "src/cli.ts", ...args], {
+  const proc = Bun.spawn([process.execPath, "run", "src/cli.ts", ...args], {
     cwd: process.cwd(),
     env: { ...process.env, ...env },
     stdout: "pipe",
@@ -95,6 +95,20 @@ describe("parseArgs", () => {
       "stats only accepts --local; unknown option: --bg"
     );
   });
+
+  test("parses doctor command with json output", () => {
+    expect(parseArgs(["doctor", "--local", "--json"])).toMatchObject({
+      command: "doctor",
+      local: true,
+      json: true,
+    });
+  });
+
+  test("rejects unsupported doctor options", () => {
+    expect(() => parseArgs(["doctor", "--bg"])).toThrow(
+      "doctor only accepts --local and --json; unknown option: --bg"
+    );
+  });
 });
 
 describe("buildLocalChildArgs", () => {
@@ -106,6 +120,8 @@ describe("buildLocalChildArgs", () => {
       "--bg",
       "--base-path",
       "/srv/workspace",
+      "--worktree-root",
+      "/var/tmp/oneshot",
       "--mode",
       "deep",
       "--deep-review",
@@ -120,6 +136,8 @@ describe("buildLocalChildArgs", () => {
       "sonnet",
       "--base-path",
       "/srv/workspace",
+      "--worktree-root",
+      "/var/tmp/oneshot",
       "--mode",
       "deep",
       "--dry-run",
@@ -135,6 +153,8 @@ describe("buildRemoteCommandParts", () => {
       "fix it's broken",
       "--base-path",
       "/srv/work dir",
+      "--worktree-root",
+      "/var/tmp/oneshot",
       "--mode",
       "fast",
       "--dry-run",
@@ -146,6 +166,8 @@ describe("buildRemoteCommandParts", () => {
       "'fix it'\\''s broken'",
       "--base-path",
       "'/srv/work dir'",
+      "--worktree-root",
+      "'/var/tmp/oneshot'",
       "--mode",
       "'fast'",
       "--dry-run",
@@ -327,5 +349,29 @@ describe("CLI integration", () => {
     expect(result.exitCode).toBe(0);
     expect(output).toMatch(new RegExp(`${escapeRegExp(repo)}.*dry run complete`));
     expect(output).not.toMatch(new RegExp(`${escapeRegExp(repo)}.*unknown`));
+  });
+
+  test("doctor local json reports tool and config state", async () => {
+    const tempDir = makeTempDir();
+    const home = join(tempDir, "home");
+    const binDir = join(tempDir, "bin");
+    mkdirSync(binDir, { recursive: true });
+
+    for (const name of ["bun", "git", "gh", "claude", "codex"]) {
+      const bin = join(binDir, name);
+      writeFileSync(bin, `#!/bin/sh\necho '${name} test'\n`);
+      chmodSync(bin, 0o755);
+    }
+
+    const result = await runCli(["doctor", "--local", "--json"], {
+      HOME: home,
+      PATH: `${binDir}:${process.env.PATH ?? ""}`,
+    });
+
+    expect(result.exitCode).toBe(0);
+    const report = JSON.parse(result.stdout);
+    expect(report.target).toBe("local");
+    expect(report.checks.some((item: { name: string; status: string }) => item.name === "config" && item.status === "warn")).toBe(true);
+    expect(report.checks.some((item: { name: string; status: string }) => item.name === "codex" && item.status === "ok")).toBe(true);
   });
 });

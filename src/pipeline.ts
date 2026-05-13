@@ -2,10 +2,13 @@ import type { PipelineContext, OneshotConfig, OneshotOptions } from "./config";
 import { CONFIG_DIR } from "./config";
 import { join } from "path";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
+import { hostname } from "os";
 import { log } from "./log";
 import { formatTime } from "./log";
 import { EventWriter } from "./events";
 import { OneshotError, exec } from "./exec";
+import { VERSION } from "./version";
+import { expandHome } from "./path-utils";
 import { validate } from "./steps/validate";
 import { createWorktree, removeWorktree } from "./steps/worktree";
 import { classify } from "./steps/classify";
@@ -17,13 +20,8 @@ import { moveToInReview, addPrComment } from "./linear";
 import { getStepLabel } from "./pipeline-steps";
 
 const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineContext => {
-  const home = process.env.HOME ?? "/root";
-  const configuredBasePath = options.basePath ?? config.basePath;
-  const basePath = configuredBasePath.startsWith("~/")
-    ? join(home, configuredBasePath.slice(2))
-    : configuredBasePath === "~"
-      ? home
-      : configuredBasePath;
+  const basePath = expandHome(options.basePath ?? config.basePath);
+  const worktreeRoot = expandHome(options.worktreeRoot ?? config.worktreeRoot ?? "/tmp");
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   return {
@@ -31,7 +29,8 @@ const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineC
     options,
     runId: id,
     repoPath: `${basePath}/${options.repo}`,
-    worktreePath: `/tmp/oneshot-${id}`,
+    worktreePath: `${worktreeRoot.replace(/\/+$/, "")}/oneshot-${id}`,
+    worktreeRoot,
     plan: "",
     prUrl: "",
     startTime: Date.now(),
@@ -76,7 +75,15 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
   const events = new EventWriter(options.eventsFile ?? null, ctx.runId);
   const stepTimings: StepTiming[] = [];
 
-  events.started(options.repo, options.task);
+  events.started(options.repo, options.task, undefined, {
+    cliVersion: VERSION,
+    host: hostname(),
+    platform: process.platform,
+    node: process.version,
+    worktreeRoot: ctx.worktreeRoot,
+    basePath: options.basePath ?? config.basePath,
+    remote: config.host !== "local",
+  });
   log.header();
 
   try {

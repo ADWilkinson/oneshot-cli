@@ -321,6 +321,7 @@ cd oneshot-cli && bun install && bun link</code></pre>
               </button>
             </div>
             <p>Sets up SSH host, workspace path, API keys, model preferences. Saves to <code>~/.oneshot/config.json</code>.</p>
+            <p>Then run <code>oneshot doctor</code> to verify local binaries, SSH reachability, remote binaries, and recent event streams.</p>
             <p>Repos should live as <code>&lt;org&gt;/&lt;repo&gt;</code> under your workspace path:</p>
             <div class="code-block">
               <pre><code>~/projects/
@@ -362,7 +363,8 @@ oneshot &lt;repo&gt; "&lt;task&gt;" --deep-review    # force exhaustive review
 oneshot &lt;repo&gt; "&lt;task&gt;" --branch staging # target a different branch
 oneshot &lt;repo&gt; --dry-run                 # validate only
 oneshot init                             # configure
-oneshot stats                            # recent runs + timing</code></pre>
+oneshot stats                            # recent runs + timing
+oneshot doctor                           # setup and remote health checks</code></pre>
         <button class="copy-btn" data-copy='oneshot <repo> "<task>"' aria-label="Copy usage examples">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
@@ -388,6 +390,16 @@ oneshot stats                            # recent runs + timing</code></pre>
               <td><code>--branch</code></td>
               <td><code>-b</code></td>
               <td>Base branch (default: <code>main</code>)</td>
+            </tr>
+            <tr>
+              <td><code>--base-path</code></td>
+              <td></td>
+              <td>Override the workspace path used to locate the repo</td>
+            </tr>
+            <tr>
+              <td><code>--worktree-root</code></td>
+              <td></td>
+              <td>Override where temporary git worktrees are created</td>
             </tr>
             <tr>
               <td><code>--deep-review</code></td>
@@ -480,6 +492,7 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
         <pre><code>{
   "host": "user@100.x.x.x",
   "basePath": "~/projects",
+  "worktreeRoot": "/tmp",
   "anthropicApiKey": "sk-ant-...",
   "linearApiKey": "lin_api_...",
   "claude": {
@@ -523,6 +536,11 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
               <td><code>basePath</code></td>
               <td>No</td>
               <td>Root directory containing your repos. Default: <code>~/projects</code></td>
+            </tr>
+            <tr>
+              <td><code>worktreeRoot</code></td>
+              <td>No</td>
+              <td>Scratch directory for temporary git worktrees. Default: <code>/tmp</code></td>
             </tr>
             <tr>
               <td><code>anthropicApiKey</code></td>

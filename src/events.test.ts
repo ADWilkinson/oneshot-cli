@@ -26,7 +26,12 @@ describe("EventWriter", () => {
     cleanupPaths.add(customFile);
 
     const writer = new EventWriter(customFile, runId);
-    writer.started("my-org/my-repo", "ship it");
+    writer.started("my-org/my-repo", "ship it", undefined, {
+      cliVersion: "0.0.0-test",
+      host: "test-host",
+      worktreeRoot: "/tmp",
+      remote: false,
+    });
     writer.agentAction(5, "Executing with Codex", {
       phase: "completed",
       kind: "command",
@@ -44,6 +49,14 @@ describe("EventWriter", () => {
 
     expect(defaultEvents).toHaveLength(3);
     expect(customEvents).toEqual(defaultEvents);
+
+    const startedEvent = JSON.parse(defaultEvents[0]);
+    expect(startedEvent.runtime).toMatchObject({
+      cliVersion: "0.0.0-test",
+      host: "test-host",
+      worktreeRoot: "/tmp",
+      remote: false,
+    });
 
     const agentEvent = JSON.parse(defaultEvents[1]);
     expect(agentEvent).toMatchObject({
