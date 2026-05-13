@@ -59,4 +59,37 @@ describe("EventWriter", () => {
       detail: { exitCode: 0 },
     });
   });
+
+  test("creates parent directories for custom event files", () => {
+    const runId = `nested-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const defaultFile = getDefaultEventsFile(runId);
+    const tempDir = join(tmpdir(), `oneshot-events-${runId}`);
+    const customFile = join(tempDir, "nested", "events.jsonl");
+    cleanupPaths.add(defaultFile);
+    cleanupPaths.add(tempDir);
+
+    const writer = new EventWriter(customFile, runId);
+    writer.started("my-org/my-repo", "ship it");
+
+    expect(existsSync(customFile)).toBe(true);
+    expect(readFileSync(customFile, "utf-8")).toContain('"type":"started"');
+  });
+
+  test("failed events keep completed step timings", () => {
+    const runId = `failed-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const defaultFile = getDefaultEventsFile(runId);
+    cleanupPaths.add(defaultFile);
+
+    const writer = new EventWriter(null, runId);
+    writer.failed("boom", 1_000, "ERR_UNKNOWN", "detail", [
+      { step: 1, label: "Validating repo", elapsed: 42 },
+    ]);
+
+    const event = JSON.parse(readFileSync(defaultFile, "utf-8").trim());
+    expect(event).toMatchObject({
+      type: "completed",
+      result: "failed",
+      stepTimings: [{ step: 1, label: "Validating repo", elapsed: 42 }],
+    });
+  });
 });

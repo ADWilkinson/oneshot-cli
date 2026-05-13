@@ -18,6 +18,12 @@ export interface ParsedArgs extends OneshotOptions {
   deepReview: boolean;
 }
 
+const parsePositiveInt = (value: string, fallback: number): number => {
+  if (!/^\d+$/.test(value)) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
 const getFlagValue = (args: string[], index: number, flag: string): string => {
   const value = args[index + 1];
   if (value == null || value.startsWith("-")) {
@@ -38,10 +44,17 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   }
 
   if (args[0] === "init") {
+    if (args.length > 1) {
+      throw new Error(`init does not accept arguments: ${args.slice(1).join(" ")}`);
+    }
     return { command: "init", repo: "", task: "", local: false, bg: false, deepReview: false };
   }
 
   if (args[0] === "stats") {
+    const invalid = args.slice(1).filter((arg) => arg !== "--local");
+    if (invalid.length > 0) {
+      throw new Error(`stats only accepts --local; unknown option: ${invalid[0]}`);
+    }
     return { command: "stats", repo: "", task: "", local: args.includes("--local"), bg: false, deepReview: false };
   }
 
@@ -260,12 +273,12 @@ const runInit = async () => {
     basePath,
     claude: {
       model: claudeModel,
-      timeoutMinutes: parseInt(claudeTimeout, 10) || 180,
+      timeoutMinutes: parsePositiveInt(claudeTimeout, 180),
     },
     codex: {
       model: codexModel,
       reasoningEffort: codexEffort,
-      timeoutMinutes: parseInt(codexTimeout, 10) || 180,
+      timeoutMinutes: parsePositiveInt(codexTimeout, 180),
     },
   };
 

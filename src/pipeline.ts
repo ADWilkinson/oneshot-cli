@@ -214,7 +214,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     const msg = err instanceof Error ? err.message : String(err);
     const errorCode = err instanceof OneshotError ? err.code : undefined;
     const errorDetail = err instanceof OneshotError ? err.detail : undefined;
-    events.failed(msg, Date.now() - ctx.startTime, errorCode, errorDetail);
+    events.failed(msg, Date.now() - ctx.startTime, errorCode, errorDetail, [...stepTimings]);
     log.warn(
       `pipeline failed; preserving worktree for recovery at ${ctx.worktreePath}`
     );

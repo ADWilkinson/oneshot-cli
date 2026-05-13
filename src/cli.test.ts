@@ -83,6 +83,18 @@ describe("parseArgs", () => {
       '--mode must be "fast" or "deep"'
     );
   });
+
+  test("rejects unsupported init arguments", () => {
+    expect(() => parseArgs(["init", "--local"])).toThrow(
+      "init does not accept arguments: --local"
+    );
+  });
+
+  test("rejects unsupported stats options", () => {
+    expect(() => parseArgs(["stats", "--bg"])).toThrow(
+      "stats only accepts --local; unknown option: --bg"
+    );
+  });
 });
 
 describe("buildLocalChildArgs", () => {

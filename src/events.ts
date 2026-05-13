@@ -1,4 +1,5 @@
-import { appendFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
+import { appendFileSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
+import { dirname } from "path";
 
 const EVENTS_REAP_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -126,6 +127,7 @@ export class EventWriter {
 
     for (const filePath of candidates) {
       try {
+        mkdirSync(dirname(filePath), { recursive: true });
         writeFileSync(filePath, "");
         this.filePaths.push(filePath);
       } catch (err) {
@@ -200,7 +202,13 @@ export class EventWriter {
     });
   }
 
-  failed(error: string, elapsed: number, errorCode?: string, errorDetail?: string): void {
+  failed(
+    error: string,
+    elapsed: number,
+    errorCode?: string,
+    errorDetail?: string,
+    stepTimings?: Array<{ step: number; label: string; elapsed: number }>,
+  ): void {
     this.emit({
       type: "completed",
       runId: this.runId,
@@ -209,6 +217,7 @@ export class EventWriter {
       elapsed,
       errorCode,
       errorDetail,
+      stepTimings,
       timestamp: Date.now(),
     });
   }

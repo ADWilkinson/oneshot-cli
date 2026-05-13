@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
 const docs = readFileSync("docs/index.html", "utf8");
+const readme = readFileSync("README.md", "utf8");
+const skill = readFileSync("skills/oneshot-ship/SKILL.md", "utf8");
 const failures = [];
 
 function assert(condition, message) {
@@ -23,6 +25,22 @@ assert(
 assert(
   docs.includes("Default: same as <code>codex.model</code>"),
   "docs must document review model inheritance",
+);
+assert(
+  readme.includes(`"model": "gpt-5.5"`),
+  "README config sample must document the current default Codex model",
+);
+assert(
+  readme.includes(`"reviewModel": "gpt-5.5"`),
+  "README config sample must document review model support",
+);
+assert(
+  skill.includes(`"model": "gpt-5.5"`),
+  "skill config sample must document the current default Codex model",
+);
+assert(
+  skill.includes("reviewModel"),
+  "skill config sample must document review model support",
 );
 
 if (failures.length > 0) {
