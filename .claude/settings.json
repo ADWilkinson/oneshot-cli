@@ -1,0 +1,83 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'HOOKS_HOME=\"${AGENT_HOOKS_HOME:-$HOME/.agent-hooks}\"; python3 \"$HOOKS_HOME/hooks/session_context.py\"'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'HOOKS_HOME=\"${AGENT_HOOKS_HOME:-$HOME/.agent-hooks}\"; python3 \"$HOOKS_HOME/hooks/prompt_router.py\"'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'HOOKS_HOME=\"${AGENT_HOOKS_HOME:-$HOME/.agent-hooks}\"; python3 \"$HOOKS_HOME/hooks/protect_paths.py\"'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'HOOKS_HOME=\"${AGENT_HOOKS_HOME:-$HOME/.agent-hooks}\"; python3 \"$HOOKS_HOME/hooks/command_policy.py\"'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'HOOKS_HOME=\"${AGENT_HOOKS_HOME:-$HOME/.agent-hooks}\"; python3 \"$HOOKS_HOME/hooks/quality_gate.py\"'",
+            "timeout": 240
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'HOOKS_HOME=\"${AGENT_HOOKS_HOME:-$HOME/.agent-hooks}\"; python3 \"$HOOKS_HOME/hooks/stop_gate.py\"'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'HOOKS_HOME=\"${AGENT_HOOKS_HOME:-$HOME/.agent-hooks}\"; python3 \"$HOOKS_HOME/hooks/session_end_audit.py\"'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

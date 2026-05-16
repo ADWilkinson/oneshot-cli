@@ -1,0 +1,28 @@
+{
+  "name": "oneshot-cli",
+  "context": [
+    "Published package is oneshot-ship and the executable is oneshot.",
+    "Version source of truth is package.json; docs/index.html must stay in sync when visible version changes.",
+    "After publishing, install and verify the CLI locally, on dappnode, and on andrew-dev when release scope says everywhere."
+  ],
+  "quality": {
+    "command": "bun run check",
+    "timeout_seconds": 240,
+    "watched_extensions": [".ts", ".js", ".mjs", ".json", ".md", ".html"],
+    "skip_paths": ["dist/", "node_modules/", ".hook-state/"]
+  },
+  "protected": {
+    "exact": [".env", ".env.local", ".npmrc"],
+    "prefixes": ["dist/", "node_modules/", ".hook-state/"]
+  },
+  "prompt_routes": [
+    {
+      "terms": ["publish", "release", "npm", "install", "version"],
+      "context": "For oneshot-cli releases, run npm pack --dry-run, publish the new oneshot-ship version, then verify npm view and `oneshot --version` on local, dappnode, and andrew-dev."
+    },
+    {
+      "terms": ["remote", "ssh", "dappnode", "andrew-dev"],
+      "context": "Remote CLI verification should inspect the active Bun global install, not just the checkout."
+    }
+  ]
+}

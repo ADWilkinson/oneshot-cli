@@ -4,7 +4,7 @@ description: Ship code with oneshot CLI. One command that plans, executes, revie
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "0.2.10"
+  version: "0.2.11"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, Claude Code CLI, Codex CLI, and GitHub CLI. SSH access to a server optional (can run locally with --local)
 ---
@@ -141,4 +141,4 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 - Task classification picks `fast` or `deep` mode automatically. Use `--deep-review` to force deep
 - Duration estimates come from historical runs per repo (`~/.oneshot/history.json`)
 - Repo slugs must be exact `owner/repo` values. Nested paths and `..` are rejected before dispatch
-- `doctor` compares the running CLI version with the npm registry and can verify a specific checkout with `--repo`
+- `doctor` compares the running CLI version with the npm registry, checks the agent hook runtime, and can verify a specific checkout with `--repo`
