@@ -29,7 +29,7 @@
         </svg>
         <span class="logo-text">oneshot</span>
       </a>
-      <span class="version-badge">v0.2.11</span>
+      <span class="version-badge">v0.2.12</span>
     </div>
 
     <nav class="sidebar-nav" aria-label="Primary">
@@ -180,7 +180,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
           <h3 class="step-title">Classify</h3>
-          <span class="step-engine engine-claude">Haiku</span>
+          <span class="step-engine engine-claude">Config</span>
           <p class="step-desc">Decides fast vs deep review mode based on task complexity</p>
         </div>
 
@@ -192,7 +192,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </div>
           <h3 class="step-title">Plan</h3>
-          <span class="step-engine engine-claude">Claude</span>
+          <span class="step-engine engine-claude">Config</span>
           <p class="step-desc">Reads the codebase, outputs an implementation plan</p>
         </div>
 
@@ -204,7 +204,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           </div>
           <h3 class="step-title">Execute</h3>
-          <span class="step-engine engine-codex">Codex</span>
+          <span class="step-engine engine-codex">Config</span>
           <p class="step-desc">Implements the plan following repo conventions</p>
         </div>
 
@@ -216,8 +216,8 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
           </div>
           <h3 class="step-title">Draft PR</h3>
-          <span class="step-engine engine-claude">Claude</span>
-          <p class="step-desc">Creates branch, commits, pushes, and opens a draft PR</p>
+          <span class="step-engine engine-claude">Config</span>
+          <p class="step-desc">Creates branch, commits, and writes PR metadata; runtime opens the draft PR</p>
         </div>
 
         <div class="pipeline-connector"></div>
@@ -228,7 +228,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </div>
           <h3 class="step-title">Review</h3>
-          <span class="step-engine engine-codex">Codex</span>
+          <span class="step-engine engine-codex">Config</span>
           <p class="step-desc">Reviews the diff for bugs, types, and security. Fixes issues directly.</p>
         </div>
 
@@ -240,7 +240,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <h3 class="step-title">Finalize</h3>
-          <span class="step-engine engine-claude">Claude</span>
+          <span class="step-engine">git/gh</span>
           <p class="step-desc">Pushes review fixes and marks the PR ready</p>
         </div>
       </div>
@@ -358,7 +358,7 @@ cd oneshot-cli && bun install && bun link</code></pre>
 oneshot &lt;repo&gt; &lt;linear-url&gt;              # ship from a Linear ticket
 oneshot &lt;repo&gt; "&lt;task&gt;" --bg             # fire and forget
 oneshot &lt;repo&gt; "&lt;task&gt;" --local          # run locally, no SSH
-oneshot &lt;repo&gt; "&lt;task&gt;" --model sonnet   # override Claude model
+oneshot &lt;repo&gt; "&lt;task&gt;" --model sonnet   # override Claude-backed plan/PR model
 oneshot &lt;repo&gt; "&lt;task&gt;" --deep-review    # force exhaustive review
 oneshot &lt;repo&gt; "&lt;task&gt;" --branch staging # target a different branch
 oneshot &lt;repo&gt; --dry-run                 # validate only
@@ -385,7 +385,7 @@ oneshot doctor --repo acme/api           # setup + checkout health</code></pre>
             <tr>
               <td><code>--model</code></td>
               <td><code>-m</code></td>
-              <td>Override the Claude model (e.g. <code>sonnet</code>, <code>opus</code>)</td>
+              <td>Override the Claude-backed plan/PR model (e.g. <code>sonnet</code>, <code>opus</code>)</td>
             </tr>
             <tr>
               <td><code>--branch</code></td>
@@ -512,6 +512,26 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
     "reviewReasoningEffort": "xhigh",
     "timeoutMinutes": 180
   },
+  "phases": {
+    "classify": { "provider": "claude", "model": "haiku" },
+    "plan": { "provider": "claude", "model": "opus" },
+    "execute": {
+      "provider": "codex",
+      "model": "gpt-5.5",
+      "reasoningEffort": "xhigh"
+    },
+    "review": {
+      "provider": "codex",
+      "model": "gpt-5.5",
+      "reasoningEffort": "xhigh"
+    },
+    "deepReview": {
+      "provider": "codex",
+      "model": "gpt-5.5",
+      "reasoningEffort": "xhigh"
+    },
+    "pr": { "provider": "claude", "model": "opus" }
+  },
   "stepTimeouts": {
     "planMinutes": 20,
     "executeMinutes": 60,
@@ -521,6 +541,8 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
   }
 }</code></pre>
       </div>
+
+      <p class="section-desc"><code>phases</code> is optional and backward-compatible. If omitted, oneshot keeps the previous defaults: Claude classifies/plans/creates PR metadata, Codex executes/reviews, and <code>git</code>/<code>gh</code> finalizes the PR.</p>
 
       <h3 class="subsection-title">Options</h3>
       <div class="table-wrap">
@@ -561,27 +583,42 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
             <tr>
               <td><code>claude.model</code></td>
               <td>No</td>
-              <td>Claude model for Plan, Classify, and PR steps. Default: <code>opus</code></td>
+              <td>Legacy default for Claude-backed Plan and PR phases. Default: <code>opus</code></td>
             </tr>
             <tr>
               <td><code>codex.model</code></td>
               <td>No</td>
-              <td>Codex model for Execute step. Default: <code>gpt-5.5</code></td>
+              <td>Legacy default for Codex-backed Execute phase. Default: <code>gpt-5.5</code></td>
             </tr>
             <tr>
               <td><code>codex.reasoningEffort</code></td>
               <td>No</td>
-              <td>Reasoning effort for execution. Default: <code>xhigh</code></td>
+              <td>Legacy default reasoning effort for Codex execution. Default: <code>xhigh</code></td>
             </tr>
             <tr>
               <td><code>codex.reviewModel</code></td>
               <td>No</td>
-              <td>Separate model for the Review step. Default: same as <code>codex.model</code></td>
+              <td>Legacy default for Codex-backed Review phases. Default: same as <code>codex.model</code></td>
             </tr>
             <tr>
               <td><code>codex.reviewReasoningEffort</code></td>
               <td>No</td>
-              <td>Reasoning effort for review. Default: same as <code>codex.reasoningEffort</code></td>
+              <td>Legacy default reasoning effort for Review phases. Default: same as <code>codex.reasoningEffort</code></td>
+            </tr>
+            <tr>
+              <td><code>phases.&lt;phase&gt;.provider</code></td>
+              <td>No</td>
+              <td>Agent provider for <code>classify</code>, <code>plan</code>, <code>execute</code>, <code>review</code>, <code>deepReview</code>, or <code>pr</code>. Use <code>claude</code> or <code>codex</code></td>
+            </tr>
+            <tr>
+              <td><code>phases.&lt;phase&gt;.model</code></td>
+              <td>No</td>
+              <td>Exact model for that phase</td>
+            </tr>
+            <tr>
+              <td><code>phases.&lt;phase&gt;.reasoningEffort</code></td>
+              <td>Codex only</td>
+              <td>Codex reasoning effort for that phase, e.g. <code>medium</code>, <code>high</code>, <code>xhigh</code></td>
             </tr>
             <tr>
               <td><code>stepTimeouts</code></td>
@@ -631,7 +668,7 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
       <div class="custom-grid">
         <div class="custom-card">
           <h3>CLAUDE.md</h3>
-          <p>Put a <code>CLAUDE.md</code> in any repo root. oneshot passes it to Claude and Codex at every step.</p>
+          <p>Put a <code>CLAUDE.md</code> in any repo root. oneshot passes it to the configured agents for planning and execution.</p>
           <p class="text-muted">Coding standards, architecture decisions, test requirements, whatever.</p>
         </div>
 
@@ -641,19 +678,19 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
           <div class="file-list">
             <div class="file-item">
               <code>prompts/plan.txt</code>
-              <span>How Claude explores and plans</span>
+              <span>How the plan agent explores and plans</span>
             </div>
             <div class="file-item">
               <code>prompts/execute.txt</code>
-              <span>How Codex implements changes</span>
+              <span>How the execute agent implements changes</span>
             </div>
             <div class="file-item">
               <code>prompts/review.txt</code>
-              <span>How Codex reviews the diff</span>
+              <span>How the review agent reviews the diff</span>
             </div>
             <div class="file-item">
               <code>prompts/pr.txt</code>
-              <span>How Claude creates the PR</span>
+              <span>How the PR agent writes branch/commit/PR metadata</span>
             </div>
           </div>
           <p class="text-muted">Templates use <code>{{variable}}</code> placeholders replaced at runtime.</p>

@@ -124,4 +124,18 @@ describe("buildCodexExecCommand", () => {
     expect(command).toContain("-c 'model_reasoning_effort=\"xhigh\"'");
     expect(command).toContain("'fix it'\\''s broken'");
   });
+
+  test("can build text-output commands for non-event phases", () => {
+    const command = buildCodexExecCommand({
+      worktreePath: "/tmp/work tree",
+      prompt: "write a plan",
+      model: "gpt-5.5",
+      reasoningEffort: "high",
+      json: false,
+    });
+
+    expect(command).not.toContain("--json");
+    expect(command).toContain("codex exec");
+    expect(command).toContain("-c 'model_reasoning_effort=\"high\"'");
+  });
 });

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { normalizeConfig } from "./config";
+import { getPhaseAgent, normalizeConfig } from "./config";
 
 describe("normalizeConfig", () => {
   test("defaults review model and effort to the configured execution values", () => {
@@ -42,6 +42,58 @@ describe("normalizeConfig", () => {
 
     expect(config.codex.reviewModel).toBe("gpt-review");
     expect(config.codex.reviewReasoningEffort).toBe("xhigh");
+  });
+
+  test("builds backward-compatible phase defaults from legacy model config", () => {
+    const config = normalizeConfig(
+      {
+        host: "example-host",
+        claude: { model: "opus-only", timeoutMinutes: 180 },
+        codex: {
+          model: "gpt-execute",
+          reasoningEffort: "high",
+          reviewModel: "gpt-review",
+          reviewReasoningEffort: "xhigh",
+          timeoutMinutes: 90,
+        },
+      },
+      { requireHost: true },
+    );
+
+    expect(getPhaseAgent(config, "plan")).toEqual({ provider: "claude", model: "opus-only" });
+    expect(getPhaseAgent(config, "execute")).toEqual({
+      provider: "codex",
+      model: "gpt-execute",
+      reasoningEffort: "high",
+    });
+    expect(getPhaseAgent(config, "review")).toEqual({
+      provider: "codex",
+      model: "gpt-review",
+      reasoningEffort: "xhigh",
+    });
+  });
+
+  test("phase overrides can switch providers and normalize codex effort", () => {
+    const config = normalizeConfig(
+      {
+        host: "example-host",
+        phases: {
+          plan: { provider: "codex", model: "gpt-plan", reasoningEffort: "medium" },
+          review: { provider: "claude", model: "opus-review", reasoningEffort: "xhigh" },
+        },
+      },
+      { requireHost: true },
+    );
+
+    expect(getPhaseAgent(config, "plan")).toEqual({
+      provider: "codex",
+      model: "gpt-plan",
+      reasoningEffort: "medium",
+    });
+    expect(getPhaseAgent(config, "review")).toEqual({
+      provider: "claude",
+      model: "opus-review",
+    });
   });
 });
 

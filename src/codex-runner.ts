@@ -29,12 +29,13 @@ export const buildCodexExecCommand = (opts: {
   prompt: string;
   model: string;
   reasoningEffort: string;
+  json?: boolean;
 }): string => {
   const effortConfig = `model_reasoning_effort="${opts.reasoningEffort}"`;
   return [
     `cd ${shellEscape(opts.worktreePath)} &&`,
     "codex exec",
-    "--json",
+    opts.json === false ? "" : "--json",
     "--color=never",
     "--skip-git-repo-check",
     "--dangerously-bypass-approvals-and-sandbox",
@@ -43,7 +44,20 @@ export const buildCodexExecCommand = (opts: {
     "-c",
     shellEscape(effortConfig),
     shellEscape(opts.prompt),
-  ].join(" ");
+  ].filter(Boolean).join(" ");
+};
+
+export const runCodexText = async (opts: {
+  worktreePath: string;
+  prompt: string;
+  model: string;
+  reasoningEffort: string;
+  timeoutMs: number;
+}): Promise<string> => {
+  return execOrThrow(
+    buildCodexExecCommand({ ...opts, json: false }),
+    { timeoutMs: opts.timeoutMs, stream: true }
+  );
 };
 
 export const runCodexJson = async (opts: RunCodexJsonOptions): Promise<void> => {

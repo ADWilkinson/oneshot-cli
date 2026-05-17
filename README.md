@@ -7,7 +7,7 @@
 Ship code in one command. Repo + task in, PR out.
 
 ```
-laptop → server → Claude (plan) → Codex (execute) → Codex (review) → Claude (PR)
+laptop → server → configurable agents per phase → PR
 ```
 
 Also runs locally with `--local`, no server needed.
@@ -37,12 +37,12 @@ oneshot runs an 8-step pipeline. Each run gets its own git worktree in `/tmp`, s
 |------|--------|-------------|
 | 1. Validate | git | Checks the repo exists, fetches latest |
 | 2. Worktree | git | Creates an isolated `/tmp` worktree from `origin/main` |
-| 3. Classify | Claude Haiku | Picks fast or deep review mode based on task complexity |
-| 4. Plan | Claude | Reads the codebase + `CLAUDE.md`, outputs an implementation plan |
-| 5. Execute | Codex | Implements the plan |
-| 6. Draft PR | Claude | Creates branch, commits, pushes, opens a draft PR |
-| 7. Review | Codex | Reviews the diff for bugs, types, security. Fixes issues directly |
-| 8. Finalize | Claude | Pushes review fixes, marks PR ready |
+| 3. Classify | Configurable | Picks fast or deep review mode based on task complexity |
+| 4. Plan | Configurable | Reads the codebase + `CLAUDE.md`, outputs an implementation plan |
+| 5. Execute | Configurable | Implements the plan |
+| 6. Draft PR | Configurable | Creates branch, commits, and writes PR metadata; the runtime opens the draft PR |
+| 7. Review | Configurable | Reviews the diff for bugs, types, security. Fixes issues directly |
+| 8. Finalize | git/gh | Pushes review fixes, marks PR ready |
 
 If execute times out with partial changes, the draft PR is still created so nothing is lost.
 
@@ -55,7 +55,7 @@ oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
 oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
-oneshot <repo> "<task>" --model sonnet # override Claude model
+oneshot <repo> "<task>" --model sonnet # override Claude-backed plan/PR model
 oneshot <repo> "<task>" --branch dev   # target a different branch
 oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for this run
 oneshot <repo> --dry-run               # validate only
@@ -69,7 +69,7 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--model` | `-m` | Override Claude model |
+| `--model` | `-m` | Override Claude-backed plan/PR model |
 | `--branch` | `-b` | Base branch (default: main) |
 | `--base-path` | | Override the workspace path used to locate the repo |
 | `--worktree-root` | | Override where temporary git worktrees are created |
@@ -113,6 +113,26 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
     "reviewReasoningEffort": "xhigh",
     "timeoutMinutes": 180
   },
+  "phases": {
+    "classify": { "provider": "claude", "model": "haiku" },
+    "plan": { "provider": "claude", "model": "opus" },
+    "execute": {
+      "provider": "codex",
+      "model": "gpt-5.5",
+      "reasoningEffort": "xhigh"
+    },
+    "review": {
+      "provider": "codex",
+      "model": "gpt-5.5",
+      "reasoningEffort": "xhigh"
+    },
+    "deepReview": {
+      "provider": "codex",
+      "model": "gpt-5.5",
+      "reasoningEffort": "xhigh"
+    },
+    "pr": { "provider": "claude", "model": "opus" }
+  },
   "stepTimeouts": {
     "planMinutes": 20,
     "executeMinutes": 60,
@@ -124,7 +144,7 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
 ```
 
 Only `host` is required for SSH runs. Local mode works without a config file.
-Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, model defaults, timeout settings, and configured Anthropic/Linear credentials stay aligned without requiring a duplicate `~/.oneshot/config.json` on the server.
+Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, phase-agent defaults, timeout settings, and configured Anthropic/Linear credentials stay aligned without requiring a duplicate `~/.oneshot/config.json` on the server.
 
 | Key | Required | Description |
 |-----|----------|-------------|
@@ -133,12 +153,17 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `worktreeRoot` | No | Scratch directory for temporary git worktrees. Default: `/tmp` |
 | `anthropicApiKey` | No | Falls back to `ANTHROPIC_API_KEY` env var |
 | `linearApiKey` | No | Enables Linear ticket integration |
-| `claude.model` | No | Model for Plan, Classify, PR steps. Default: `opus` |
-| `codex.model` | No | Model for Execute step. Default: `gpt-5.5` |
-| `codex.reasoningEffort` | No | Reasoning effort for execution. Default: `xhigh` |
-| `codex.reviewModel` | No | Model for Review step. Default: same as `codex.model` |
-| `codex.reviewReasoningEffort` | No | Reasoning effort for review. Default: same as `codex.reasoningEffort` |
+| `claude.model` | No | Legacy default for Claude-backed Plan and PR phases. Default: `opus` |
+| `codex.model` | No | Legacy default for Codex-backed Execute phase. Default: `gpt-5.5` |
+| `codex.reasoningEffort` | No | Legacy default reasoning effort for Codex execution. Default: `xhigh` |
+| `codex.reviewModel` | No | Legacy default for Codex-backed Review phases. Default: same as `codex.model` |
+| `codex.reviewReasoningEffort` | No | Legacy default reasoning effort for Review phases. Default: same as `codex.reasoningEffort` |
+| `phases.<phase>.provider` | No | Agent provider for `classify`, `plan`, `execute`, `review`, `deepReview`, or `pr`. Use `claude` or `codex` |
+| `phases.<phase>.model` | No | Exact model for that phase |
+| `phases.<phase>.reasoningEffort` | Codex only | Codex reasoning effort for that phase, e.g. `medium`, `high`, `xhigh` |
 | `stepTimeouts` | No | Per-step timeout overrides in minutes |
+
+`phases` is optional and backward-compatible. If it is omitted, oneshot keeps the previous sandwich defaults: Claude classifies/plans/creates PR metadata, Codex executes/reviews, and `git`/`gh` finalizes the PR.
 
 Repos on the server should live as `<org>/<repo>` under the base path. Repo slugs are intentionally strict: exactly `owner/repo`, using only letters, numbers, dot, underscore, and hyphen. Nested paths and `..` are rejected before any filesystem access.
 
@@ -165,16 +190,16 @@ Requires `linearApiKey` in config.
 
 ## Customization
 
-**CLAUDE.md**: put one in any repo root. oneshot passes it to Claude and Codex at every step. Use it for coding standards, architecture decisions, test requirements.
+**CLAUDE.md**: put one in any repo root. oneshot passes it to the configured agents for planning and execution. Use it for coding standards, architecture decisions, test requirements.
 
 **Prompt templates**: edit these to change pipeline behavior:
 
 | File | Controls |
 |------|----------|
-| `prompts/plan.txt` | How Claude explores and plans |
-| `prompts/execute.txt` | How Codex implements changes |
-| `prompts/review.txt` | How Codex reviews the diff |
-| `prompts/pr.txt` | How Claude creates the PR |
+| `prompts/plan.txt` | How the plan agent explores and plans |
+| `prompts/execute.txt` | How the execute agent implements changes |
+| `prompts/review.txt` | How the review agent reviews the diff |
+| `prompts/pr.txt` | How the PR agent writes branch/commit/PR metadata |
 
 Templates use `{{variable}}` placeholders replaced at runtime.
 

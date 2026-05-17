@@ -2,10 +2,10 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import type { PipelineContext } from "../config";
 import { execOrThrow, exec, OneshotError } from "../exec";
-import { getStepTimeout } from "../config";
+import { getPhaseAgent, getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
-import { internalClaudeFlags } from "../claude-flags";
-import { PROMPTS_DIR, CLAUDE_PLUGIN_DIR } from "../paths";
+import { PROMPTS_DIR } from "../paths";
+import { runAgentText, withClaudeModelOverride } from "../phase-runner";
 
 const PR_TITLE_FILE = ".oneshot-pr-title.txt";
 const PR_BODY_FILE = ".oneshot-pr-body.txt";
@@ -28,16 +28,12 @@ const readPrMetadataFile = (worktreePath: string, filename: string): string | nu
   }
 };
 
-const pluginFlag = CLAUDE_PLUGIN_DIR
-  ? `--plugin-dir ${shellEscape(CLAUDE_PLUGIN_DIR)} `
-  : "";
-
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "pr.txt"), "utf-8");
 };
 
 export const getPrModel = (ctx: PipelineContext): string =>
-  ctx.options.model ?? ctx.config.claude.model;
+  withClaudeModelOverride(getPhaseAgent(ctx.config, "pr"), ctx.options.model).model;
 
 const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<string> => {
   const { stdout } = await prExec(
@@ -210,7 +206,7 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   // recoverable work on origin.
   await snapshotWorktreeToOrigin(worktreePath, branchSlug, runId);
 
-  const model = getPrModel(ctx);
+  const agent = withClaudeModelOverride(getPhaseAgent(config, "pr"), options.model);
   const prompt = loadPromptTemplate()
     .replace("{{task}}", taskSummary)
     .replace("{{branchName}}", branchName)
@@ -218,10 +214,14 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
 
   const timeoutMs = getStepTimeout(config, "prMinutes");
 
-  await execOrThrow(
-    `cd ${shellEscape(worktreePath)} && claude -p ${shellEscape(prompt)} ${pluginFlag}${internalClaudeFlags()} --dangerously-skip-permissions --model ${shellEscape(model)} --no-session-persistence`,
-    { timeoutMs, stream: true }
-  );
+  await runAgentText({
+    worktreePath,
+    prompt,
+    agent,
+    timeoutMs,
+    includeClaudePlugins: true,
+    allowClaudeWrites: true,
+  });
 
   const title =
     readPrMetadataFile(worktreePath, PR_TITLE_FILE) ??

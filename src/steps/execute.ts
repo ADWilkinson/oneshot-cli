@@ -2,11 +2,12 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import type { PipelineContext } from "../config";
 import { exec } from "../exec";
-import { getStepTimeout } from "../config";
+import { getPhaseAgent, getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
 import type { EventWriter } from "../events";
 import { runCodexJson } from "../codex-runner";
+import { runAgentText } from "../phase-runner";
 
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "execute.txt"), "utf-8");
@@ -23,12 +24,24 @@ export const execute = async (ctx: PipelineContext, events: EventWriter): Promis
     .replace("{{claudeMd}}", claudeMd.stdout.trim());
 
   const timeoutMs = getStepTimeout(config, "executeMinutes");
+  const agent = getPhaseAgent(config, "execute");
+
+  if (agent.provider === "claude") {
+    await runAgentText({
+      worktreePath,
+      prompt,
+      agent,
+      timeoutMs,
+      allowClaudeWrites: true,
+    });
+    return;
+  }
 
   await runCodexJson({
     worktreePath,
     prompt,
-    model: config.codex.model,
-    reasoningEffort: config.codex.reasoningEffort,
+    model: agent.model,
+    reasoningEffort: agent.reasoningEffort ?? "xhigh",
     timeoutMs,
     step: 5,
     events,

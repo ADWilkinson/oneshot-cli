@@ -19,6 +19,7 @@ export interface OneshotConfig {
     reviewReasoningEffort?: string;
     timeoutMinutes: number;
   };
+  phases?: Partial<Record<PhaseName, PhaseAgentConfig>>;
   stepTimeouts?: {
     planMinutes?: number;
     executeMinutes?: number;
@@ -44,6 +45,15 @@ export interface OneshotOptions {
 }
 
 export type ComplexityMode = 'fast' | 'deep';
+
+export type AgentProvider = "claude" | "codex";
+export type PhaseName = "classify" | "plan" | "execute" | "review" | "deepReview" | "pr";
+
+export interface PhaseAgentConfig {
+  provider: AgentProvider;
+  model: string;
+  reasoningEffort?: string;
+}
 
 export interface PipelineContext {
   config: OneshotConfig;
@@ -87,6 +97,10 @@ const asOptionalString = (value: unknown): string | undefined => {
   return typeof value === "string" && value.trim() ? value : undefined;
 };
 
+const asAgentProvider = (value: unknown, fallback: AgentProvider): AgentProvider => {
+  return value === "claude" || value === "codex" ? value : fallback;
+};
+
 const parseConfigFile = async (): Promise<Partial<OneshotConfig>> => {
   const rawText = await Bun.file(CONFIG_PATH).text();
   let raw: Partial<OneshotConfig>;
@@ -112,7 +126,7 @@ export const normalizeConfig = (
   const codexReasoningEffort =
     asOptionalString(raw.codex?.reasoningEffort) ?? DEFAULT_CONFIG.codex.reasoningEffort;
 
-  return {
+  const config: OneshotConfig = {
     ...DEFAULT_CONFIG,
     ...raw,
     host: host ?? "local",
@@ -167,6 +181,9 @@ export const normalizeConfig = (
         }
       : undefined,
   };
+
+  config.phases = normalizePhases(raw.phases, buildLegacyPhaseDefaults(config));
+  return config;
 };
 
 export const loadConfig = async (): Promise<OneshotConfig> => {
@@ -200,6 +217,73 @@ const DEFAULT_STEP_TIMEOUTS = {
   reviewMinutes: 60,
   deepReviewMinutes: 60,
   prMinutes: 60,
+};
+
+const PHASES: PhaseName[] = ["classify", "plan", "execute", "review", "deepReview", "pr"];
+
+const buildLegacyPhaseDefaults = (
+  config: Pick<OneshotConfig, "claude" | "codex">
+): Record<PhaseName, PhaseAgentConfig> => ({
+  classify: {
+    provider: "claude",
+    model: "haiku",
+  },
+  plan: {
+    provider: "claude",
+    model: config.claude.model,
+  },
+  execute: {
+    provider: "codex",
+    model: config.codex.model,
+    reasoningEffort: config.codex.reasoningEffort,
+  },
+  review: {
+    provider: "codex",
+    model: config.codex.reviewModel ?? config.codex.model,
+    reasoningEffort: config.codex.reviewReasoningEffort ?? config.codex.reasoningEffort,
+  },
+  deepReview: {
+    provider: "codex",
+    model: config.codex.reviewModel ?? config.codex.model,
+    reasoningEffort: config.codex.reviewReasoningEffort ?? config.codex.reasoningEffort,
+  },
+  pr: {
+    provider: "claude",
+    model: config.claude.model,
+  },
+});
+
+const normalizePhase = (
+  raw: PhaseAgentConfig | undefined,
+  fallback: PhaseAgentConfig
+): PhaseAgentConfig => {
+  const provider = asAgentProvider(raw?.provider, fallback.provider);
+  return {
+    provider,
+    model: asOptionalString(raw?.model) ?? fallback.model,
+    reasoningEffort:
+      provider === "codex"
+        ? asOptionalString(raw?.reasoningEffort) ?? fallback.reasoningEffort ?? "xhigh"
+        : undefined,
+  };
+};
+
+const normalizePhases = (
+  raw: Partial<Record<PhaseName, PhaseAgentConfig>> | undefined,
+  defaults: Record<PhaseName, PhaseAgentConfig>
+): Record<PhaseName, PhaseAgentConfig> => {
+  const phases = {} as Record<PhaseName, PhaseAgentConfig>;
+  for (const phase of PHASES) {
+    phases[phase] = normalizePhase(raw?.[phase], defaults[phase]);
+  }
+  return phases;
+};
+
+export const getPhaseAgent = (
+  config: Pick<OneshotConfig, "claude" | "codex" | "phases">,
+  phase: PhaseName
+): PhaseAgentConfig => {
+  return normalizePhase(config.phases?.[phase], buildLegacyPhaseDefaults(config)[phase]);
 };
 
 export type StepTimeoutKey = keyof typeof DEFAULT_STEP_TIMEOUTS;

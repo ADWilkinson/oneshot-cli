@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { loadConfig, loadLocalConfig, saveConfig, CONFIG_PATH } from "./config";
-import type { OneshotConfig, OneshotOptions } from "./config";
+import type { AgentProvider, OneshotConfig, OneshotOptions, PhaseAgentConfig, PhaseName } from "./config";
 import { runPipeline } from "./pipeline";
 import { log } from "./log";
 import { isLinearUrl, extractIssueId, fetchIssue, formatIssueAsTask } from "./linear";
@@ -25,6 +25,11 @@ const parsePositiveInt = (value: string, fallback: number): number => {
   if (!/^\d+$/.test(value)) return fallback;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const asProvider = (value: string, fallback: AgentProvider): AgentProvider => {
+  const normalized = value.trim().toLowerCase();
+  return normalized === "claude" || normalized === "codex" ? normalized : fallback;
 };
 
 const getFlagValue = (args: string[], index: number, flag: string): string => {
@@ -238,7 +243,7 @@ Commands:
   doctor                  Check local and remote oneshot prerequisites
 
 Options:
-  --model, -m <model>     Override Claude model (default: from config)
+  --model, -m <model>     Override Claude-backed plan/PR model (default: from config)
   --branch, -b <branch>   Base branch to work from and PR into (default: main)
   --base-path <path>      Override the workspace path used to locate the repo
   --worktree-root <path>  Override where temporary git worktrees are created
@@ -275,6 +280,43 @@ const prompt = async (question: string, defaultValue?: string): Promise<string> 
   return defaultValue || "";
 };
 
+const phaseDefaults: Array<{
+  name: PhaseName;
+  label: string;
+  provider: AgentProvider;
+  model: string;
+  reasoningEffort?: string;
+}> = [
+  { name: "classify", label: "classify mode", provider: "claude", model: "haiku" },
+  { name: "plan", label: "plan", provider: "claude", model: "opus" },
+  { name: "execute", label: "execute", provider: "codex", model: "gpt-5.5", reasoningEffort: "xhigh" },
+  { name: "review", label: "review", provider: "codex", model: "gpt-5.5", reasoningEffort: "xhigh" },
+  { name: "deepReview", label: "deep review", provider: "codex", model: "gpt-5.5", reasoningEffort: "xhigh" },
+  { name: "pr", label: "PR metadata", provider: "claude", model: "opus" },
+];
+
+const promptPhase = async (
+  phase: (typeof phaseDefaults)[number]
+): Promise<PhaseAgentConfig> => {
+  const provider = asProvider(
+    await prompt(`  ${phase.label} provider (claude/codex)`, phase.provider),
+    phase.provider,
+  );
+  const model = await prompt(`  ${phase.label} ${provider} model`, phase.model);
+  if (provider === "claude") {
+    return { provider, model };
+  }
+
+  return {
+    provider,
+    model,
+    reasoningEffort: await prompt(
+      `  ${phase.label} codex reasoning effort`,
+      phase.reasoningEffort ?? "xhigh",
+    ),
+  };
+};
+
 const runInit = async () => {
   console.log("\noneshot init\n");
 
@@ -299,7 +341,7 @@ const runInit = async () => {
   const anthropicApiKey = await prompt("  anthropic api key (optional, or set ANTHROPIC_API_KEY on server)");
   const linearApiKey = await prompt("  linear api key (optional, for ticket integration)");
 
-  console.log("\nmodel defaults:\n");
+  console.log("\nlegacy model defaults:\n");
 
   const claudeModel = await prompt("  claude model (for planning + PR)", "opus");
   const claudeTimeout = await prompt("  claude timeout in minutes", "180");
@@ -321,6 +363,12 @@ const runInit = async () => {
       timeoutMinutes: parsePositiveInt(codexTimeout, 180),
     },
   };
+
+  console.log("\nphase agents (provider + model per phase):\n");
+  config.phases = {};
+  for (const phase of phaseDefaults) {
+    config.phases[phase.name] = await promptPhase(phase);
+  }
 
   if (anthropicApiKey) config.anthropicApiKey = anthropicApiKey;
   if (linearApiKey) config.linearApiKey = linearApiKey;

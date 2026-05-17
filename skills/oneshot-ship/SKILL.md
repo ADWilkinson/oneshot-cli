@@ -4,14 +4,14 @@ description: Ship code with oneshot CLI. One command that plans, executes, revie
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "0.2.11"
+  version: "0.2.12"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, Claude Code CLI, Codex CLI, and GitHub CLI. SSH access to a server optional (can run locally with --local)
 ---
 
 # oneshot CLI
 
-Ship code with a single command. oneshot runs a full pipeline: classify + plan (Claude) → execute (Codex) → review (Codex) → PR/finalize (Claude). Works over SSH to a remote server or locally with `--local`.
+Ship code with a single command. oneshot runs a full pipeline with configurable agents per phase. Defaults are classify + plan (Claude) → execute (Codex) → review (Codex) → PR metadata (Claude), but each agent phase can be Claude or Codex. Works over SSH to a remote server or locally with `--local`.
 
 ## When to use this skill
 
@@ -55,7 +55,7 @@ oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
 oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
-oneshot <repo> "<task>" --model sonnet # override Claude model
+oneshot <repo> "<task>" --model sonnet # override Claude-backed plan/PR model
 oneshot <repo> "<task>" --branch dev   # target a different branch
 oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for this run
 oneshot <repo> --dry-run               # validate only
@@ -69,12 +69,12 @@ oneshot doctor --repo zkp2p/pay        # health plus checkout existence
 
 1. **Validate**: checks the repo exists, fetches latest from origin
 2. **Worktree**: creates a temp git worktree from the target base branch
-3. **Classify**: classifies the task as `fast` or `deep` via heuristics + LLM
-4. **Plan**: Claude reads the codebase and CLAUDE.md conventions, outputs an implementation plan
-5. **Execute**: Codex implements the plan. If it times out with partial changes, the pipeline continues
-6. **Draft PR**: Claude creates a branch, commits, pushes, and opens a draft PR
-7. **Review**: Codex reviews the diff. In `deep` mode it runs an exhaustive review across correctness, security, and code quality
-8. **Finalize**: pushes review fixes and marks the PR ready
+3. **Classify**: configurable agent classifies the task as `fast` or `deep` via heuristics + LLM
+4. **Plan**: configurable agent reads the codebase and CLAUDE.md conventions, outputs an implementation plan
+5. **Execute**: configurable agent implements the plan. If it times out with partial changes, the pipeline continues
+6. **Draft PR**: configurable agent creates a branch, commits, and writes PR metadata; the runtime opens the draft PR
+7. **Review**: configurable agent reviews the diff. In `deep` mode it runs an exhaustive review across correctness, security, and code quality
+8. **Finalize**: runtime pushes review fixes and marks the PR ready
 
 Worktree is cleaned up after every run.
 
@@ -96,6 +96,14 @@ Worktree is cleaned up after every run.
     "reviewReasoningEffort": "xhigh",
     "timeoutMinutes": 180
   },
+  "phases": {
+    "classify": { "provider": "claude", "model": "haiku" },
+    "plan": { "provider": "claude", "model": "opus" },
+    "execute": { "provider": "codex", "model": "gpt-5.5", "reasoningEffort": "xhigh" },
+    "review": { "provider": "codex", "model": "gpt-5.5", "reasoningEffort": "xhigh" },
+    "deepReview": { "provider": "codex", "model": "gpt-5.5", "reasoningEffort": "xhigh" },
+    "pr": { "provider": "claude", "model": "opus" }
+  },
   "stepTimeouts": {
     "planMinutes": 20,
     "executeMinutes": 60,
@@ -107,13 +115,13 @@ Worktree is cleaned up after every run.
 ```
 
 Only `host` is required for SSH runs. Local mode works without a config file.
-Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, model defaults, timeout settings, and configured Anthropic/Linear credentials stay aligned even if the server does not have its own oneshot config file.
+Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, phase-agent defaults, timeout settings, and configured Anthropic/Linear credentials stay aligned even if the server does not have its own oneshot config file.
 
 ## Flags
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--model` | `-m` | Override Claude model |
+| `--model` | `-m` | Override Claude-backed plan/PR model |
 | `--branch` | `-b` | Base branch (default: main) |
 | `--base-path` | | Override the workspace path used to locate the repo |
 | `--mode` | | Skip classification and force `fast` or `deep` mode |
@@ -128,7 +136,8 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 
 ## Customization
 
-- Put a `CLAUDE.md` in any repo root. oneshot passes it to Claude and Codex at every step
+- Put a `CLAUDE.md` in any repo root. oneshot passes it to the configured agents for planning and execution
+- Configure `phases.classify`, `phases.plan`, `phases.execute`, `phases.review`, `phases.deepReview`, and `phases.pr` to choose `claude` or `codex`, exact model, and Codex reasoning effort per phase
 - Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipeline behavior
 - For dense specs, explainers, review maps, incident reports, design sheets, or one-off editors, oneshot can create a self-contained HTML artifact instead of a long markdown wall. Durable artifacts belong in `docs/artifacts/`; throwaway local artifacts belong in `/tmp/oneshot-html-artifacts/`.
 
