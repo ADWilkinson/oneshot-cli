@@ -9,11 +9,11 @@ const pluginFlag = CLAUDE_PLUGIN_DIR
   ? `--plugin-dir ${shellEscape(CLAUDE_PLUGIN_DIR)} `
   : "";
 
-export const withClaudeModelOverride = (
+export const withModelOverride = (
   agent: PhaseAgentConfig,
   modelOverride: string | undefined,
 ): PhaseAgentConfig => {
-  if (!modelOverride || agent.provider !== "claude") return agent;
+  if (!modelOverride) return agent;
   return { ...agent, model: modelOverride };
 };
 

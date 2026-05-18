@@ -17,8 +17,8 @@ import { shellEscape } from "./shell";
  *
  * The fix: pass `--strict-mcp-config` to disable auto-loading of the
  * user + project MCP config, and `--mcp-config '{"mcpServers":{}}'` to
- * make the empty set explicit. The execute + review steps run on codex,
- * not claude, so they're untouched.
+ * make the empty set explicit. These flags are only applied when the selected
+ * provider for a phase is Claude.
  */
 const EMPTY_MCP_CONFIG = '{"mcpServers":{}}';
 

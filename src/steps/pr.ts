@@ -5,7 +5,7 @@ import { execOrThrow, exec, OneshotError } from "../exec";
 import { getPhaseAgent, getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
-import { runAgentText, withClaudeModelOverride } from "../phase-runner";
+import { runAgentText, withModelOverride } from "../phase-runner";
 
 const PR_TITLE_FILE = ".oneshot-pr-title.txt";
 const PR_BODY_FILE = ".oneshot-pr-body.txt";
@@ -33,7 +33,7 @@ const loadPromptTemplate = (): string => {
 };
 
 export const getPrModel = (ctx: PipelineContext): string =>
-  withClaudeModelOverride(getPhaseAgent(ctx.config, "pr"), ctx.options.model).model;
+  withModelOverride(getPhaseAgent(ctx.config, "pr"), ctx.options.model).model;
 
 const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<string> => {
   const { stdout } = await prExec(
@@ -52,8 +52,8 @@ const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<s
 
 /**
  * Best-effort snapshot of current worktree commits to origin on a dedicated
- * salvage branch BEFORE we hand off to claude for PR creation. Execute-phase
- * work is therefore durable even if claude, gh, or the PR-extraction regex
+ * salvage branch BEFORE we hand off for PR metadata. Execute-phase
+ * work is therefore durable even if the agent, gh, or PR extraction
  * fails. Idempotent; pushes are force-with-lease to the salvage namespace
  * so we don't race with the prompt's own push of the final branch.
  */
@@ -99,7 +99,7 @@ const snapshotWorktreeToOrigin = async (
 };
 
 /**
- * Fallback: if claude's output regex missed but a PR does exist on origin for
+ * Fallback: if metadata recovery missed but a PR does exist on origin for
  * this branch, recover its URL via the GitHub API. Cheap, idempotent, and
  * narrowly scoped — returns null on any failure so the caller can decide.
  */
@@ -136,7 +136,7 @@ const pushBranchToOrigin = async (
 /**
  * Use `gh pr edit` (if a PR exists) or `gh pr create --draft` to open a
  * PR with our own title + body, captured directly from `gh` stdout. No
- * regex parsing of claude's conversational output — the URL on the last
+ * parsing of agent conversational output — the URL on the last
  * non-empty stdout line from `gh pr create` is the canonical format
  * (`https://github.com/<org>/<repo>/pull/<n>`).
  */
@@ -172,22 +172,22 @@ const openOrUpdateDraftPr = async (
 /**
  * Create a draft PR with all current changes committed and pushed.
  *
- * Control flow — the runtime owns push + PR creation, not claude:
+ * Control flow — the runtime owns push + PR creation, not the agent:
  *
  * 1. Push a salvage snapshot of the execute-phase commits to
  *    `oneshot-salvage/<slug>-<runId>` so the work survives even if anything
  *    below this point explodes.
- * 2. Invoke claude with a prompt that INSTRUCTS IT TO NOT push or open a PR;
+ * 2. Invoke the configured agent with a prompt that says not to push or open a PR;
  *    it only commits and writes `.oneshot-pr-title.txt` +
  *    `.oneshot-pr-body.txt` at the worktree root.
  * 3. Read those two files (fall back to task text if either is missing).
  * 4. Push the branch ourselves via `git push --force-with-lease`.
  * 5. Open or update the PR ourselves via `gh pr edit` / `gh pr create --draft`,
- *    capturing the URL directly from `gh` stdout — no regex on claude output.
+ *    capturing the URL directly from `gh` stdout.
  *
- * This replaces the prior flow where claude did the push + `gh pr create`
+ * This replaces the prior flow where the agent did the push + `gh pr create`
  * and we parsed its conversational stdout for a `PR_URL:` line. That flow
- * broke whenever claude decorated the URL differently than the regex
+ * broke whenever the output decorated the URL differently than the regex
  * expected, and dropped all execute-phase work on the floor.
  */
 export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
@@ -202,11 +202,11 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
 
   // Belt-and-suspenders: the runtime now owns the push, but keep the salvage
   // branch push too so ANY branching of this flow that fails mid-way (e.g.
-  // claude times out before writing the title/body files) still leaves
+  // the agent times out before writing the title/body files) still leaves
   // recoverable work on origin.
   await snapshotWorktreeToOrigin(worktreePath, branchSlug, runId);
 
-  const agent = withClaudeModelOverride(getPhaseAgent(config, "pr"), options.model);
+  const agent = withModelOverride(getPhaseAgent(config, "pr"), options.model);
   const prompt = loadPromptTemplate()
     .replace("{{task}}", taskSummary)
     .replace("{{branchName}}", branchName)

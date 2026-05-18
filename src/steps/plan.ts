@@ -5,7 +5,7 @@ import { exec } from "../exec";
 import { getPhaseAgent, getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
-import { runAgentText, withClaudeModelOverride } from "../phase-runner";
+import { runAgentText, withModelOverride } from "../phase-runner";
 
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "plan.txt"), "utf-8");
@@ -20,7 +20,7 @@ export const plan = async (ctx: PipelineContext): Promise<string> => {
     .replace("{{task}}", options.task)
     .replace("{{claudeMd}}", claudeMd.stdout.trim());
 
-  const agent = withClaudeModelOverride(
+  const agent = withModelOverride(
     getPhaseAgent(config, "plan"),
     options.model,
   );

@@ -7,7 +7,7 @@
 Ship code in one command. Repo + task in, PR out.
 
 ```
-laptop → server → configurable agents per phase → PR
+laptop → server → chosen agent provider → PR
 ```
 
 Also runs locally with `--local`, no server needed.
@@ -55,7 +55,7 @@ oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
 oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
-oneshot <repo> "<task>" --model sonnet # override Claude-backed plan/PR model
+oneshot <repo> "<task>" --model gpt-5.5 # override configured plan/PR model
 oneshot <repo> "<task>" --branch dev   # target a different branch
 oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for this run
 oneshot <repo> --dry-run               # validate only
@@ -69,7 +69,7 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--model` | `-m` | Override Claude-backed plan/PR model |
+| `--model` | `-m` | Override configured plan/PR model |
 | `--branch` | `-b` | Base branch (default: main) |
 | `--base-path` | | Override the workspace path used to locate the repo |
 | `--worktree-root` | | Override where temporary git worktrees are created |
@@ -87,10 +87,9 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
 
 **On your server (or local machine with `--local`):**
 - [Bun](https://bun.sh)
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
-- [Codex CLI](https://github.com/openai/codex)
+- Either [Codex CLI](https://github.com/openai/codex) or [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
 - [GitHub CLI](https://cli.github.com) (authenticated)
-- `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` in env
+- `OPENAI_API_KEY` for Codex mode, or `ANTHROPIC_API_KEY` for Claude mode
 
 ## Configuration
 
@@ -100,7 +99,7 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
 {
   "host": "user@100.x.x.x",
   "basePath": "~/projects",
-  "anthropicApiKey": "sk-ant-...",
+  "provider": "codex",
   "linearApiKey": "lin_api_...",
   "claude": {
     "model": "opus",
@@ -114,24 +113,21 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
     "timeoutMinutes": 180
   },
   "phases": {
-    "classify": { "provider": "claude", "model": "haiku" },
-    "plan": { "provider": "claude", "model": "opus" },
+    "classify": { "model": "gpt-5.5", "reasoningEffort": "medium" },
+    "plan": { "model": "gpt-5.5", "reasoningEffort": "xhigh" },
     "execute": {
-      "provider": "codex",
       "model": "gpt-5.5",
       "reasoningEffort": "xhigh"
     },
     "review": {
-      "provider": "codex",
       "model": "gpt-5.5",
       "reasoningEffort": "xhigh"
     },
     "deepReview": {
-      "provider": "codex",
       "model": "gpt-5.5",
       "reasoningEffort": "xhigh"
     },
-    "pr": { "provider": "claude", "model": "opus" }
+    "pr": { "model": "gpt-5.5", "reasoningEffort": "high" }
   },
   "stepTimeouts": {
     "planMinutes": 20,
@@ -144,26 +140,26 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
 ```
 
 Only `host` is required for SSH runs. Local mode works without a config file.
-Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, phase-agent defaults, timeout settings, and configured Anthropic/Linear credentials stay aligned without requiring a duplicate `~/.oneshot/config.json` on the server.
+Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, provider defaults, timeout settings, and configured Linear credentials stay aligned without requiring a duplicate `~/.oneshot/config.json` on the server.
 
 | Key | Required | Description |
 |-----|----------|-------------|
 | `host` | SSH only | SSH target, e.g. `user@192.168.1.10` |
 | `basePath` | No | Where repos live. Default: `~/projects` |
 | `worktreeRoot` | No | Scratch directory for temporary git worktrees. Default: `/tmp` |
-| `anthropicApiKey` | No | Falls back to `ANTHROPIC_API_KEY` env var |
+| `provider` | No | Single agent provider for the run: `codex` or `claude`. Default: `codex` |
+| `anthropicApiKey` | Claude only | Falls back to `ANTHROPIC_API_KEY` env var |
 | `linearApiKey` | No | Enables Linear ticket integration |
-| `claude.model` | No | Legacy default for Claude-backed Plan and PR phases. Default: `opus` |
-| `codex.model` | No | Legacy default for Codex-backed Execute phase. Default: `gpt-5.5` |
-| `codex.reasoningEffort` | No | Legacy default reasoning effort for Codex execution. Default: `xhigh` |
-| `codex.reviewModel` | No | Legacy default for Codex-backed Review phases. Default: same as `codex.model` |
-| `codex.reviewReasoningEffort` | No | Legacy default reasoning effort for Review phases. Default: same as `codex.reasoningEffort` |
-| `phases.<phase>.provider` | No | Agent provider for `classify`, `plan`, `execute`, `review`, `deepReview`, or `pr`. Use `claude` or `codex` |
-| `phases.<phase>.model` | No | Exact model for that phase |
+| `claude.model` | Claude only | Default Claude model. Default: `opus` |
+| `codex.model` | Codex only | Default Codex model. Default: `gpt-5.5` |
+| `codex.reasoningEffort` | Codex only | Default Codex reasoning effort. Default: `xhigh` |
+| `codex.reviewModel` | Codex only | Default for review phases. Default: same as `codex.model` |
+| `codex.reviewReasoningEffort` | Codex only | Default review reasoning effort. Default: same as `codex.reasoningEffort` |
+| `phases.<phase>.model` | No | Exact model for that phase under the selected provider |
 | `phases.<phase>.reasoningEffort` | Codex only | Codex reasoning effort for that phase, e.g. `medium`, `high`, `xhigh` |
 | `stepTimeouts` | No | Per-step timeout overrides in minutes |
 
-`phases` is optional and backward-compatible. If it is omitted, oneshot keeps the previous sandwich defaults: Claude classifies/plans/creates PR metadata, Codex executes/reviews, and `git`/`gh` finalizes the PR.
+`phases` is optional. If it is omitted, every agent phase uses the selected provider and its default model settings. Any stale `phases.<phase>.provider` values from older configs are ignored so a Codex profile stays Codex-only and a Claude profile stays Claude-only.
 
 Repos on the server should live as `<org>/<repo>` under the base path. Repo slugs are intentionally strict: exactly `owner/repo`, using only letters, numbers, dot, underscore, and hyphen. Nested paths and `..` are rejected before any filesystem access.
 

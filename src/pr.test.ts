@@ -7,6 +7,7 @@ const makeContext = (modelOverride?: string): PipelineContext =>
     config: {
       host: "example-host",
       basePath: "~/projects",
+      provider: "codex",
       claude: { model: "opus-from-config", timeoutMinutes: 180 },
       codex: { model: "gpt-5.5", reasoningEffort: "xhigh", timeoutMinutes: 180 },
     },
@@ -25,8 +26,8 @@ const makeContext = (modelOverride?: string): PipelineContext =>
   }) as PipelineContext;
 
 describe("getPrModel", () => {
-  test("uses the configured Claude model when no override is provided", () => {
-    expect(getPrModel(makeContext())).toBe("opus-from-config");
+  test("uses the configured provider model when no override is provided", () => {
+    expect(getPrModel(makeContext())).toBe("gpt-5.5");
   });
 
   test("prefers the explicit model override when present", () => {

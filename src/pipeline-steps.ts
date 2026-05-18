@@ -20,10 +20,10 @@ export const ONESHOT_STEPS: readonly OneshotStep[] = [
   { step: 1, label: 'Validating repo',      short: 'recon' },
   { step: 2, label: 'Creating worktree',    short: 'infiltrate' },
   { step: 3, label: 'Classifying task',     short: 'classify' },
-  { step: 4, label: 'Planning with Claude', short: 'strategize' },
-  { step: 5, label: 'Executing with Codex', short: 'engage' },
+  { step: 4, label: 'Planning change', short: 'strategize' },
+  { step: 5, label: 'Executing change', short: 'engage' },
   { step: 6, label: 'Creating draft PR',    short: 'extract' },
-  { step: 7, label: 'Reviewing with Codex', short: 'sweep' },
+  { step: 7, label: 'Reviewing diff', short: 'sweep' },
   { step: 8, label: 'Finalizing PR',        short: 'finalize' },
 ] as const;
 

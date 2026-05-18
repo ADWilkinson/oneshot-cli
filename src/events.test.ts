@@ -32,7 +32,7 @@ describe("EventWriter", () => {
       worktreeRoot: "/tmp",
       remote: false,
     });
-    writer.agentAction(5, "Executing with Codex", {
+    writer.agentAction(5, "Executing change", {
       phase: "completed",
       kind: "command",
       title: "bun test",
@@ -63,7 +63,7 @@ describe("EventWriter", () => {
       type: "agent",
       runId,
       step: 5,
-      label: "Executing with Codex",
+      label: "Executing change",
       source: "codex",
       phase: "completed",
       kind: "command",

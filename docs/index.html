@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>oneshot | Ship code in one command</title>
-  <meta name="description" content="Repo + task in, PR out. Plans with Claude, executes with Codex, reviews the diff, opens the PR.">
+  <meta name="description" content="Repo + task in, PR out. Choose Codex or Claude once, tune models per phase, and let oneshot open the PR.">
   <meta property="og:title" content="oneshot | Ship code in one command">
-  <meta property="og:description" content="Repo + task in, PR out. Plans with Claude, executes with Codex, reviews the diff, opens the PR.">
+  <meta property="og:description" content="Repo + task in, PR out. Choose Codex or Claude once, tune models per phase, and let oneshot open the PR.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://adwilkinson.github.io/oneshot-cli">
   <meta name="twitter:card" content="summary_large_image">
@@ -29,7 +29,7 @@
         </svg>
         <span class="logo-text">oneshot</span>
       </a>
-      <span class="version-badge">v0.2.12</span>
+      <span class="version-badge">v1.0.0</span>
     </div>
 
     <nav class="sidebar-nav" aria-label="Primary">
@@ -83,7 +83,7 @@
         <span class="hero-accent">one</span>shot
       </h1>
       <p class="hero-subtitle">
-        Repo + task in, PR out. Plans with Claude, executes with Codex, reviews the diff, opens the PR.
+        Repo + task in, PR out. Choose Codex or Claude once, tune models per phase, and let oneshot open the PR.
       </p>
 
       <div class="hero-diagram">
@@ -92,7 +92,7 @@
           <span class="diagram-arrow">&xrarr;</span>
           <span class="diagram-node highlight">your server</span>
           <span class="diagram-arrow">&xrarr;</span>
-          <span class="diagram-node">Claude &rarr; Codex &rarr; PR</span>
+          <span class="diagram-node">Codex or Claude &rarr; PR</span>
         </div>
       </div>
 
@@ -274,10 +274,9 @@
                 <h4>On your server</h4>
                 <ul>
                   <li><a href="https://bun.sh" target="_blank" rel="noopener">Bun</a></li>
-                  <li><a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank" rel="noopener">Claude Code CLI</a></li>
-                  <li><a href="https://github.com/openai/codex" target="_blank" rel="noopener">Codex CLI</a></li>
+                  <li><a href="https://github.com/openai/codex" target="_blank" rel="noopener">Codex CLI</a> or <a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank" rel="noopener">Claude Code CLI</a></li>
                   <li><a href="https://cli.github.com" target="_blank" rel="noopener">GitHub CLI</a> (authenticated)</li>
-                  <li><code>ANTHROPIC_API_KEY</code> and <code>OPENAI_API_KEY</code> in env</li>
+                  <li><code>OPENAI_API_KEY</code> for Codex mode or <code>ANTHROPIC_API_KEY</code> for Claude mode</li>
                 </ul>
               </div>
             </div>
@@ -320,7 +319,7 @@ cd oneshot-cli && bun install && bun link</code></pre>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </button>
             </div>
-            <p>Sets up SSH host, workspace path, API keys, model preferences. Saves to <code>~/.oneshot/config.json</code>.</p>
+            <p>Sets up SSH host, workspace path, provider, API keys, and per-phase model preferences. Saves to <code>~/.oneshot/config.json</code>.</p>
             <p>Then run <code>oneshot doctor</code> to verify package freshness, local binaries, SSH reachability, remote binaries, and recent event streams.</p>
             <p>Repos should live as <code>&lt;org&gt;/&lt;repo&gt;</code> under your workspace path. Repo slugs are strict <code>owner/repo</code> values; nested paths and <code>..</code> are rejected before filesystem access.</p>
             <div class="code-block">
@@ -358,7 +357,7 @@ cd oneshot-cli && bun install && bun link</code></pre>
 oneshot &lt;repo&gt; &lt;linear-url&gt;              # ship from a Linear ticket
 oneshot &lt;repo&gt; "&lt;task&gt;" --bg             # fire and forget
 oneshot &lt;repo&gt; "&lt;task&gt;" --local          # run locally, no SSH
-oneshot &lt;repo&gt; "&lt;task&gt;" --model sonnet   # override Claude-backed plan/PR model
+oneshot &lt;repo&gt; "&lt;task&gt;" --model gpt-5.5  # override configured plan/PR model
 oneshot &lt;repo&gt; "&lt;task&gt;" --deep-review    # force exhaustive review
 oneshot &lt;repo&gt; "&lt;task&gt;" --branch staging # target a different branch
 oneshot &lt;repo&gt; --dry-run                 # validate only
@@ -385,7 +384,7 @@ oneshot doctor --repo acme/api           # setup + checkout health</code></pre>
             <tr>
               <td><code>--model</code></td>
               <td><code>-m</code></td>
-              <td>Override the Claude-backed plan/PR model (e.g. <code>sonnet</code>, <code>opus</code>)</td>
+              <td>Override the configured plan/PR model for this run</td>
             </tr>
             <tr>
               <td><code>--branch</code></td>
@@ -499,7 +498,7 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
   "host": "user@100.x.x.x",
   "basePath": "~/projects",
   "worktreeRoot": "/tmp",
-  "anthropicApiKey": "sk-ant-...",
+  "provider": "codex",
   "linearApiKey": "lin_api_...",
   "claude": {
     "model": "opus",
@@ -513,24 +512,21 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
     "timeoutMinutes": 180
   },
   "phases": {
-    "classify": { "provider": "claude", "model": "haiku" },
-    "plan": { "provider": "claude", "model": "opus" },
+    "classify": { "model": "gpt-5.5", "reasoningEffort": "medium" },
+    "plan": { "model": "gpt-5.5", "reasoningEffort": "xhigh" },
     "execute": {
-      "provider": "codex",
       "model": "gpt-5.5",
       "reasoningEffort": "xhigh"
     },
     "review": {
-      "provider": "codex",
       "model": "gpt-5.5",
       "reasoningEffort": "xhigh"
     },
     "deepReview": {
-      "provider": "codex",
       "model": "gpt-5.5",
       "reasoningEffort": "xhigh"
     },
-    "pr": { "provider": "claude", "model": "opus" }
+    "pr": { "model": "gpt-5.5", "reasoningEffort": "high" }
   },
   "stepTimeouts": {
     "planMinutes": 20,
@@ -542,7 +538,7 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
 }</code></pre>
       </div>
 
-      <p class="section-desc"><code>phases</code> is optional and backward-compatible. If omitted, oneshot keeps the previous defaults: Claude classifies/plans/creates PR metadata, Codex executes/reviews, and <code>git</code>/<code>gh</code> finalizes the PR.</p>
+      <p class="section-desc"><code>phases</code> is optional. If omitted, every agent phase uses the selected provider and its default model settings. Stale per-phase provider values from older configs are ignored.</p>
 
       <h3 class="subsection-title">Options</h3>
       <div class="table-wrap">
@@ -571,8 +567,13 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
               <td>Scratch directory for temporary git worktrees. Default: <code>/tmp</code></td>
             </tr>
             <tr>
-              <td><code>anthropicApiKey</code></td>
+              <td><code>provider</code></td>
               <td>No</td>
+              <td>Single agent provider for the run: <code>codex</code> or <code>claude</code>. Default: <code>codex</code></td>
+            </tr>
+            <tr>
+              <td><code>anthropicApiKey</code></td>
+              <td>Claude only</td>
               <td>Falls back to <code>ANTHROPIC_API_KEY</code> env var</td>
             </tr>
             <tr>
@@ -582,38 +583,33 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
             </tr>
             <tr>
               <td><code>claude.model</code></td>
-              <td>No</td>
-              <td>Legacy default for Claude-backed Plan and PR phases. Default: <code>opus</code></td>
+              <td>Claude only</td>
+              <td>Default Claude model. Default: <code>opus</code></td>
             </tr>
             <tr>
               <td><code>codex.model</code></td>
-              <td>No</td>
-              <td>Legacy default for Codex-backed Execute phase. Default: <code>gpt-5.5</code></td>
+              <td>Codex only</td>
+              <td>Default Codex model. Default: <code>gpt-5.5</code></td>
             </tr>
             <tr>
               <td><code>codex.reasoningEffort</code></td>
-              <td>No</td>
-              <td>Legacy default reasoning effort for Codex execution. Default: <code>xhigh</code></td>
+              <td>Codex only</td>
+              <td>Default Codex reasoning effort. Default: <code>xhigh</code></td>
             </tr>
             <tr>
               <td><code>codex.reviewModel</code></td>
-              <td>No</td>
-              <td>Legacy default for Codex-backed Review phases. Default: same as <code>codex.model</code></td>
+              <td>Codex only</td>
+              <td>Default for review phases. Default: same as <code>codex.model</code></td>
             </tr>
             <tr>
               <td><code>codex.reviewReasoningEffort</code></td>
-              <td>No</td>
-              <td>Legacy default reasoning effort for Review phases. Default: same as <code>codex.reasoningEffort</code></td>
-            </tr>
-            <tr>
-              <td><code>phases.&lt;phase&gt;.provider</code></td>
-              <td>No</td>
-              <td>Agent provider for <code>classify</code>, <code>plan</code>, <code>execute</code>, <code>review</code>, <code>deepReview</code>, or <code>pr</code>. Use <code>claude</code> or <code>codex</code></td>
+              <td>Codex only</td>
+              <td>Default review reasoning effort. Default: same as <code>codex.reasoningEffort</code></td>
             </tr>
             <tr>
               <td><code>phases.&lt;phase&gt;.model</code></td>
               <td>No</td>
-              <td>Exact model for that phase</td>
+              <td>Exact model for that phase under the selected provider</td>
             </tr>
             <tr>
               <td><code>phases.&lt;phase&gt;.reasoningEffort</code></td>

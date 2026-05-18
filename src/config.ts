@@ -6,6 +6,7 @@ export interface OneshotConfig {
   host: string;
   basePath: string;
   worktreeRoot?: string;
+  provider: AgentProvider;
   linearApiKey?: string;
   anthropicApiKey?: string;
   claude: {
@@ -71,6 +72,7 @@ export interface PipelineContext {
 const DEFAULT_CONFIG: Omit<OneshotConfig, "host"> = {
   basePath: "~/projects",
   worktreeRoot: "/tmp",
+  provider: "codex",
   claude: {
     model: "opus",
     timeoutMinutes: 180,
@@ -97,8 +99,18 @@ const asOptionalString = (value: unknown): string | undefined => {
   return typeof value === "string" && value.trim() ? value : undefined;
 };
 
-const asAgentProvider = (value: unknown, fallback: AgentProvider): AgentProvider => {
-  return value === "claude" || value === "codex" ? value : fallback;
+const inferProvider = (raw: Partial<OneshotConfig>): AgentProvider => {
+  if (raw.provider === "claude" || raw.provider === "codex") return raw.provider;
+
+  const phaseProviders = raw.phases
+    ? Object.values(raw.phases)
+        .map((phase) => phase?.provider)
+        .filter((provider): provider is AgentProvider => provider === "claude" || provider === "codex")
+    : [];
+  const uniqueProviders = new Set(phaseProviders);
+  if (uniqueProviders.size === 1) return phaseProviders[0];
+
+  return DEFAULT_CONFIG.provider;
 };
 
 const parseConfigFile = async (): Promise<Partial<OneshotConfig>> => {
@@ -125,6 +137,7 @@ export const normalizeConfig = (
   const codexModel = asOptionalString(raw.codex?.model) ?? DEFAULT_CONFIG.codex.model;
   const codexReasoningEffort =
     asOptionalString(raw.codex?.reasoningEffort) ?? DEFAULT_CONFIG.codex.reasoningEffort;
+  const provider = inferProvider(raw);
 
   const config: OneshotConfig = {
     ...DEFAULT_CONFIG,
@@ -132,6 +145,7 @@ export const normalizeConfig = (
     host: host ?? "local",
     basePath: asOptionalString(raw.basePath) ?? DEFAULT_CONFIG.basePath,
     worktreeRoot: asOptionalString(raw.worktreeRoot) ?? DEFAULT_CONFIG.worktreeRoot,
+    provider,
     linearApiKey: asOptionalString(raw.linearApiKey),
     anthropicApiKey: asOptionalString(raw.anthropicApiKey),
     claude: {
@@ -182,7 +196,7 @@ export const normalizeConfig = (
       : undefined,
   };
 
-  config.phases = normalizePhases(raw.phases, buildLegacyPhaseDefaults(config));
+  config.phases = normalizePhases(raw.phases, buildProviderPhaseDefaults(config), provider);
   return config;
 };
 
@@ -221,43 +235,52 @@ const DEFAULT_STEP_TIMEOUTS = {
 
 const PHASES: PhaseName[] = ["classify", "plan", "execute", "review", "deepReview", "pr"];
 
-const buildLegacyPhaseDefaults = (
-  config: Pick<OneshotConfig, "claude" | "codex">
+const buildProviderPhaseDefaults = (
+  config: Pick<OneshotConfig, "provider" | "claude" | "codex">
 ): Record<PhaseName, PhaseAgentConfig> => ({
   classify: {
-    provider: "claude",
-    model: "haiku",
+    provider: config.provider,
+    model: config.provider === "claude" ? config.claude.model : config.codex.model,
+    reasoningEffort: config.provider === "codex" ? config.codex.reasoningEffort : undefined,
   },
   plan: {
-    provider: "claude",
-    model: config.claude.model,
+    provider: config.provider,
+    model: config.provider === "claude" ? config.claude.model : config.codex.model,
+    reasoningEffort: config.provider === "codex" ? config.codex.reasoningEffort : undefined,
   },
   execute: {
-    provider: "codex",
-    model: config.codex.model,
-    reasoningEffort: config.codex.reasoningEffort,
+    provider: config.provider,
+    model: config.provider === "claude" ? config.claude.model : config.codex.model,
+    reasoningEffort: config.provider === "codex" ? config.codex.reasoningEffort : undefined,
   },
   review: {
-    provider: "codex",
-    model: config.codex.reviewModel ?? config.codex.model,
-    reasoningEffort: config.codex.reviewReasoningEffort ?? config.codex.reasoningEffort,
+    provider: config.provider,
+    model: config.provider === "claude" ? config.claude.model : config.codex.reviewModel ?? config.codex.model,
+    reasoningEffort:
+      config.provider === "codex"
+        ? config.codex.reviewReasoningEffort ?? config.codex.reasoningEffort
+        : undefined,
   },
   deepReview: {
-    provider: "codex",
-    model: config.codex.reviewModel ?? config.codex.model,
-    reasoningEffort: config.codex.reviewReasoningEffort ?? config.codex.reasoningEffort,
+    provider: config.provider,
+    model: config.provider === "claude" ? config.claude.model : config.codex.reviewModel ?? config.codex.model,
+    reasoningEffort:
+      config.provider === "codex"
+        ? config.codex.reviewReasoningEffort ?? config.codex.reasoningEffort
+        : undefined,
   },
   pr: {
-    provider: "claude",
-    model: config.claude.model,
+    provider: config.provider,
+    model: config.provider === "claude" ? config.claude.model : config.codex.model,
+    reasoningEffort: config.provider === "codex" ? config.codex.reasoningEffort : undefined,
   },
 });
 
 const normalizePhase = (
   raw: PhaseAgentConfig | undefined,
-  fallback: PhaseAgentConfig
+  fallback: PhaseAgentConfig,
+  provider: AgentProvider
 ): PhaseAgentConfig => {
-  const provider = asAgentProvider(raw?.provider, fallback.provider);
   return {
     provider,
     model: asOptionalString(raw?.model) ?? fallback.model,
@@ -270,20 +293,25 @@ const normalizePhase = (
 
 const normalizePhases = (
   raw: Partial<Record<PhaseName, PhaseAgentConfig>> | undefined,
-  defaults: Record<PhaseName, PhaseAgentConfig>
+  defaults: Record<PhaseName, PhaseAgentConfig>,
+  provider: AgentProvider
 ): Record<PhaseName, PhaseAgentConfig> => {
   const phases = {} as Record<PhaseName, PhaseAgentConfig>;
   for (const phase of PHASES) {
-    phases[phase] = normalizePhase(raw?.[phase], defaults[phase]);
+    phases[phase] = normalizePhase(raw?.[phase], defaults[phase], provider);
   }
   return phases;
 };
 
 export const getPhaseAgent = (
-  config: Pick<OneshotConfig, "claude" | "codex" | "phases">,
+  config: Pick<OneshotConfig, "provider" | "claude" | "codex" | "phases">,
   phase: PhaseName
 ): PhaseAgentConfig => {
-  return normalizePhase(config.phases?.[phase], buildLegacyPhaseDefaults(config)[phase]);
+  return normalizePhase(
+    config.phases?.[phase],
+    buildProviderPhaseDefaults(config)[phase],
+    config.provider,
+  );
 };
 
 export type StepTimeoutKey = keyof typeof DEFAULT_STEP_TIMEOUTS;

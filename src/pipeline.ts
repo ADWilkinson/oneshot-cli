@@ -123,7 +123,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     } catch (err) {
       if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {
         // Generous timeout for the salvage probe -- git status on a worktree
-        // codex was still writing into can be slow, and the default 120s
+        // an agent was still writing into can be slow, and the default 120s
         // would hide partial-changes signal behind a second ERR_TIMEOUT.
         const probeTimeoutMs = 5 * 60 * 1000;
         const { stdout: diffOut } = await exec(`cd "${ctx.worktreePath}" && git diff --stat`, { timeoutMs: probeTimeoutMs });
@@ -167,7 +167,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     }
 
     // Push review fixes (if any) and mark PR as ready. On review timeout we
-    // still commit+push whatever codex wrote so the worktree isn't lost, but
+    // still commit+push whatever the agent wrote so the worktree isn't lost, but
     // leave the PR in draft (markReady: false).
     if (shouldFinalizePr) {
       await runStep(8, events, stepTimings, () => finalizeAfterReview(ctx));

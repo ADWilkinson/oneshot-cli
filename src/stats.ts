@@ -216,10 +216,10 @@ function shortStep(label: string): string {
     .replace("Validating repo", "validate")
     .replace("Creating worktree", "worktree")
     .replace("Classifying task", "classify")
-    .replace("Planning with Claude", "plan")
-    .replace("Executing with Codex", "execute")
+    .replace("Planning change", "plan")
+    .replace("Executing change", "execute")
     .replace("Creating draft PR", "draft PR")
-    .replace("Reviewing with Codex", "review")
+    .replace("Reviewing diff", "review")
     .replace("Finalizing PR", "finalize PR")
     .replace("Creating PR", "PR");
 }

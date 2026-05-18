@@ -1,17 +1,17 @@
 ---
 name: oneshot-ship
-description: Ship code with oneshot CLI. One command that plans, executes, reviews, and opens a PR. Runs over SSH or locally. Use when the user wants to ship code changes, automate PRs, or run a coding pipeline with Claude and Codex.
+description: Ship code with oneshot CLI. One command that plans, executes, reviews, and opens a PR. Runs over SSH or locally. Use when the user wants to ship code changes, automate PRs, or run a coding pipeline with Codex or Claude.
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "0.2.12"
+  version: "1.0.0"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
-compatibility: Requires Bun, Claude Code CLI, Codex CLI, and GitHub CLI. SSH access to a server optional (can run locally with --local)
+compatibility: Requires Bun, GitHub CLI, and either Codex CLI or Claude Code CLI. SSH access to a server optional (can run locally with --local)
 ---
 
 # oneshot CLI
 
-Ship code with a single command. oneshot runs a full pipeline with configurable agents per phase. Defaults are classify + plan (Claude) → execute (Codex) → review (Codex) → PR metadata (Claude), but each agent phase can be Claude or Codex. Works over SSH to a remote server or locally with `--local`.
+Ship code with a single command. oneshot runs the full pipeline with one selected provider: Codex or Claude. Per-phase config tunes model and reasoning, while the provider stays fixed for the whole run. Works over SSH to a remote server or locally with `--local`.
 
 ## When to use this skill
 
@@ -41,10 +41,9 @@ Repos on the server should live as `<org>/<repo>` under the workspace path:
 ### Server prerequisites
 
 - [Bun](https://bun.sh)
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
-- [Codex CLI](https://github.com/openai/codex)
+- Either [Codex CLI](https://github.com/openai/codex) or [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
 - [GitHub CLI](https://cli.github.com) (authenticated)
-- `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` in environment
+- `OPENAI_API_KEY` for Codex mode, or `ANTHROPIC_API_KEY` for Claude mode
 
 ## Usage
 
@@ -55,7 +54,7 @@ oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
 oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
-oneshot <repo> "<task>" --model sonnet # override Claude-backed plan/PR model
+oneshot <repo> "<task>" --model gpt-5.5 # override configured plan/PR model
 oneshot <repo> "<task>" --branch dev   # target a different branch
 oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for this run
 oneshot <repo> --dry-run               # validate only
@@ -86,7 +85,7 @@ Worktree is cleaned up after every run.
 {
   "host": "user@100.x.x.x",
   "basePath": "~/projects",
-  "anthropicApiKey": "sk-ant-...",
+  "provider": "codex",
   "linearApiKey": "lin_api_...",
   "claude": { "model": "opus", "timeoutMinutes": 180 },
   "codex": {
@@ -97,12 +96,12 @@ Worktree is cleaned up after every run.
     "timeoutMinutes": 180
   },
   "phases": {
-    "classify": { "provider": "claude", "model": "haiku" },
-    "plan": { "provider": "claude", "model": "opus" },
-    "execute": { "provider": "codex", "model": "gpt-5.5", "reasoningEffort": "xhigh" },
-    "review": { "provider": "codex", "model": "gpt-5.5", "reasoningEffort": "xhigh" },
-    "deepReview": { "provider": "codex", "model": "gpt-5.5", "reasoningEffort": "xhigh" },
-    "pr": { "provider": "claude", "model": "opus" }
+    "classify": { "model": "gpt-5.5", "reasoningEffort": "medium" },
+    "plan": { "model": "gpt-5.5", "reasoningEffort": "xhigh" },
+    "execute": { "model": "gpt-5.5", "reasoningEffort": "xhigh" },
+    "review": { "model": "gpt-5.5", "reasoningEffort": "xhigh" },
+    "deepReview": { "model": "gpt-5.5", "reasoningEffort": "xhigh" },
+    "pr": { "model": "gpt-5.5", "reasoningEffort": "high" }
   },
   "stepTimeouts": {
     "planMinutes": 20,
@@ -115,13 +114,13 @@ Worktree is cleaned up after every run.
 ```
 
 Only `host` is required for SSH runs. Local mode works without a config file.
-Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, phase-agent defaults, timeout settings, and configured Anthropic/Linear credentials stay aligned even if the server does not have its own oneshot config file.
+Remote SSH runs stream the active oneshot config to the server for that run, so `basePath`, provider defaults, timeout settings, and configured Linear credentials stay aligned even if the server does not have its own oneshot config file.
 
 ## Flags
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--model` | `-m` | Override Claude-backed plan/PR model |
+| `--model` | `-m` | Override configured plan/PR model |
 | `--branch` | `-b` | Base branch (default: main) |
 | `--base-path` | | Override the workspace path used to locate the repo |
 | `--mode` | | Skip classification and force `fast` or `deep` mode |
@@ -137,7 +136,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 ## Customization
 
 - Put a `CLAUDE.md` in any repo root. oneshot passes it to the configured agents for planning and execution
-- Configure `phases.classify`, `phases.plan`, `phases.execute`, `phases.review`, `phases.deepReview`, and `phases.pr` to choose `claude` or `codex`, exact model, and Codex reasoning effort per phase
+- Choose `provider: "codex"` or `provider: "claude"` once, then configure `phases.classify`, `phases.plan`, `phases.execute`, `phases.review`, `phases.deepReview`, and `phases.pr` for exact model and Codex reasoning effort per phase
 - Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipeline behavior
 - For dense specs, explainers, review maps, incident reports, design sheets, or one-off editors, oneshot can create a self-contained HTML artifact instead of a long markdown wall. Durable artifacts belong in `docs/artifacts/`; throwaway local artifacts belong in `/tmp/oneshot-html-artifacts/`.
 
