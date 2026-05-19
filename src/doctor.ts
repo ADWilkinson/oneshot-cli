@@ -83,26 +83,6 @@ const remoteCommandCheck = async (host: string, command: string): Promise<Doctor
   return check(`remote:${command}`, "ok", result.stdout.trim() || `${command} found`);
 };
 
-const agentHooksCheck = (): DoctorCheck => {
-  const hooksHome = process.env.AGENT_HOOKS_HOME || join(process.env.HOME || "", ".agent-hooks");
-  const commonHook = join(hooksHome, "hooks", "common.py");
-  if (!existsSync(commonHook)) {
-    return check("agent-hooks", "warn", `${commonHook} not found`);
-  }
-  return check("agent-hooks", "ok", `hook runtime found at ${hooksHome}`);
-};
-
-const remoteAgentHooksCheck = async (host: string): Promise<DoctorCheck> => {
-  const probe = 'hooks_home="${AGENT_HOOKS_HOME:-$HOME/.agent-hooks}"; test -f "$hooks_home/hooks/common.py" && printf "%s" "$hooks_home"';
-  const result = await exec(`ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new ${shellEscape(host)} ${shellEscape(probe)}`, {
-    timeoutMs: 20_000,
-  });
-  if (result.exitCode !== 0) {
-    return check("remote:agent-hooks", "warn", "agent hook runtime not found");
-  }
-  return check("remote:agent-hooks", "ok", `hook runtime found at ${result.stdout.trim()}`);
-};
-
 const localRepoCheck = (config: OneshotConfig | null, repo: string): DoctorCheck => {
   try {
     validateRepoSlug(repo);
@@ -179,7 +159,6 @@ export const buildDoctorReport = async (
   for (const command of ["bun", "git", "gh", agentCommand]) {
     checks.push(await commandCheck(command));
   }
-  checks.push(agentHooksCheck());
   checks.push(recentEventsCheck());
 
   if (opts.repo && target === "local") {
@@ -198,7 +177,6 @@ export const buildDoctorReport = async (
     for (const command of ["oneshot", "bun", "git", "gh", agentCommand]) {
       checks.push(await remoteCommandCheck(config.host, command));
     }
-    checks.push(await remoteAgentHooksCheck(config.host));
     if (opts.repo) {
       checks.push(await remoteRepoCheck(config.host, config, opts.repo));
     }
