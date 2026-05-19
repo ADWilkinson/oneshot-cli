@@ -36,9 +36,12 @@ export const runAgentText = async (opts: {
   }
 
   const writeFlag = opts.allowClaudeWrites ? " --dangerously-skip-permissions" : "";
+  const effortFlag = opts.agent.reasoningEffort
+    ? ` --effort ${shellEscape(opts.agent.reasoningEffort)}`
+    : "";
   const plugins = opts.includeClaudePlugins ? pluginFlag : "";
   return execOrThrow(
-    `cd ${shellEscape(opts.worktreePath)} && claude -p ${shellEscape(opts.prompt)} ${plugins}${internalClaudeFlags()}${writeFlag} --model ${shellEscape(opts.agent.model)} --no-session-persistence`,
+    `cd ${shellEscape(opts.worktreePath)} && claude -p ${shellEscape(opts.prompt)} ${plugins}${internalClaudeFlags()}${writeFlag}${effortFlag} --model ${shellEscape(opts.agent.model)} --no-session-persistence`,
     { timeoutMs: opts.timeoutMs, stream: true }
   );
 };

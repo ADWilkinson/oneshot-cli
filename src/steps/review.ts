@@ -2,12 +2,13 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import type { PipelineContext } from "../config";
 import { execOrThrow, OneshotError } from "../exec";
-import { getPhaseAgent, getStepTimeout } from "../config";
+import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
 import type { EventWriter } from "../events";
 import { runCodexJson } from "../codex-runner";
 import { runAgentText } from "../phase-runner";
+import { getRoutedPhaseAgent } from "../routing";
 
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "review.txt"), "utf-8");
@@ -41,7 +42,7 @@ const standardReview = async (ctx: PipelineContext, events: EventWriter): Promis
     .replace("{{task}}", options.task)
     .replace(/\{\{baseBranch\}\}/g, baseBranch);
   const timeoutMs = getStepTimeout(config, "reviewMinutes");
-  const agent = getPhaseAgent(config, "review");
+  const agent = getRoutedPhaseAgent(config, "review", ctx.route);
   if (agent.provider === "claude") {
     await runAgentText({
       worktreePath,
@@ -68,7 +69,7 @@ const deepReview = async (ctx: PipelineContext, events: EventWriter): Promise<vo
   const { config, worktreePath, options } = ctx;
   const baseBranch = options.branch ?? "main";
   const timeoutMs = getStepTimeout(config, "deepReviewMinutes");
-  const agent = getPhaseAgent(config, "deepReview");
+  const agent = getRoutedPhaseAgent(config, "deepReview", ctx.route);
 
   const prompt = `You are reviewing code changes for a task.
 

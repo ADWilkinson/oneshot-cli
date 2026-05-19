@@ -13,6 +13,7 @@ import { resolveRepoPath } from "./repo";
 import { validate } from "./steps/validate";
 import { createWorktree, removeWorktree } from "./steps/worktree";
 import { classify } from "./steps/classify";
+import { renderRouteDecision, routeTask } from "./routing";
 import { plan } from "./steps/plan";
 import { execute } from "./steps/execute";
 import { review } from "./steps/review";
@@ -111,8 +112,19 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     }
 
     await runStep(2, events, stepTimings, () => createWorktree(ctx));
-    await runStep(3, events, stepTimings, async () => { ctx.mode = await classify(ctx); });
-    log.info(`mode: ${ctx.mode}`);
+    await runStep(3, events, stepTimings, async () => {
+      ctx.route = routeTask(options.task, {
+        defaultProvider: config.provider,
+        routingEnabled: config.routing?.enabled,
+        modeOverride: options.mode,
+      });
+      ctx.mode = ctx.route.mode;
+      if (!options.mode) ctx.mode = await classify(ctx);
+    });
+    const route = ctx.route;
+    if (!route) throw new OneshotError("task routing did not produce a route decision", "ERR_UNKNOWN");
+    log.info(`route: ${renderRouteDecision(route)}`);
+    log.info(`route reason: ${route.reason}`);
     events.classified(ctx.mode);
 
     await runStep(4, events, stepTimings, async () => { ctx.plan = await plan(ctx); });

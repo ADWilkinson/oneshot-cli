@@ -42,8 +42,10 @@ const commandCheck = async (command: string): Promise<DoctorCheck> => {
   return check(command, "ok", result.stdout.trim() || `${command} found`);
 };
 
-const providerCommand = (config: OneshotConfig | null): AgentProvider =>
-  config?.provider ?? "codex";
+const providerCommands = (config: OneshotConfig | null): AgentProvider[] => {
+  if (config?.routing?.enabled) return ["codex", "claude"];
+  return [config?.provider ?? "codex"];
+};
 
 const packageVersionCheck = async (): Promise<{ check: DoctorCheck; latestVersion?: string }> => {
   const result = await exec("npm view oneshot-ship version", { timeoutMs: 15_000 });
@@ -151,12 +153,12 @@ export const buildDoctorReport = async (
   opts: DoctorOptions = {},
 ): Promise<DoctorReport> => {
   const target = opts.local || !config || config.host === "local" ? "local" : "remote";
-  const agentCommand = providerCommand(config);
+  const agentCommands = providerCommands(config);
   const checks: DoctorCheck[] = [configCheck(config, target === "remote")];
   const packageCheck = await packageVersionCheck();
   checks.push(packageCheck.check);
 
-  for (const command of ["bun", "git", "gh", agentCommand]) {
+  for (const command of ["bun", "git", "gh", ...agentCommands]) {
     checks.push(await commandCheck(command));
   }
   checks.push(recentEventsCheck());
@@ -174,7 +176,7 @@ export const buildDoctorReport = async (
         ? check("ssh", "ok", `connected to ${config.host}`)
         : check("ssh", "fail", (ssh.stderr || ssh.stdout || `failed to connect to ${config.host}`).trim())
     );
-    for (const command of ["oneshot", "bun", "git", "gh", agentCommand]) {
+    for (const command of ["oneshot", "bun", "git", "gh", ...agentCommands]) {
       checks.push(await remoteCommandCheck(config.host, command));
     }
     if (opts.repo) {

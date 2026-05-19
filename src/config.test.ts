@@ -44,6 +44,18 @@ describe("normalizeConfig", () => {
     expect(config.codex.reviewReasoningEffort).toBe("xhigh");
   });
 
+  test("normalizes adaptive routing config", () => {
+    const config = normalizeConfig(
+      {
+        host: "example-host",
+        routing: { enabled: true },
+      },
+      { requireHost: true },
+    );
+
+    expect(config.routing).toEqual({ enabled: true });
+  });
+
   test("defaults every phase to the selected codex provider", () => {
     const config = normalizeConfig(
       {

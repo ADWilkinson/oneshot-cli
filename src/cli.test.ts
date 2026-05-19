@@ -105,9 +105,24 @@ describe("parseArgs", () => {
     });
   });
 
+  test("parses route command with json output", () => {
+    expect(parseArgs(["route", "fix failing CI", "--json", "--provider", "claude"])).toMatchObject({
+      command: "route",
+      task: "fix failing CI",
+      json: true,
+      routeProvider: "claude",
+    });
+  });
+
   test("rejects unsupported doctor options", () => {
     expect(() => parseArgs(["doctor", "--bg"])).toThrow(
       "doctor only accepts --local, --json, and --repo; unknown option: --bg"
+    );
+  });
+
+  test("rejects unsupported route options", () => {
+    expect(() => parseArgs(["route", "ship it", "--bg"])).toThrow(
+      "route only accepts --json, --provider, and --mode; unknown option: --bg"
     );
   });
 });

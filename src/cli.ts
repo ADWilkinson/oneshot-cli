@@ -11,6 +11,7 @@ import { shellEscape } from "./shell";
 import { VERSION } from "./version";
 import type { ComplexityMode } from "./config";
 import { buildDoctorReport, printDoctorReport } from "./doctor";
+import { renderRouteDecision, routeTask } from "./routing";
 
 export interface ParsedArgs extends OneshotOptions {
   local: boolean;
@@ -19,6 +20,7 @@ export interface ParsedArgs extends OneshotOptions {
   deepReview: boolean;
   json: boolean;
   doctorRepo?: string;
+  routeProvider?: AgentProvider;
 }
 
 const parsePositiveInt = (value: string, fallback: number): number => {
@@ -84,6 +86,47 @@ export const parseArgs = (args: string[]): ParsedArgs => {
       }
     }
     return { command: "doctor", repo: "", task: "", local, bg: false, deepReview: false, json, doctorRepo };
+  }
+
+  if (args[0] === "route") {
+    let json = false;
+    let mode: ComplexityMode | undefined;
+    let routeProvider: AgentProvider | undefined;
+    const taskParts: string[] = [];
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === "--json") {
+        json = true;
+      } else if (arg === "--provider") {
+        routeProvider = asProvider(getFlagValue(args, i, arg), "codex");
+        i++;
+      } else if (arg === "--mode") {
+        const value = getFlagValue(args, i, arg).toLowerCase();
+        if (value !== "fast" && value !== "deep") {
+          throw new Error(`--mode must be "fast" or "deep"`);
+        }
+        mode = value;
+        i++;
+      } else if (!arg.startsWith("-")) {
+        taskParts.push(arg);
+      } else {
+        throw new Error(`route only accepts --json, --provider, and --mode; unknown option: ${arg}`);
+      }
+    }
+    if (taskParts.length === 0) {
+      throw new Error("route requires a task description");
+    }
+    return {
+      command: "route",
+      repo: "",
+      task: taskParts.join(" "),
+      mode,
+      routeProvider,
+      local: true,
+      bg: false,
+      deepReview: false,
+      json,
+    };
   }
 
   const positional: string[] = [];
@@ -236,11 +279,13 @@ Usage: oneshot <repo> "<task or linear url>" [options]
        oneshot stats
        oneshot doctor
        oneshot doctor --repo <owner/repo>
+       oneshot route "<task>"
 
 Commands:
   init                    Set up ~/.oneshot/config.json interactively
   stats                   Show recent runs, success rates, per-repo averages
   doctor                  Check local and remote oneshot prerequisites
+  route                   Show the invisible provider/reasoning route for a task
 
 Options:
   --model, -m <model>     Override configured plan/PR model for this run
@@ -253,6 +298,7 @@ Options:
   --dry-run, -d           Validate repo exists without running pipeline
   --events-file <path>    Mirror JSONL events to an additional file
   --repo <owner/repo>     With doctor, verify a specific checkout exists
+  --provider <provider>   With route, choose the fallback provider (codex/claude)
   --bg                    Run detached in background (returns PID + log path)
   --help, -h              Show this help
   --version, -v           Show version
@@ -267,6 +313,7 @@ Examples:
   oneshot stats
   oneshot doctor
   oneshot doctor --repo my-org/my-repo
+  oneshot route "fix failing CI and publish"
 `);
 };
 
@@ -299,15 +346,11 @@ const promptPhase = async (
   defaultReasoningEffort: string,
 ): Promise<PhaseAgentConfig> => {
   const model = await prompt(`  ${phase.label} ${provider} model`, defaultModel);
-  if (provider === "claude") {
-    return { provider, model };
-  }
-
   return {
     provider,
     model,
     reasoningEffort: await prompt(
-      `  ${phase.label} codex reasoning effort`,
+      `  ${phase.label} ${provider} reasoning effort`,
       defaultReasoningEffort,
     ),
   };
@@ -359,6 +402,7 @@ const runInit = async () => {
     basePath,
     worktreeRoot,
     provider,
+    routing: { enabled: true },
     claude: {
       model: claudeModel,
       timeoutMinutes: parsePositiveInt(claudeTimeout, 180),
@@ -438,6 +482,22 @@ const main = async () => {
       process.exit(report.ok ? 0 : 1);
     }
 
+    if (parsed.command === "route") {
+      const config = await loadLocalConfig();
+      const route = routeTask(parsed.task, {
+        defaultProvider: parsed.routeProvider ?? config.provider,
+        routingEnabled: true,
+        modeOverride: parsed.mode,
+      });
+      if (parsed.json) {
+        console.log(JSON.stringify(route, null, 2));
+      } else {
+        console.log(renderRouteDecision(route));
+        console.log(route.reason);
+      }
+      return;
+    }
+
     const config = parsed.local ? await loadLocalConfig() : await loadConfig();
 
     if (!parsed.local) {
@@ -476,7 +536,7 @@ const main = async () => {
       process.exit(proc.exitCode ?? 1);
     }
 
-    if (config.provider === "claude" && config.anthropicApiKey) {
+    if (config.anthropicApiKey) {
       process.env.ANTHROPIC_API_KEY = config.anthropicApiKey;
     }
 

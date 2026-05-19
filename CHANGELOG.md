@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 - 2026-05-19
+
+- Added a homebrew adaptive work router that silently chooses Codex or Claude plus reasoning effort, context shape, execution style, and verification profile.
+- Added `oneshot route "<task>" --json` for deterministic routing inspection without running a pipeline.
+- Added `routing.enabled` config so installs can keep provider-first behavior by default or opt into invisible provider routing.
+- Passed routed reasoning effort through to Claude via `claude --effort`, matching Codex's adaptive reasoning behavior.
+- Added a packaged `route-work` skill for global agent configs.
+
 ## 1.0.0 - 2026-05-18
 
 - Added a single-provider configuration model with `provider: "codex"` or `provider: "claude"`.

@@ -2,12 +2,13 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import type { PipelineContext } from "../config";
 import { exec } from "../exec";
-import { getPhaseAgent, getStepTimeout } from "../config";
+import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
 import type { EventWriter } from "../events";
 import { runCodexJson } from "../codex-runner";
 import { runAgentText } from "../phase-runner";
+import { getRoutedPhaseAgent } from "../routing";
 
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "execute.txt"), "utf-8");
@@ -24,7 +25,7 @@ export const execute = async (ctx: PipelineContext, events: EventWriter): Promis
     .replace("{{claudeMd}}", claudeMd.stdout.trim());
 
   const timeoutMs = getStepTimeout(config, "executeMinutes");
-  const agent = getPhaseAgent(config, "execute");
+  const agent = getRoutedPhaseAgent(config, "execute", ctx.route);
 
   if (agent.provider === "claude") {
     await runAgentText({

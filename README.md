@@ -37,9 +37,9 @@ oneshot runs an 8-step pipeline. Each run gets its own git worktree in `/tmp`, s
 |------|--------|-------------|
 | 1. Validate | git | Checks the repo exists, fetches latest |
 | 2. Worktree | git | Creates an isolated `/tmp` worktree from `origin/main` |
-| 3. Classify | Configurable | Picks fast or deep review mode based on task complexity |
-| 4. Plan | Configurable | Reads the codebase + `CLAUDE.md`, outputs an implementation plan |
-| 5. Execute | Configurable | Implements the plan |
+| 3. Route | Homebrew | Picks provider, reasoning, context shape, execution style, and fast/deep mode |
+| 4. Plan | Routed | Reads the codebase + `CLAUDE.md`, outputs an implementation plan |
+| 5. Execute | Routed | Implements the plan |
 | 6. Draft PR | Configurable | Creates branch, commits, and writes PR metadata; the runtime opens the draft PR |
 | 7. Review | Configurable | Reviews the diff for bugs, types, security. Fixes issues directly |
 | 8. Finalize | git/gh | Pushes review fixes, marks PR ready |
@@ -63,6 +63,7 @@ oneshot init                           # configure
 oneshot stats                          # recent runs + timing
 oneshot doctor                         # setup and remote health checks
 oneshot doctor --repo my-org/my-app    # setup + checkout health
+oneshot route "fix failing CI and publish" --json  # inspect the hidden route
 ```
 
 ### Flags
@@ -80,6 +81,7 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
 | `--dry-run` | `-d` | Validate only |
 | `--events-file` | | Mirror JSONL events to an additional file |
 | `--repo` | | With `doctor`, verify a specific `owner/repo` checkout exists |
+| `--provider` | | With `route`, choose the fallback provider (`codex` or `claude`) |
 
 ## Prerequisites
 
@@ -100,6 +102,7 @@ oneshot doctor --repo my-org/my-app    # setup + checkout health
   "host": "user@100.x.x.x",
   "basePath": "~/projects",
   "provider": "codex",
+  "routing": { "enabled": true },
   "linearApiKey": "lin_api_...",
   "claude": {
     "model": "opus",
@@ -147,7 +150,8 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `host` | SSH only | SSH target, e.g. `user@192.168.1.10` |
 | `basePath` | No | Where repos live. Default: `~/projects` |
 | `worktreeRoot` | No | Scratch directory for temporary git worktrees. Default: `/tmp` |
-| `provider` | No | Single agent provider for the run: `codex` or `claude`. Default: `codex` |
+| `provider` | No | Fallback agent provider when adaptive routing is off or no route rule wins. Default: `codex` |
+| `routing.enabled` | No | Enables invisible provider/reasoning routing. Codex and Claude still use their configured frontier model; the router varies provider and effort, not model class |
 | `anthropicApiKey` | Claude only | Falls back to `ANTHROPIC_API_KEY` env var |
 | `linearApiKey` | No | Enables Linear ticket integration |
 | `claude.model` | Claude only | Default Claude model. Default: `opus` |
@@ -156,10 +160,12 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `codex.reviewModel` | Codex only | Default for review phases. Default: same as `codex.model` |
 | `codex.reviewReasoningEffort` | Codex only | Default review reasoning effort. Default: same as `codex.reasoningEffort` |
 | `phases.<phase>.model` | No | Exact model for that phase under the selected provider |
-| `phases.<phase>.reasoningEffort` | Codex only | Codex reasoning effort for that phase, e.g. `medium`, `high`, `xhigh` |
+| `phases.<phase>.reasoningEffort` | No | Reasoning effort for that phase, e.g. `medium`, `high`, `xhigh`. Passed to Codex and to Claude via `--effort` |
 | `stepTimeouts` | No | Per-step timeout overrides in minutes |
 
-`phases` is optional. If it is omitted, every agent phase uses the selected provider and its default model settings. Any stale `phases.<phase>.provider` values from older configs are ignored so a Codex profile stays Codex-only and a Claude profile stays Claude-only.
+`phases` is optional. If it is omitted, every agent phase uses the selected provider and its default model settings. Any stale `phases.<phase>.provider` values from older configs are ignored when adaptive routing is off. With `routing.enabled: true`, the homebrew router can silently choose Codex or Claude per task while preserving each provider's configured frontier model.
+
+Adaptive routing is intentionally invisible during normal use. Code edits, tests, refactors, PR work, and ship requests route to Codex by default. Tool-heavy operations, browser/admin/log/service work, and external workflow orchestration can route to Claude. If code will be edited, Codex wins the tie. Use `oneshot route "<task>" --json` only when you want to inspect the decision.
 
 Repos on the server should live as `<org>/<repo>` under the base path. Repo slugs are intentionally strict: exactly `owner/repo`, using only letters, numbers, dot, underscore, and hyphen. Nested paths and `..` are rejected before any filesystem access.
 

@@ -4,14 +4,14 @@ description: Ship code with oneshot CLI. One command that plans, executes, revie
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "1.0.0"
+  version: "1.1.0"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, GitHub CLI, and either Codex CLI or Claude Code CLI. SSH access to a server optional (can run locally with --local)
 ---
 
 # oneshot CLI
 
-Ship code with a single command. oneshot runs the full pipeline with one selected provider: Codex or Claude. Per-phase config tunes model and reasoning, while the provider stays fixed for the whole run. Works over SSH to a remote server or locally with `--local`.
+Ship code with a single command. oneshot runs the full pipeline with one selected fallback provider, or with invisible adaptive routing when `routing.enabled` is true. The router chooses Codex or Claude plus reasoning effort, while each provider stays on its configured frontier model. Works over SSH to a remote server or locally with `--local`.
 
 ## When to use this skill
 
@@ -57,6 +57,7 @@ oneshot <repo> "<task>" --deep-review  # force exhaustive review
 oneshot <repo> "<task>" --model gpt-5.5 # override configured plan/PR model
 oneshot <repo> "<task>" --branch dev   # target a different branch
 oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for this run
+oneshot route "fix failing CI and publish" --json # inspect invisible route
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
@@ -68,9 +69,9 @@ oneshot doctor --repo zkp2p/pay        # health plus checkout existence
 
 1. **Validate**: checks the repo exists, fetches latest from origin
 2. **Worktree**: creates a temp git worktree from the target base branch
-3. **Classify**: configurable agent classifies the task as `fast` or `deep` via heuristics + LLM
-4. **Plan**: configurable agent reads the codebase and CLAUDE.md conventions, outputs an implementation plan
-5. **Execute**: configurable agent implements the plan. If it times out with partial changes, the pipeline continues
+3. **Route**: homebrew router chooses provider, reasoning effort, context shape, execution style, verification profile, and `fast`/`deep` mode
+4. **Plan**: routed agent reads the codebase and CLAUDE.md conventions, outputs an implementation plan
+5. **Execute**: routed agent implements the plan. If it times out with partial changes, the pipeline continues
 6. **Draft PR**: configurable agent creates a branch, commits, and writes PR metadata; the runtime opens the draft PR
 7. **Review**: configurable agent reviews the diff. In `deep` mode it runs an exhaustive review across correctness, security, and code quality
 8. **Finalize**: runtime pushes review fixes and marks the PR ready
@@ -86,6 +87,7 @@ Worktree is cleaned up after every run.
   "host": "user@100.x.x.x",
   "basePath": "~/projects",
   "provider": "codex",
+  "routing": { "enabled": true },
   "linearApiKey": "lin_api_...",
   "claude": { "model": "opus", "timeoutMinutes": 180 },
   "codex": {
@@ -130,13 +132,16 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `--dry-run` | `-d` | Validate only |
 | `--events-file` | | Mirror JSONL events to an additional file |
 | `--repo` | | With `doctor`, verify a specific `owner/repo` checkout exists |
+| `--provider` | | With `route`, choose the fallback provider (`codex` or `claude`) |
 | `--help` | `-h` | Help |
 | `--version` | `-v` | Version |
 
 ## Customization
 
 - Put a `CLAUDE.md` in any repo root. oneshot passes it to the configured agents for planning and execution
-- Choose `provider: "codex"` or `provider: "claude"` once, then configure `phases.classify`, `phases.plan`, `phases.execute`, `phases.review`, `phases.deepReview`, and `phases.pr` for exact model and Codex reasoning effort per phase
+- Choose `provider: "codex"` or `provider: "claude"` as the fallback. Set `routing.enabled: true` when the homebrew router should silently pick Codex or Claude per task
+- Configure `claude.model` and `codex.model` as the frontier models for each provider. Adaptive routing varies effort and provider, not model class
+- Configure `phases.classify`, `phases.plan`, `phases.execute`, `phases.review`, `phases.deepReview`, and `phases.pr` for model and reasoning defaults when routing is disabled
 - Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipeline behavior
 - For dense specs, explainers, review maps, incident reports, design sheets, or one-off editors, oneshot can create a self-contained HTML artifact instead of a long markdown wall. Durable artifacts belong in `docs/artifacts/`; throwaway local artifacts belong in `/tmp/oneshot-html-artifacts/`.
 

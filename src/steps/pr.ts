@@ -2,10 +2,11 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import type { PipelineContext } from "../config";
 import { execOrThrow, exec, OneshotError } from "../exec";
-import { getPhaseAgent, getStepTimeout } from "../config";
+import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
-import { runAgentText, withModelOverride } from "../phase-runner";
+import { runAgentText } from "../phase-runner";
+import { getRoutedPhaseAgent } from "../routing";
 
 const PR_TITLE_FILE = ".oneshot-pr-title.txt";
 const PR_BODY_FILE = ".oneshot-pr-body.txt";
@@ -33,7 +34,7 @@ const loadPromptTemplate = (): string => {
 };
 
 export const getPrModel = (ctx: PipelineContext): string =>
-  withModelOverride(getPhaseAgent(ctx.config, "pr"), ctx.options.model).model;
+  getRoutedPhaseAgent(ctx.config, "pr", ctx.route, ctx.options.model).model;
 
 const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<string> => {
   const { stdout } = await prExec(
@@ -206,7 +207,7 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   // recoverable work on origin.
   await snapshotWorktreeToOrigin(worktreePath, branchSlug, runId);
 
-  const agent = withModelOverride(getPhaseAgent(config, "pr"), options.model);
+  const agent = getRoutedPhaseAgent(config, "pr", ctx.route, options.model);
   const prompt = loadPromptTemplate()
     .replace("{{task}}", taskSummary)
     .replace("{{branchName}}", branchName)

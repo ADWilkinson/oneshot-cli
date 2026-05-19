@@ -21,6 +21,7 @@ export interface OneshotConfig {
     timeoutMinutes: number;
   };
   phases?: Partial<Record<PhaseName, PhaseAgentConfig>>;
+  routing?: RoutingConfig;
   stepTimeouts?: {
     planMinutes?: number;
     executeMinutes?: number;
@@ -50,6 +51,10 @@ export type ComplexityMode = 'fast' | 'deep';
 export type AgentProvider = "claude" | "codex";
 export type PhaseName = "classify" | "plan" | "execute" | "review" | "deepReview" | "pr";
 
+export interface RoutingConfig {
+  enabled?: boolean;
+}
+
 export interface PhaseAgentConfig {
   provider: AgentProvider;
   model: string;
@@ -67,6 +72,7 @@ export interface PipelineContext {
   prUrl: string;
   startTime: number;
   mode: ComplexityMode;
+  route?: import("./routing").RouteDecision;
 }
 
 const DEFAULT_CONFIG: Omit<OneshotConfig, "host"> = {
@@ -97,6 +103,10 @@ const asPositiveMinutes = (value: unknown, fallback: number): number => {
 
 const asOptionalString = (value: unknown): string | undefined => {
   return typeof value === "string" && value.trim() ? value : undefined;
+};
+
+const asOptionalBoolean = (value: unknown): boolean | undefined => {
+  return typeof value === "boolean" ? value : undefined;
 };
 
 const inferProvider = (raw: Partial<OneshotConfig>): AgentProvider => {
@@ -170,6 +180,11 @@ export const normalizeConfig = (
         DEFAULT_CONFIG.codex.timeoutMinutes
       ),
     },
+    routing: raw.routing
+      ? {
+          enabled: asOptionalBoolean(raw.routing.enabled) ?? false,
+        }
+      : undefined,
     stepTimeouts: raw.stepTimeouts
       ? {
           planMinutes: asPositiveMinutes(
@@ -285,9 +300,7 @@ const normalizePhase = (
     provider,
     model: asOptionalString(raw?.model) ?? fallback.model,
     reasoningEffort:
-      provider === "codex"
-        ? asOptionalString(raw?.reasoningEffort) ?? fallback.reasoningEffort ?? "xhigh"
-        : undefined,
+      asOptionalString(raw?.reasoningEffort) ?? fallback.reasoningEffort ?? undefined,
   };
 };
 

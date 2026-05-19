@@ -2,10 +2,11 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import type { PipelineContext } from "../config";
 import { exec } from "../exec";
-import { getPhaseAgent, getStepTimeout } from "../config";
+import { getStepTimeout } from "../config";
 import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
-import { runAgentText, withModelOverride } from "../phase-runner";
+import { runAgentText } from "../phase-runner";
+import { getRoutedPhaseAgent } from "../routing";
 
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "plan.txt"), "utf-8");
@@ -20,10 +21,7 @@ export const plan = async (ctx: PipelineContext): Promise<string> => {
     .replace("{{task}}", options.task)
     .replace("{{claudeMd}}", claudeMd.stdout.trim());
 
-  const agent = withModelOverride(
-    getPhaseAgent(config, "plan"),
-    options.model,
-  );
+  const agent = getRoutedPhaseAgent(config, "plan", ctx.route, options.model);
   const timeoutMs = getStepTimeout(config, "planMinutes");
 
   const result = await runAgentText({

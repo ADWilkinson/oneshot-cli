@@ -29,7 +29,7 @@
         </svg>
         <span class="logo-text">oneshot</span>
       </a>
-      <span class="version-badge">v1.0.0</span>
+      <span class="version-badge">v1.1.0</span>
     </div>
 
     <nav class="sidebar-nav" aria-label="Primary">
@@ -179,9 +179,9 @@
           <div class="step-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
-          <h3 class="step-title">Classify</h3>
-          <span class="step-engine engine-claude">Config</span>
-          <p class="step-desc">Decides fast vs deep review mode based on task complexity</p>
+          <h3 class="step-title">Route</h3>
+          <span class="step-engine engine-claude">Homebrew</span>
+          <p class="step-desc">Chooses provider, reasoning, context, verification, and fast/deep mode</p>
         </div>
 
         <div class="pipeline-connector"></div>
@@ -364,7 +364,8 @@ oneshot &lt;repo&gt; --dry-run                 # validate only
 oneshot init                             # configure
 oneshot stats                            # recent runs + timing
 oneshot doctor                           # setup and remote health checks
-oneshot doctor --repo acme/api           # setup + checkout health</code></pre>
+oneshot doctor --repo acme/api           # setup + checkout health
+oneshot route "fix failing CI" --json    # inspect hidden route</code></pre>
         <button class="copy-btn" data-copy='oneshot <repo> "<task>"' aria-label="Copy usage examples">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
@@ -430,6 +431,11 @@ oneshot doctor --repo acme/api           # setup + checkout health</code></pre>
               <td><code>--repo</code></td>
               <td></td>
               <td>With <code>doctor</code>, verify a specific <code>owner/repo</code> checkout exists</td>
+            </tr>
+            <tr>
+              <td><code>--provider</code></td>
+              <td></td>
+              <td>With <code>route</code>, choose the fallback provider (<code>codex</code> or <code>claude</code>)</td>
             </tr>
             <tr>
               <td><code>--help</code></td>
@@ -499,6 +505,7 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
   "basePath": "~/projects",
   "worktreeRoot": "/tmp",
   "provider": "codex",
+  "routing": { "enabled": true },
   "linearApiKey": "lin_api_...",
   "claude": {
     "model": "opus",
@@ -538,7 +545,7 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
 }</code></pre>
       </div>
 
-      <p class="section-desc"><code>phases</code> is optional. If omitted, every agent phase uses the selected provider and its default model settings. Stale per-phase provider values from older configs are ignored.</p>
+      <p class="section-desc"><code>phases</code> is optional. If omitted, every agent phase uses the selected provider and its default model settings. Stale per-phase provider values from older configs are ignored when adaptive routing is off. With <code>routing.enabled</code>, the homebrew router can silently choose Codex or Claude per task while preserving each provider's configured frontier model.</p>
 
       <h3 class="subsection-title">Options</h3>
       <div class="table-wrap">
@@ -569,7 +576,12 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
             <tr>
               <td><code>provider</code></td>
               <td>No</td>
-              <td>Single agent provider for the run: <code>codex</code> or <code>claude</code>. Default: <code>codex</code></td>
+              <td>Fallback agent provider when adaptive routing is off or no route rule wins. Default: <code>codex</code></td>
+            </tr>
+            <tr>
+              <td><code>routing.enabled</code></td>
+              <td>No</td>
+              <td>Enables invisible provider and reasoning routing. Codex and Claude still use their configured frontier model</td>
             </tr>
             <tr>
               <td><code>anthropicApiKey</code></td>
@@ -613,8 +625,8 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
             </tr>
             <tr>
               <td><code>phases.&lt;phase&gt;.reasoningEffort</code></td>
-              <td>Codex only</td>
-              <td>Codex reasoning effort for that phase, e.g. <code>medium</code>, <code>high</code>, <code>xhigh</code></td>
+              <td>No</td>
+              <td>Reasoning effort for that phase, e.g. <code>medium</code>, <code>high</code>, <code>xhigh</code>. Passed to Codex and to Claude via <code>--effort</code></td>
             </tr>
             <tr>
               <td><code>stepTimeouts</code></td>
