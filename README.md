@@ -4,13 +4,25 @@
 [![license](https://img.shields.io/github/license/ADWilkinson/oneshot-cli?color=black)](LICENSE)
 [![docs](https://img.shields.io/badge/docs-adwilkinson.github.io-black)](https://adwilkinson.github.io/oneshot-cli)
 
-Ship code in one command. Repo + task in, PR out.
+Ship code in one command. Repo + task in, isolated agent run out, reviewed PR ready.
 
 ```
-laptop → server → chosen agent provider → PR
+laptop -> server or local worktree -> Codex/Claude -> reviewed PR
 ```
 
-Also runs locally with `--local`, no server needed.
+`oneshot` is a tiny public workflow runtime for agentic software work. It gives coding agents the boring-but-crucial rails they need in the real world: clean worktrees, provider routing, durable logs, policy gates, review loops, and PR creation.
+
+It runs over SSH to a dev box by default, or entirely locally with `--local`.
+
+## Why try it
+
+- **Repo + task in, PR out**: one command runs plan, execute, draft PR, review, fixes, and finalize.
+- **No dirty main branch**: every run gets an isolated git worktree, so parallel work is safe.
+- **Bring your agent**: Codex-first by default, Claude-compatible, with adaptive routing when enabled.
+- **Observable by design**: every run writes JSONL events plus a durable ledger you can inspect later.
+- **Workflow-shaped**: use presets like `ship`, `review`, `fix-ci`, `research`, `docs`, and `swarm-review`.
+- **Policy-aware**: add `.oneshot/policy.json` for protected paths, secret checks, and required repo gates.
+- **Toolable**: `oneshot mcp serve` exposes the same engine to MCP-capable agent clients.
 
 ## Install
 
@@ -27,6 +39,17 @@ oneshot init                                    # configure
 oneshot doctor                                  # check local + remote setup
 oneshot doctor --repo my-org/my-app             # verify a checkout target
 oneshot my-org/my-app "fix the login timeout"   # ship
+```
+
+Try the runtime surface:
+
+```bash
+oneshot workflow list
+oneshot my-org/my-app "fix failing CI" --workflow fix-ci
+oneshot runs
+oneshot status <run-id> --json
+oneshot eval --json
+oneshot mcp serve
 ```
 
 ## How it works

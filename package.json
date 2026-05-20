@@ -1,7 +1,7 @@
 {
   "name": "oneshot-ship",
   "version": "1.2.0",
-  "description": "Ship code in one command. Repo + task in, PR out.",
+  "description": "Agentic software workflow runtime: repo + task in, reviewed PR out.",
   "homepage": "https://adwilkinson.github.io/oneshot-cli",
   "type": "module",
   "bin": {
@@ -18,10 +18,14 @@
   "keywords": [
     "cli",
     "ai",
+    "agentic-workflows",
+    "automation",
     "codex",
     "claude",
+    "mcp",
     "ssh",
     "bun",
+    "developer-tools",
     "code-review",
     "pull-request"
   ],

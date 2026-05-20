@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>oneshot | Ship code in one command</title>
-  <meta name="description" content="Repo + task in, PR out. Choose Codex or Claude once, tune models per phase, and let oneshot open the PR.">
-  <meta property="og:title" content="oneshot | Ship code in one command">
-  <meta property="og:description" content="Repo + task in, PR out. Choose Codex or Claude once, tune models per phase, and let oneshot open the PR.">
+  <title>oneshot | Agentic software workflow runtime</title>
+  <meta name="description" content="Repo + task in, reviewed PR out. Run Codex or Claude in isolated worktrees with durable events, policy gates, workflow presets, and MCP tools.">
+  <meta property="og:title" content="oneshot | Agentic software workflow runtime">
+  <meta property="og:description" content="Repo + task in, reviewed PR out. Run Codex or Claude in isolated worktrees with durable events, policy gates, workflow presets, and MCP tools.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://adwilkinson.github.io/oneshot-cli">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -34,10 +34,12 @@
 
     <nav class="sidebar-nav" aria-label="Primary">
       <a href="#hero" class="nav-link active">Overview</a>
-      <a href="#pipeline" class="nav-link">Pipeline</a>
       <a href="#quick-start" class="nav-link">Quick Start</a>
+      <a href="#why" class="nav-link">Why Try It</a>
+      <a href="#pipeline" class="nav-link">Pipeline</a>
       <a href="#usage" class="nav-link">Usage</a>
       <a href="#configuration" class="nav-link">Configuration</a>
+      <a href="#runtime" class="nav-link">Runtime</a>
       <a href="#linear" class="nav-link">Linear Integration</a>
       <a href="#customization" class="nav-link">Customization</a>
       <a href="#agent-skill" class="nav-link">Agent Skill</a>
@@ -78,36 +80,53 @@
 
     <!-- Hero -->
     <section id="hero" class="hero">
-      <div class="hero-badge">CLI tool</div>
-      <h1 class="hero-title">
-        <span class="hero-accent">one</span>shot
-      </h1>
-      <p class="hero-subtitle">
-        Repo + task in, PR out. Choose Codex or Claude once, tune models per phase, and let oneshot open the PR.
-      </p>
+      <div class="hero-layout">
+        <div class="hero-copy">
+          <div class="hero-badge">open-source agent runtime</div>
+          <h1 class="hero-title">oneshot</h1>
+          <p class="hero-subtitle">
+            Repo + task in, reviewed PR out. Run Codex or Claude in isolated worktrees with durable events, policy gates, workflow presets, and MCP tools.
+          </p>
 
-      <div class="hero-diagram">
-        <div class="diagram-flow">
-          <span class="diagram-node">laptop</span>
-          <span class="diagram-arrow">&xrarr;</span>
-          <span class="diagram-node highlight">your server</span>
-          <span class="diagram-arrow">&xrarr;</span>
-          <span class="diagram-node">Codex or Claude &rarr; PR</span>
+          <div class="hero-install">
+            <div class="install-block">
+              <code>bun install -g oneshot-ship</code>
+              <button class="copy-btn" data-copy="bun install -g oneshot-ship" aria-label="Copy install command">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="hero-actions">
+            <a href="#quick-start" class="btn btn-primary">Get Started</a>
+            <a href="https://github.com/ADWilkinson/oneshot-cli" class="btn btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
+          </div>
+
+          <div class="hero-metrics" aria-label="Core capabilities">
+            <span>isolated worktrees</span>
+            <span>JSONL events</span>
+            <span>MCP server</span>
+          </div>
         </div>
-      </div>
 
-      <div class="hero-install">
-        <div class="install-block">
-          <code>bun install -g oneshot-ship</code>
-          <button class="copy-btn" data-copy="bun install -g oneshot-ship" aria-label="Copy install command">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
+        <div class="hero-terminal" aria-label="oneshot terminal preview">
+          <div class="terminal-topline">
+            <span></span><span></span><span></span>
+            <strong>agent run</strong>
+          </div>
+          <pre><code>$ oneshot acme/api "fix failing CI" --workflow fix-ci
+run 1779090434-rxw89j
+repo acme/api
+
+[1/8] validate        ok
+[2/8] worktree        /tmp/oneshot-1779090434
+[3/8] route           codex / deep / full
+[4/8] plan            3 files implicated
+[5/8] execute         tests patched
+[6/8] draft PR        github.com/acme/api/pull/142
+[7/8] review          no major findings
+[8/8] finalize        ready for review</code></pre>
         </div>
-      </div>
-
-      <div class="hero-actions">
-        <a href="#quick-start" class="btn btn-primary">Get Started</a>
-        <a href="https://github.com/ADWilkinson/oneshot-cli" class="btn btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
       </div>
 
       <div class="hero-quick-grid" aria-label="Popular commands">
@@ -140,6 +159,33 @@
             </button>
           </div>
           <p class="quick-command-desc">Detaches immediately, returns PID + log path.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="why" class="section">
+      <h2 class="section-title">Why Try It</h2>
+      <p class="section-desc">Most coding agents can edit files. oneshot gives them a repeatable operating loop that is observable, resumable, and safe enough to run while you do something else.</p>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <span class="feature-code">01</span>
+          <h3>Real isolation</h3>
+          <p>Every task starts in a fresh git worktree from the target branch. Your checkout stays clean, and parallel runs do not collide.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-code">02</span>
+          <h3>Agent work you can inspect</h3>
+          <p>Runs emit structured JSONL events, durable ledger entries, changed-file summaries, step timings, and recoverable failure state.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-code">03</span>
+          <h3>Workflow presets</h3>
+          <p>Use <code>ship</code>, <code>review</code>, <code>fix-ci</code>, <code>research</code>, <code>docs</code>, or <code>swarm-review</code> instead of rewriting the same prompt every time.</p>
+        </article>
+        <article class="feature-card">
+          <span class="feature-code">04</span>
+          <h3>Tool protocol ready</h3>
+          <p><code>oneshot mcp serve</code> exposes the same runtime to other agents as tools: run, status, policy, workflows, and eval summary.</p>
         </article>
       </div>
     </section>
@@ -653,6 +699,26 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
     <section id="runtime" class="section">
       <h2 class="section-title">Runtime Controls</h2>
       <p class="section-desc">Recent runs are mirrored into a durable ledger under <code>~/.oneshot/runs</code>. Workflow presets, policy packs, eval summaries, and the MCP server make oneshot usable as an agent workflow engine instead of a one-off shell command.</p>
+      <div class="runtime-grid">
+        <article class="runtime-card">
+          <h3>Observe</h3>
+          <p>Inspect recent work and read one run as JSON.</p>
+          <code>oneshot runs</code>
+          <code>oneshot status &lt;run-id&gt; --json</code>
+        </article>
+        <article class="runtime-card">
+          <h3>Shape</h3>
+          <p>Pick a workflow preset or add repo policy.</p>
+          <code>oneshot workflow list</code>
+          <code>oneshot policy init</code>
+        </article>
+        <article class="runtime-card">
+          <h3>Integrate</h3>
+          <p>Expose the public runtime to any MCP-capable agent.</p>
+          <code>oneshot mcp serve</code>
+          <code>oneshot eval --json</code>
+        </article>
+      </div>
       <div class="code-block">
         <pre><code>oneshot runs
 oneshot status &lt;run-id&gt; --json
@@ -700,8 +766,8 @@ oneshot mcp serve</code></pre>
 
       <div class="custom-grid">
         <div class="custom-card">
-          <h3>CLAUDE.md</h3>
-          <p>Put a <code>CLAUDE.md</code> in any repo root. oneshot passes it to the configured agents for planning and execution.</p>
+          <h3>Repo Instructions</h3>
+          <p>Put a <code>CLAUDE.md</code> or <code>AGENTS.md</code> in any repo root. oneshot passes repo instructions to the configured agents for planning and execution.</p>
           <p class="text-muted">Coding standards, architecture decisions, test requirements, whatever.</p>
         </div>
 
