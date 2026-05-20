@@ -47,7 +47,7 @@ Try the runtime surface:
 oneshot workflow list
 oneshot my-org/my-app "fix failing CI" --workflow fix-ci
 oneshot runs
-oneshot status <run-id> --json
+oneshot status <run-id|events-file> --json
 oneshot eval --json
 oneshot mcp serve
 ```
@@ -63,9 +63,9 @@ oneshot runs an 8-step pipeline. Each run gets its own git worktree in `/tmp`, s
 | 3. Route | Adaptive router | Picks provider, reasoning, context shape, execution style, and fast/deep mode |
 | 4. Plan | Routed | Reads the codebase + repo instructions, outputs an implementation plan |
 | 5. Execute | Routed | Implements the plan |
-| 6. Draft PR | Configurable | Creates branch, commits, and writes PR metadata; the runtime opens the draft PR |
-| 7. Review | Configurable | Reviews the diff for bugs, types, security. Fixes issues directly |
-| 8. Finalize | git/gh | Pushes review fixes, marks PR ready |
+| 6. Draft PR | Configurable | Creates branch, commits, and writes PR metadata; runtime pushes and opens or updates the draft PR |
+| 7. Review | Configurable | Reviews the diff across correctness, compatibility, policy, security, and docs. Fixes issues directly |
+| 8. Finalize | git/gh | Pushes review fixes and marks PR ready, or preserves the draft if review fails |
 
 If execute times out with partial changes, the draft PR is still created so nothing is lost.
 
@@ -82,17 +82,21 @@ oneshot <repo> "<task>" --deep-review  # force exhaustive review
 oneshot <repo> "<task>" --model gpt-5.5 # override configured plan/PR model
 oneshot <repo> "<task>" --branch dev   # target a different branch
 oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for this run
+oneshot <repo> "<task>" --worktree-root /tmp/agents   # override temp worktree root
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
 oneshot runs                           # durable run ledger
-oneshot status <run-id> --json         # inspect one run
+oneshot runs --json --limit 10         # list runs for automation
+oneshot status <run-id|events-file> --json  # inspect one run
 oneshot eval --json                    # summarize run outcomes
 oneshot doctor                         # setup and remote health checks
 oneshot doctor --repo my-org/my-app    # setup + checkout health
 oneshot route "fix failing CI and publish" --json  # inspect the hidden route
 oneshot workflow list                  # inspect workflow presets
+oneshot workflow show fix-ci --json    # inspect one workflow preset
 oneshot policy init                    # create .oneshot/policy.json
+oneshot policy init --path ./repo      # write policy in another directory
 oneshot mcp serve                      # expose oneshot as MCP tools
 ```
 

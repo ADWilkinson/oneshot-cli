@@ -4,7 +4,7 @@ description: Ship code with oneshot CLI. One command that plans, executes, revie
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "1.2.1"
+  version: "1.2.2"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, GitHub CLI, and either Codex CLI or Claude Code CLI. SSH access to a server optional (can run locally with --local)
 ---
@@ -65,7 +65,7 @@ oneshot init                           # configure
 oneshot stats                          # recent runs + timing
 oneshot runs                           # durable run ledger
 oneshot runs --json --limit 10         # list runs for automation
-oneshot status <run-id> --json         # inspect one run or events file
+oneshot status <run-id|events-file> --json  # inspect one run
 oneshot eval --json                    # summarize outcomes
 oneshot workflow list                  # inspect workflow presets
 oneshot workflow show fix-ci --json    # inspect one workflow preset
@@ -170,5 +170,5 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 - Duration estimates come from historical runs per repo (`~/.oneshot/history.json`)
 - Durable run events live in `~/.oneshot/runs`; use `oneshot runs`, `oneshot status`, and `oneshot eval` for recovery and feedback loops
 - Repo slugs must be exact `owner/repo` values. Nested paths and `..` are rejected before dispatch
-- `doctor` compares the running CLI version with the npm registry, checks the agent hook runtime, and can verify a specific checkout with `--repo`
+- `doctor` compares the running CLI version with the npm registry, checks config, required CLIs, recent event files, SSH reachability, and can verify a specific checkout with `--repo`
 - `oneshot mcp serve` exposes tools for running tasks, listing runs, reading status, initializing policy, listing workflows, and summarizing eval outcomes

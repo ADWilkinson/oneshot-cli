@@ -29,7 +29,7 @@
         </svg>
         <span class="logo-text">oneshot</span>
       </a>
-      <span class="version-badge">v1.2.1</span>
+      <span class="version-badge">v1.2.2</span>
     </div>
 
     <nav class="sidebar-nav" aria-label="Primary">
@@ -263,7 +263,7 @@ repo acme/api
           </div>
           <h3 class="step-title">Draft PR</h3>
           <span class="step-engine engine-claude">Config</span>
-          <p class="step-desc">Creates branch, commits, and writes PR metadata; runtime opens the draft PR</p>
+          <p class="step-desc">Creates branch, commits, and writes PR metadata; runtime opens or updates the draft PR</p>
         </div>
 
         <div class="pipeline-connector"></div>
@@ -407,17 +407,21 @@ oneshot &lt;repo&gt; "&lt;task&gt;" --workflow ship  # apply a workflow preset
 oneshot &lt;repo&gt; "&lt;task&gt;" --model gpt-5.5  # override configured plan/PR model
 oneshot &lt;repo&gt; "&lt;task&gt;" --deep-review    # force exhaustive review
 oneshot &lt;repo&gt; "&lt;task&gt;" --branch staging # target a different branch
+oneshot &lt;repo&gt; "&lt;task&gt;" --worktree-root /tmp/agents
 oneshot &lt;repo&gt; --dry-run                 # validate only
 oneshot init                             # configure
 oneshot stats                            # recent runs + timing
 oneshot runs                             # durable run ledger
-oneshot status &lt;run-id&gt; --json           # inspect one run
+oneshot runs --json --limit 10           # list runs for automation
+oneshot status &lt;run-id|events-file&gt; --json
 oneshot eval --json                      # summarize outcomes
 oneshot doctor                           # setup and remote health checks
 oneshot doctor --repo acme/api           # setup + checkout health
 oneshot route "fix failing CI" --json    # inspect hidden route
 oneshot workflow list                    # inspect workflow presets
+oneshot workflow show fix-ci --json      # inspect one workflow preset
 oneshot policy init                      # create .oneshot/policy.json
+oneshot policy init --path ./repo        # write policy elsewhere
 oneshot mcp serve                        # expose MCP tools</code></pre>
         <button class="copy-btn" data-copy='oneshot <repo> "<task>"' aria-label="Copy usage examples">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -702,9 +706,9 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
       <div class="runtime-grid">
         <article class="runtime-card">
           <h3>Observe</h3>
-          <p>Inspect recent work and read one run as JSON.</p>
+          <p>Inspect recent work and read one run or event file as JSON.</p>
           <code>oneshot runs</code>
-          <code>oneshot status &lt;run-id&gt; --json</code>
+          <code>oneshot status &lt;run-id|events-file&gt; --json</code>
         </article>
         <article class="runtime-card">
           <h3>Shape</h3>
@@ -721,9 +725,10 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
       </div>
       <div class="code-block">
         <pre><code>oneshot runs
-oneshot status &lt;run-id&gt; --json
+oneshot status &lt;run-id|events-file&gt; --json
 oneshot eval --json
 oneshot workflow list
+oneshot workflow show fix-ci --json
 oneshot policy init
 oneshot mcp serve</code></pre>
       </div>

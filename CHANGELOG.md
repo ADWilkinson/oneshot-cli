@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2 - 2026-05-20
+
+- Swept README, docs, and the packaged skill for stale pipeline phrasing and missing runtime command variants.
+- Documented status-by-event-file, workflow inspection, policy path overrides, and worktree-root overrides consistently.
+
 ## 1.2.1 - 2026-05-20
 
 - Refreshed the packaged `oneshot-ship` skill to match the current workflow runtime, policy packs, MCP surface, run ledger, and repo-instruction handling.
