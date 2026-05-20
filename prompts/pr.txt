@@ -14,6 +14,7 @@ write the title + body files.
    - `git diff --stat origin/{{baseBranch}}...HEAD`
    - `git diff --name-only origin/{{baseBranch}}...HEAD`
    - `git diff origin/{{baseBranch}}...HEAD` (read the diff; don't paste it).
+   - If `.oneshot/policy.json` exists, note any protected-path, required-check, or approval-sensitive implications for the PR body.
 
 2. Prepare the branch named `{{branchName}}`:
    - Check if it already exists on origin with
@@ -55,6 +56,9 @@ write the title + body files.
      - `## HTML artifact` — include this only when the diff adds a durable
        `.html` artifact. Link the artifact path and explain what it helps a
        reviewer inspect.
+     - `## Policy notes` — include this only when `.oneshot/policy.json`
+       made the change meaningfully safer, blocked something, or required
+       specific checks.
    - Keep grounded in the actual diff. Do not invent tests, risks, or
      behavior changes. Do not paste raw diff output or exhaustive file
      inventories. Prefer concrete language over generic PR filler.

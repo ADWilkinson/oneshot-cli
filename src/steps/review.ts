@@ -71,17 +71,13 @@ const deepReview = async (ctx: PipelineContext, events: EventWriter): Promise<vo
   const timeoutMs = getStepTimeout(config, "deepReviewMinutes");
   const agent = getRoutedPhaseAgent(config, "deepReview", ctx.route);
 
-  const prompt = `You are reviewing code changes for a task.
+  const prompt = `${loadPromptTemplate()
+    .replace("{{task}}", options.task)
+    .replace(/\{\{baseBranch\}\}/g, baseBranch)}
 
-Task: ${options.task}
+## Deep Review Mode
 
-Review ALL changes in this branch against origin/${baseBranch} (use git diff origin/${baseBranch}...HEAD, plus any untracked files) in a SINGLE pass:
-
-1. BUGS & LOGIC: off-by-one, null/undefined, race conditions, type mismatches, missing returns
-2. SECURITY: injection, secret exposure, auth bypasses, path traversal
-3. CODE QUALITY: convention violations, unnecessary complexity, DRY violations, poor naming
-
-Fix any issues directly. Run typecheck and build to verify. Do NOT create commits.`;
+Run this as a single deep pass across correctness, security, policy, runtime contracts, docs quality, and regression risk. Fix confirmed critical or major issues directly. Use only validation commands that actually exist in the repository. Do NOT create commits.`;
 
   if (agent.provider === "claude") {
     await runAgentText({

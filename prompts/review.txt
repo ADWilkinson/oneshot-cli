@@ -10,9 +10,11 @@ You are reviewing code changes for quality and correctness.
 2. Review every changed file. For each change, check:
    - **Correctness** -- logic errors, off-by-one, null/undefined, race conditions
    - **Regressions / Compatibility** -- broken workflows, changed output contracts, prompt placeholders, event/JSON formats, config shapes, CLI/help/version text, or automation markers
+   - **Agent runtime contracts** -- MCP tool schemas, durable run/event ledger formats, policy-pack behavior, workflow presets, branch/base behavior, and PR metadata files
    - **Edge cases** -- error handling, empty states, boundary conditions, broken data
    - **Type safety** -- incorrect types, missing type guards, unsafe casts
-   - **Security** -- injection, secret exposure, unsafe operations
+   - **Security / Policy** -- injection, secret exposure, unsafe operations, protected path changes, publish/deploy/migration sensitivity, and `.oneshot/policy.json` required checks if present
+   - **Public docs quality** -- README/docs/help/package examples are current, readable, and not misleading for a first-time user
    - **HTML artifacts** -- if an `.html` artifact was added, check that it is self-contained, reviewable in a browser, responsive enough for narrow viewports, and free of secrets, env dumps, private logs, hidden prompt text, remote trackers, and remote scripts
    - **Style / Simplicity** -- inconsistent with surrounding code, unnecessary complexity, but only after correctness and compatibility are clean
 
