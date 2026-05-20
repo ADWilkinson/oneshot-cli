@@ -20,6 +20,7 @@ import { review } from "./steps/review";
 import { createDraftPr, finalizeAfterReview, getFilesChanged, getDiffStats } from "./steps/pr";
 import { moveToInReview, addPrComment } from "./linear";
 import { getStepLabel } from "./pipeline-steps";
+import { validatePolicy } from "./policy";
 
 const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineContext => {
   const basePath = expandHome(options.basePath ?? config.basePath);
@@ -148,6 +149,20 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       } else {
         throw err;
       }
+    }
+
+    const policy = await validatePolicy(ctx);
+    for (const warning of policy.warnings) {
+      log.warn(`policy: ${warning}`);
+      events.agentAction(5, getStepLabel(5), {
+        phase: "completed",
+        kind: "warning",
+        title: warning,
+        ok: true,
+      });
+    }
+    if (!policy.ok) {
+      throw new OneshotError(`policy gate failed: ${policy.failures.join("; ")}`, "ERR_UNKNOWN");
     }
 
     // Create draft PR BEFORE review so work is never lost to timeouts

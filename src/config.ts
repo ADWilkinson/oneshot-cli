@@ -44,6 +44,7 @@ export interface OneshotOptions {
   deepReview?: boolean;
   linearIssueId?: string;
   eventsFile?: string;
+  workflow?: string;
 }
 
 export type ComplexityMode = 'fast' | 'deep';

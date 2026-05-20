@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { dirname } from "path";
+import { ensureRunsDir, getLedgerEventsFile } from "./runs";
 
 const EVENTS_REAP_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -134,6 +135,12 @@ export class EventWriter {
     const candidates = [getDefaultEventsFile(runId), eventsFile].filter(
       (path, index, paths): path is string => !!path && paths.indexOf(path) === index
     );
+    try {
+      ensureRunsDir();
+      candidates.push(getLedgerEventsFile(runId));
+    } catch {
+      // best effort; /tmp remains the compatibility event stream
+    }
     this.filePaths = [];
 
     for (const filePath of candidates) {

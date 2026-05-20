@@ -3,6 +3,7 @@ import { existsSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { EventWriter, getDefaultEventsFile } from "./events";
+import { getLedgerEventsFile } from "./runs";
 
 const cleanupPaths = new Set<string>();
 
@@ -21,8 +22,10 @@ describe("EventWriter", () => {
   test("writes to the default stats file and the requested custom file", () => {
     const runId = `test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const defaultFile = getDefaultEventsFile(runId);
+    const ledgerFile = getLedgerEventsFile(runId);
     const customFile = join(tmpdir(), `oneshot-custom-${runId}.jsonl`);
     cleanupPaths.add(defaultFile);
+    cleanupPaths.add(ledgerFile);
     cleanupPaths.add(customFile);
 
     const writer = new EventWriter(customFile, runId);
@@ -42,13 +45,16 @@ describe("EventWriter", () => {
     writer.completed({ elapsed: 123 });
 
     expect(existsSync(defaultFile)).toBe(true);
+    expect(existsSync(ledgerFile)).toBe(true);
     expect(existsSync(customFile)).toBe(true);
 
     const defaultEvents = readFileSync(defaultFile, "utf-8").trim().split("\n");
     const customEvents = readFileSync(customFile, "utf-8").trim().split("\n");
+    const ledgerEvents = readFileSync(ledgerFile, "utf-8").trim().split("\n");
 
     expect(defaultEvents).toHaveLength(3);
     expect(customEvents).toEqual(defaultEvents);
+    expect(ledgerEvents).toEqual(defaultEvents);
 
     const startedEvent = JSON.parse(defaultEvents[0]);
     expect(startedEvent.runtime).toMatchObject({
@@ -76,9 +82,11 @@ describe("EventWriter", () => {
   test("creates parent directories for custom event files", () => {
     const runId = `nested-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const defaultFile = getDefaultEventsFile(runId);
+    const ledgerFile = getLedgerEventsFile(runId);
     const tempDir = join(tmpdir(), `oneshot-events-${runId}`);
     const customFile = join(tempDir, "nested", "events.jsonl");
     cleanupPaths.add(defaultFile);
+    cleanupPaths.add(ledgerFile);
     cleanupPaths.add(tempDir);
 
     const writer = new EventWriter(customFile, runId);
@@ -91,7 +99,9 @@ describe("EventWriter", () => {
   test("failed events keep completed step timings", () => {
     const runId = `failed-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const defaultFile = getDefaultEventsFile(runId);
+    const ledgerFile = getLedgerEventsFile(runId);
     cleanupPaths.add(defaultFile);
+    cleanupPaths.add(ledgerFile);
 
     const writer = new EventWriter(null, runId);
     writer.failed("boom", 1_000, "ERR_UNKNOWN", "detail", [

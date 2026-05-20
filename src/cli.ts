@@ -12,6 +12,10 @@ import { VERSION } from "./version";
 import type { ComplexityMode } from "./config";
 import { buildDoctorReport, printDoctorReport } from "./doctor";
 import { renderRouteDecision, routeTask } from "./routing";
+import { initPolicy } from "./policy";
+import { listRunSnapshots, printRuns, resolveRunEventsFile, snapshotFromEvents, summarizeEval } from "./runs";
+import { applyWorkflow, getWorkflow, WORKFLOWS } from "./workflows";
+import { runMcpServer } from "./mcp";
 
 export interface ParsedArgs extends OneshotOptions {
   local: boolean;
@@ -21,6 +25,13 @@ export interface ParsedArgs extends OneshotOptions {
   json: boolean;
   doctorRepo?: string;
   routeProvider?: AgentProvider;
+  limit?: number;
+  runRef?: string;
+  policyAction?: string;
+  policyPath?: string;
+  workflowCommand?: string;
+  workflowName?: string;
+  workflow?: string;
 }
 
 const parsePositiveInt = (value: string, fallback: number): number => {
@@ -66,6 +77,91 @@ export const parseArgs = (args: string[]): ParsedArgs => {
       throw new Error(`stats only accepts --local; unknown option: ${invalid[0]}`);
     }
     return { command: "stats", repo: "", task: "", local: args.includes("--local"), bg: false, deepReview: false, json: false };
+  }
+
+  if (args[0] === "runs") {
+    let local = false;
+    let json = false;
+    let limit = 20;
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === "--local") local = true;
+      else if (arg === "--json") json = true;
+      else if (arg === "--limit") {
+        limit = parsePositiveInt(getFlagValue(args, i, arg), 20);
+        i++;
+      } else {
+        throw new Error(`runs only accepts --local, --json, and --limit; unknown option: ${arg}`);
+      }
+    }
+    return { command: "runs", repo: "", task: "", local, bg: false, deepReview: false, json, limit };
+  }
+
+  if (args[0] === "status") {
+    let local = false;
+    let json = false;
+    const positional: string[] = [];
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === "--local") local = true;
+      else if (arg === "--json") json = true;
+      else if (!arg.startsWith("-")) positional.push(arg);
+      else throw new Error(`status only accepts --local and --json; unknown option: ${arg}`);
+    }
+    if (positional.length !== 1) throw new Error("status requires a run id or events file");
+    return { command: "status", repo: "", task: "", local, bg: false, deepReview: false, json, runRef: positional[0] };
+  }
+
+  if (args[0] === "eval") {
+    let local = false;
+    let json = false;
+    let limit = 100;
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === "--local") local = true;
+      else if (arg === "--json") json = true;
+      else if (arg === "--limit") {
+        limit = parsePositiveInt(getFlagValue(args, i, arg), 100);
+        i++;
+      } else {
+        throw new Error(`eval only accepts --local, --json, and --limit; unknown option: ${arg}`);
+      }
+    }
+    return { command: "eval", repo: "", task: "", local, bg: false, deepReview: false, json, limit };
+  }
+
+  if (args[0] === "policy") {
+    if (args[1] !== "init") throw new Error("policy currently supports: policy init");
+    let policyPath: string | undefined;
+    for (let i = 2; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === "--path") {
+        policyPath = getFlagValue(args, i, arg);
+        i++;
+      } else {
+        throw new Error(`policy init only accepts --path; unknown option: ${arg}`);
+      }
+    }
+    return { command: "policy", policyAction: "init", policyPath, repo: "", task: "", local: true, bg: false, deepReview: false, json: false };
+  }
+
+  if (args[0] === "workflow") {
+    const sub = args[1] ?? "list";
+    let json = false;
+    let workflowName: string | undefined;
+    for (let i = 2; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === "--json") json = true;
+      else if (!arg.startsWith("-")) workflowName = arg;
+      else throw new Error(`workflow only accepts --json and an optional name; unknown option: ${arg}`);
+    }
+    if (sub !== "list" && sub !== "show") throw new Error("workflow supports: workflow list, workflow show <name>");
+    return { command: "workflow", workflowCommand: sub, workflowName, repo: "", task: "", local: true, bg: false, deepReview: false, json };
+  }
+
+  if (args[0] === "mcp") {
+    if (args[1] !== "serve" || args.length !== 2) throw new Error("mcp currently supports: mcp serve");
+    return { command: "mcp", repo: "", task: "", local: true, bg: false, deepReview: false, json: false };
   }
 
   if (args[0] === "doctor") {
@@ -140,6 +236,7 @@ export const parseArgs = (args: string[]): ParsedArgs => {
   let deepReview = false;
   let local = false;
   let bg = false;
+  let workflow: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -157,6 +254,9 @@ export const parseArgs = (args: string[]): ParsedArgs => {
       dryRun = true;
     } else if (arg === "--deep-review") {
       deepReview = true;
+    } else if (arg === "--workflow") {
+      workflow = getFlagValue(args, i, arg);
+      i++;
     } else if (arg === "--local") {
       local = true;
     } else if (arg === "--branch" || arg === "-b") {
@@ -198,6 +298,7 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     dryRun,
     deepReview,
     json: false,
+    workflow,
     local,
     bg,
   };
@@ -212,6 +313,7 @@ export const buildRemoteCommandParts = (parsed: ParsedArgs): string[] => {
   if (parsed.worktreeRoot) parts.push("--worktree-root", shellEscape(parsed.worktreeRoot));
   if (parsed.mode) parts.push("--mode", shellEscape(parsed.mode));
   if (parsed.eventsFile) parts.push("--events-file", shellEscape(parsed.eventsFile));
+  if (parsed.workflow) parts.push("--workflow", shellEscape(parsed.workflow));
   if (parsed.dryRun) parts.push("--dry-run");
   if (parsed.deepReview) parts.push("--deep-review");
   return parts;
@@ -253,9 +355,22 @@ export const buildRemoteStatsShellCommand = (): string => {
   return `${REMOTE_ONESHOT_BIN_SETUP}; exec "$oneshot_bin" stats --local`;
 };
 
+export const buildRemotePassthroughShellCommand = (parts: string[]): string => {
+  return `${REMOTE_ONESHOT_BIN_SETUP}; exec "$oneshot_bin" ${parts.map(shellEscape).join(" ")} --local`;
+};
+
 const writeRemoteConfig = (proc: Bun.Subprocess<"pipe", "inherit" | "pipe", "inherit" | "pipe">, config: OneshotConfig): void => {
   proc.stdin.write(JSON.stringify(config, null, 2) + "\n");
   proc.stdin.end();
+};
+
+const runRemoteReadOnlyCommand = async (config: OneshotConfig, parts: string[]): Promise<never> => {
+  const proc = Bun.spawn(
+    ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", config.host, buildRemotePassthroughShellCommand(parts)],
+    { stdout: "inherit", stderr: "inherit", stdin: "inherit" }
+  );
+  await proc.exited;
+  process.exit(proc.exitCode ?? 1);
 };
 
 export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
@@ -267,6 +382,7 @@ export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
   if (parsed.worktreeRoot) args.push("--worktree-root", parsed.worktreeRoot);
   if (parsed.mode) args.push("--mode", parsed.mode);
   if (parsed.eventsFile) args.push("--events-file", parsed.eventsFile);
+  if (parsed.workflow) args.push("--workflow", parsed.workflow);
   if (parsed.dryRun) args.push("--dry-run");
   if (parsed.deepReview) args.push("--deep-review");
   return args;
@@ -277,15 +393,27 @@ const printUsage = () => {
 Usage: oneshot <repo> "<task or linear url>" [options]
        oneshot init
        oneshot stats
+       oneshot runs
+       oneshot status <run-id|events-file>
+       oneshot eval
        oneshot doctor
        oneshot doctor --repo <owner/repo>
        oneshot route "<task>"
+       oneshot workflow list
+       oneshot policy init
+       oneshot mcp serve
 
 Commands:
   init                    Set up ~/.oneshot/config.json interactively
   stats                   Show recent runs, success rates, per-repo averages
+  runs                    List durable run ledger entries
+  status                  Show one run snapshot from a run id or event file
+  eval                    Summarize run outcomes for workflow improvement
   doctor                  Check local and remote oneshot prerequisites
   route                   Show the invisible provider/reasoning route for a task
+  workflow                List or inspect built-in workflow presets
+  policy                  Create or enforce repo policy packs
+  mcp serve               Expose oneshot as MCP tools over stdio
 
 Options:
   --model, -m <model>     Override configured plan/PR model for this run
@@ -297,6 +425,7 @@ Options:
   --local                 Run locally instead of over SSH
   --dry-run, -d           Validate repo exists without running pipeline
   --events-file <path>    Mirror JSONL events to an additional file
+  --workflow <name>       Apply a workflow preset (ship/review/fix-ci/research/docs/swarm-review)
   --repo <owner/repo>     With doctor, verify a specific checkout exists
   --provider <provider>   With route, choose the fallback provider (codex/claude)
   --bg                    Run detached in background (returns PID + log path)
@@ -311,9 +440,14 @@ Examples:
   oneshot my-org/my-repo "fix staging bug" --branch staging
   oneshot my-org/my-repo --dry-run
   oneshot stats
+  oneshot runs
+  oneshot status 1779090434729-rxw89j --json
+  oneshot eval --json
   oneshot doctor
   oneshot doctor --repo my-org/my-repo
   oneshot route "fix failing CI and publish"
+  oneshot workflow list
+  oneshot policy init
 `);
 };
 
@@ -466,6 +600,105 @@ const main = async () => {
       return;
     }
 
+    if (parsed.command === "runs") {
+      if (!parsed.local) {
+        try {
+          const config = await loadConfig();
+          if (config.host !== "local") {
+            const parts = ["runs"];
+            if (parsed.json) parts.push("--json");
+            if (parsed.limit) parts.push("--limit", String(parsed.limit));
+            return await runRemoteReadOnlyCommand(config, parts);
+          }
+        } catch {
+          // local fallback
+        }
+      }
+      const runs = listRunSnapshots(parsed.limit ?? 20);
+      if (parsed.json) console.log(JSON.stringify(runs, null, 2));
+      else printRuns(runs);
+      return;
+    }
+
+    if (parsed.command === "status") {
+      if (!parsed.runRef) throw new Error("status requires a run id or events file");
+      if (!parsed.local) {
+        try {
+          const config = await loadConfig();
+          if (config.host !== "local") {
+            const parts = ["status", parsed.runRef];
+            if (parsed.json) parts.push("--json");
+            return await runRemoteReadOnlyCommand(config, parts);
+          }
+        } catch {
+          // local fallback
+        }
+      }
+      const snapshot = snapshotFromEvents(resolveRunEventsFile(parsed.runRef));
+      if (parsed.json) console.log(JSON.stringify(snapshot, null, 2));
+      else {
+        console.log(`${snapshot.status} ${snapshot.runId} ${snapshot.repo}`);
+        if (snapshot.currentStep) console.log(`step: ${snapshot.currentStep.step} ${snapshot.currentStep.label} (${snapshot.currentStep.status})`);
+        if (snapshot.prUrl) console.log(`pr: ${snapshot.prUrl}`);
+        if (snapshot.error) console.log(`error: ${snapshot.error}`);
+        console.log(`events: ${snapshot.eventsFile}`);
+      }
+      return;
+    }
+
+    if (parsed.command === "eval") {
+      if (!parsed.local) {
+        try {
+          const config = await loadConfig();
+          if (config.host !== "local") {
+            const parts = ["eval"];
+            if (parsed.json) parts.push("--json");
+            if (parsed.limit) parts.push("--limit", String(parsed.limit));
+            return await runRemoteReadOnlyCommand(config, parts);
+          }
+        } catch {
+          // local fallback
+        }
+      }
+      const summary = summarizeEval(listRunSnapshots(parsed.limit ?? 100));
+      if (parsed.json) console.log(JSON.stringify(summary, null, 2));
+      else {
+        console.log(`runs: ${summary.totalRuns}`);
+        console.log(`finished: ${summary.finishedRuns}`);
+        console.log(`success rate: ${summary.successRate ?? "n/a"}%`);
+        console.log(`running: ${summary.running}`);
+      }
+      return;
+    }
+
+    if (parsed.command === "policy") {
+      if (parsed.policyAction === "init") {
+        console.log(`policy written: ${initPolicy(parsed.policyPath ?? process.cwd())}`);
+        return;
+      }
+    }
+
+    if (parsed.command === "workflow") {
+      const workflow = parsed.workflowName ? getWorkflow(parsed.workflowName) : undefined;
+      const value = parsed.workflowCommand === "show"
+        ? workflow ?? (() => { throw new Error(`unknown workflow: ${parsed.workflowName}`); })()
+        : WORKFLOWS;
+      if (parsed.json) console.log(JSON.stringify(value, null, 2));
+      else if (Array.isArray(value)) {
+        for (const item of value) console.log(`${item.name.padEnd(14)} ${item.description}`);
+      } else {
+        console.log(`${value.name}: ${value.description}`);
+        console.log(`mode: ${value.mode}${value.deepReview ? ", deep review" : ""}`);
+        console.log(value.taskPrefix);
+      }
+      return;
+    }
+
+    if (parsed.command === "mcp") {
+      runMcpServer();
+      return;
+    }
+
     if (parsed.command === "doctor") {
       let config: OneshotConfig | null = null;
       try {
@@ -567,10 +800,11 @@ const main = async () => {
       branch: parsed.branch,
       basePath: parsed.basePath,
       worktreeRoot: parsed.worktreeRoot,
-      mode: parsed.mode,
+      mode: parsed.mode ?? getWorkflow(parsed.workflow)?.mode,
       dryRun: parsed.dryRun,
-      deepReview: parsed.deepReview,
+      deepReview: parsed.deepReview || getWorkflow(parsed.workflow)?.deepReview,
       eventsFile: parsed.eventsFile,
+      workflow: parsed.workflow,
     };
 
     if (options.task && isLinearUrl(options.task)) {
@@ -582,6 +816,11 @@ const main = async () => {
       options.linearIssueId = issueId;
       log.info(`task: ${issue.identifier} - ${issue.title}`);
     }
+
+    if (parsed.workflow && !getWorkflow(parsed.workflow)) {
+      throw new Error(`unknown workflow: ${parsed.workflow}`);
+    }
+    options.task = applyWorkflow(options.task, getWorkflow(parsed.workflow));
 
     await runPipeline(config, options);
   } catch (err) {

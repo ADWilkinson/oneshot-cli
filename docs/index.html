@@ -29,7 +29,7 @@
         </svg>
         <span class="logo-text">oneshot</span>
       </a>
-      <span class="version-badge">v1.1.0</span>
+      <span class="version-badge">v1.2.0</span>
     </div>
 
     <nav class="sidebar-nav" aria-label="Primary">
@@ -357,15 +357,22 @@ cd oneshot-cli && bun install && bun link</code></pre>
 oneshot &lt;repo&gt; &lt;linear-url&gt;              # ship from a Linear ticket
 oneshot &lt;repo&gt; "&lt;task&gt;" --bg             # fire and forget
 oneshot &lt;repo&gt; "&lt;task&gt;" --local          # run locally, no SSH
+oneshot &lt;repo&gt; "&lt;task&gt;" --workflow ship  # apply a workflow preset
 oneshot &lt;repo&gt; "&lt;task&gt;" --model gpt-5.5  # override configured plan/PR model
 oneshot &lt;repo&gt; "&lt;task&gt;" --deep-review    # force exhaustive review
 oneshot &lt;repo&gt; "&lt;task&gt;" --branch staging # target a different branch
 oneshot &lt;repo&gt; --dry-run                 # validate only
 oneshot init                             # configure
 oneshot stats                            # recent runs + timing
+oneshot runs                             # durable run ledger
+oneshot status &lt;run-id&gt; --json           # inspect one run
+oneshot eval --json                      # summarize outcomes
 oneshot doctor                           # setup and remote health checks
 oneshot doctor --repo acme/api           # setup + checkout health
-oneshot route "fix failing CI" --json    # inspect hidden route</code></pre>
+oneshot route "fix failing CI" --json    # inspect hidden route
+oneshot workflow list                    # inspect workflow presets
+oneshot policy init                      # create .oneshot/policy.json
+oneshot mcp serve                        # expose MCP tools</code></pre>
         <button class="copy-btn" data-copy='oneshot <repo> "<task>"' aria-label="Copy usage examples">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
@@ -401,6 +408,11 @@ oneshot route "fix failing CI" --json    # inspect hidden route</code></pre>
               <td><code>--worktree-root</code></td>
               <td></td>
               <td>Override where temporary git worktrees are created</td>
+            </tr>
+            <tr>
+              <td><code>--workflow</code></td>
+              <td></td>
+              <td>Apply a workflow preset such as <code>ship</code>, <code>review</code>, <code>fix-ci</code>, <code>research</code>, <code>docs</code>, or <code>swarm-review</code></td>
             </tr>
             <tr>
               <td><code>--deep-review</code></td>
@@ -635,6 +647,19 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
             </tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <section id="runtime" class="section">
+      <h2 class="section-title">Runtime Controls</h2>
+      <p class="section-desc">Recent runs are mirrored into a durable ledger under <code>~/.oneshot/runs</code>. Workflow presets, policy packs, eval summaries, and the MCP server make oneshot usable as an agent workflow engine instead of a one-off shell command.</p>
+      <div class="code-block">
+        <pre><code>oneshot runs
+oneshot status &lt;run-id&gt; --json
+oneshot eval --json
+oneshot workflow list
+oneshot policy init
+oneshot mcp serve</code></pre>
       </div>
     </section>
 

@@ -54,6 +54,7 @@ oneshot <repo> <linear-url>            # ship from a Linear ticket
 oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
 oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
+oneshot <repo> "<task>" --workflow ship # apply a workflow preset
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
 oneshot <repo> "<task>" --model gpt-5.5 # override configured plan/PR model
 oneshot <repo> "<task>" --branch dev   # target a different branch
@@ -61,9 +62,15 @@ oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for th
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
+oneshot runs                           # durable run ledger
+oneshot status <run-id> --json         # inspect one run
+oneshot eval --json                    # summarize run outcomes
 oneshot doctor                         # setup and remote health checks
 oneshot doctor --repo my-org/my-app    # setup + checkout health
 oneshot route "fix failing CI and publish" --json  # inspect the hidden route
+oneshot workflow list                  # inspect workflow presets
+oneshot policy init                    # create .oneshot/policy.json
+oneshot mcp serve                      # expose oneshot as MCP tools
 ```
 
 ### Flags
@@ -75,6 +82,7 @@ oneshot route "fix failing CI and publish" --json  # inspect the hidden route
 | `--base-path` | | Override the workspace path used to locate the repo |
 | `--worktree-root` | | Override where temporary git worktrees are created |
 | `--mode` | | Skip classification and force `fast` or `deep` mode |
+| `--workflow` | | Apply a workflow preset: `ship`, `review`, `fix-ci`, `research`, `docs`, or `swarm-review` |
 | `--deep-review` | | Force exhaustive review mode |
 | `--local` | | Run locally instead of over SSH |
 | `--bg` | | Run detached in background (returns PID + log path) |
@@ -211,7 +219,7 @@ For dense specs, explainers, review maps, incident reports, design sheets, or on
 
 ## Events
 
-Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl`. Use `--events-file <path>` to mirror to another file:
+Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl` and the durable local ledger at `~/.oneshot/runs/<runId>.events.jsonl`. Use `--events-file <path>` to mirror to another file:
 
 ```bash
 oneshot acme/api "fix bug" --local --events-file /tmp/run.events.jsonl
@@ -221,6 +229,24 @@ Events:
 
 - `started` (includes runtime metadata such as CLI version, host, pid, cwd, platform, and worktree root), `classified`, `step` (running/done/failed), `completed` (success/failed/dry-run)
 - `agent` for live agent activity: commands, tools, file changes, todos, web searches, warnings, draft PR creation, and turn/session markers
+
+## Workflows, policy, and MCP
+
+Workflow presets wrap a task with a stronger operating mode while keeping the CLI portable:
+
+```bash
+oneshot workflow list
+oneshot acme/api "fix the failing payment test" --workflow fix-ci
+oneshot acme/web "review PR feedback and make it shippable" --workflow review
+```
+
+Policy packs live at `.oneshot/policy.json`. The default pack protects secret-like files and can require repo-specific checks before a draft PR is created:
+
+```bash
+oneshot policy init
+```
+
+`oneshot mcp serve` exposes the public engine as MCP tools for agent clients. The server supports running a task, listing runs, reading run status, initializing policy, listing workflows, and summarizing eval outcomes.
 
 ## Doctor and recovery
 
@@ -233,7 +259,7 @@ oneshot doctor --repo zkp2p/pay
 oneshot doctor --local --repo zkp2p/pay --json
 ```
 
-Failed runs preserve the worktree under the configured `worktreeRoot` and write a failed `completed` event with the error code and completed step timings. Start with `oneshot stats`, then inspect the event file or preserved worktree path printed in the logs.
+Failed runs preserve the worktree under the configured `worktreeRoot` and write a failed `completed` event with the error code and completed step timings. Start with `oneshot runs`, `oneshot status <run-id>`, and `oneshot eval`, then inspect the event file or preserved worktree path printed in the logs.
 
 ## Agent skill
 

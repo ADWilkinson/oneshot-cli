@@ -3,6 +3,7 @@ import {
   buildLocalChildArgs,
   buildRemoteBackgroundShellCommand,
   buildRemoteCommandParts,
+  buildRemotePassthroughShellCommand,
   buildRemoteStatsShellCommand,
   buildRemoteShellCommand,
   parseArgs,
@@ -114,6 +115,46 @@ describe("parseArgs", () => {
     });
   });
 
+  test("parses durable run commands", () => {
+    expect(parseArgs(["runs", "--local", "--json", "--limit", "5"])).toMatchObject({
+      command: "runs",
+      local: true,
+      json: true,
+      limit: 5,
+    });
+    expect(parseArgs(["status", "run-123", "--json"])).toMatchObject({
+      command: "status",
+      runRef: "run-123",
+      json: true,
+    });
+    expect(parseArgs(["eval", "--limit", "7"])).toMatchObject({
+      command: "eval",
+      limit: 7,
+    });
+  });
+
+  test("parses workflow and policy commands", () => {
+    expect(parseArgs(["workflow", "show", "ship", "--json"])).toMatchObject({
+      command: "workflow",
+      workflowCommand: "show",
+      workflowName: "ship",
+      json: true,
+    });
+    expect(parseArgs(["policy", "init", "--path", "/tmp/repo"])).toMatchObject({
+      command: "policy",
+      policyAction: "init",
+      policyPath: "/tmp/repo",
+    });
+  });
+
+  test("parses workflow flag for run dispatch", () => {
+    expect(parseArgs(["my-org/my-repo", "fix bug", "--workflow", "ship"])).toMatchObject({
+      repo: "my-org/my-repo",
+      task: "fix bug",
+      workflow: "ship",
+    });
+  });
+
   test("rejects unsupported doctor options", () => {
     expect(() => parseArgs(["doctor", "--bg"])).toThrow(
       "doctor only accepts --local, --json, and --repo; unknown option: --bg"
@@ -204,6 +245,12 @@ describe("remote shell wrappers", () => {
     expect(command).toContain('command -v oneshot');
     expect(command).toContain('ONESHOT_CONFIG_PATH="$0" "$oneshot_bin" "$@"; status=$?; rm -f "$0"; exit $status');
     expect(command).toContain("--local 'demo/repo' 'fix bug'");
+  });
+
+  test("read-only passthrough wrapper executes remote local commands", () => {
+    const command = buildRemotePassthroughShellCommand(["runs", "--json"]);
+    expect(command).toContain('exec "$oneshot_bin"');
+    expect(command).toContain("'runs' '--json' --local");
   });
 
   test("background wrapper keeps the temp config alive for the detached run", () => {

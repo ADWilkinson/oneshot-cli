@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0 - 2026-05-20
+
+- Added a durable run ledger under `~/.oneshot/runs` plus `oneshot runs`, `oneshot status`, and `oneshot eval`.
+- Added workflow presets via `--workflow` and `oneshot workflow list/show` for ship, review, fix-ci, research, docs, and swarm-review modes.
+- Added `.oneshot/policy.json` support with `oneshot policy init`, protected-path checks, required checks, approval-sensitive warnings, and secret-pattern gates.
+- Added `oneshot mcp serve` so agent clients can call the public engine through MCP tools.
+- Updated docs and packaged skill guidance for the public workflow-runtime surface.
+
 ## 1.1.0 - 2026-05-19
 
 - Added a homebrew adaptive work router that silently chooses Codex or Claude plus reasoning effort, context shape, execution style, and verification profile.

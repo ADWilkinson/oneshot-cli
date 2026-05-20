@@ -4,7 +4,7 @@ description: Ship code with oneshot CLI. One command that plans, executes, revie
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "1.1.0"
+  version: "1.2.0"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, GitHub CLI, and either Codex CLI or Claude Code CLI. SSH access to a server optional (can run locally with --local)
 ---
@@ -53,6 +53,7 @@ oneshot <repo> <linear-url>            # ship from a Linear ticket
 oneshot <repo> "<task>" --bg           # fire and forget
 oneshot <repo> "<task>" --local        # run locally, no SSH
 oneshot <repo> "<task>" --mode deep    # skip classification and force deep mode
+oneshot <repo> "<task>" --workflow ship # apply a workflow preset
 oneshot <repo> "<task>" --deep-review  # force exhaustive review
 oneshot <repo> "<task>" --model gpt-5.5 # override configured plan/PR model
 oneshot <repo> "<task>" --branch dev   # target a different branch
@@ -61,6 +62,12 @@ oneshot route "fix failing CI and publish" --json # inspect invisible route
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
+oneshot runs                           # durable run ledger
+oneshot status <run-id> --json         # inspect one run
+oneshot eval --json                    # summarize outcomes
+oneshot workflow list                  # inspect workflow presets
+oneshot policy init                    # create .oneshot/policy.json
+oneshot mcp serve                      # expose MCP tools over stdio
 oneshot doctor                         # package, tool, SSH, and event health
 oneshot doctor --repo zkp2p/pay        # health plus checkout existence
 ```
@@ -126,6 +133,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `--branch` | `-b` | Base branch (default: main) |
 | `--base-path` | | Override the workspace path used to locate the repo |
 | `--mode` | | Skip classification and force `fast` or `deep` mode |
+| `--workflow` | | Apply a workflow preset: `ship`, `review`, `fix-ci`, `research`, `docs`, or `swarm-review` |
 | `--deep-review` | | Force exhaustive review mode |
 | `--local` | | Run locally instead of over SSH |
 | `--bg` | | Run in background, return PID + log path |
@@ -143,6 +151,8 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 - Configure `claude.model` and `codex.model` as the frontier models for each provider. Adaptive routing varies effort and provider, not model class
 - Configure `phases.classify`, `phases.plan`, `phases.execute`, `phases.review`, `phases.deepReview`, and `phases.pr` for model and reasoning defaults when routing is disabled
 - Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipeline behavior
+- Use `oneshot policy init` to add `.oneshot/policy.json` with protected paths, required checks, approval-sensitive keywords, and secret-pattern gates
+- Use `oneshot mcp serve` when another agent should call oneshot through tools instead of shelling out ad hoc
 - For dense specs, explainers, review maps, incident reports, design sheets, or one-off editors, oneshot can create a self-contained HTML artifact instead of a long markdown wall. Durable artifacts belong in `docs/artifacts/`; throwaway local artifacts belong in `/tmp/oneshot-html-artifacts/`.
 
 ## Tips
@@ -153,5 +163,6 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 - Worktree isolation means your main branch is never touched
 - Task classification picks `fast` or `deep` mode automatically. Use `--deep-review` to force deep
 - Duration estimates come from historical runs per repo (`~/.oneshot/history.json`)
+- Durable run events live in `~/.oneshot/runs`; use `oneshot runs`, `oneshot status`, and `oneshot eval` for recovery and feedback loops
 - Repo slugs must be exact `owner/repo` values. Nested paths and `..` are rejected before dispatch
 - `doctor` compares the running CLI version with the npm registry, checks the agent hook runtime, and can verify a specific checkout with `--repo`
