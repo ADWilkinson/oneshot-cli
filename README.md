@@ -60,8 +60,8 @@ oneshot runs an 8-step pipeline. Each run gets its own git worktree in `/tmp`, s
 |------|--------|-------------|
 | 1. Validate | git | Checks the repo exists, fetches latest |
 | 2. Worktree | git | Creates an isolated `/tmp` worktree from `origin/main` |
-| 3. Route | Homebrew | Picks provider, reasoning, context shape, execution style, and fast/deep mode |
-| 4. Plan | Routed | Reads the codebase + `CLAUDE.md`, outputs an implementation plan |
+| 3. Route | Adaptive router | Picks provider, reasoning, context shape, execution style, and fast/deep mode |
+| 4. Plan | Routed | Reads the codebase + repo instructions, outputs an implementation plan |
 | 5. Execute | Routed | Implements the plan |
 | 6. Draft PR | Configurable | Creates branch, commits, and writes PR metadata; the runtime opens the draft PR |
 | 7. Review | Configurable | Reviews the diff for bugs, types, security. Fixes issues directly |

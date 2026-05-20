@@ -4,14 +4,14 @@ description: Ship code with oneshot CLI. One command that plans, executes, revie
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "1.2.0"
+  version: "1.2.1"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, GitHub CLI, and either Codex CLI or Claude Code CLI. SSH access to a server optional (can run locally with --local)
 ---
 
 # oneshot CLI
 
-Ship code with a single command. oneshot runs the full pipeline with one selected fallback provider, or with invisible adaptive routing when `routing.enabled` is true. The router chooses Codex or Claude plus reasoning effort, while each provider stays on its configured frontier model. Works over SSH to a remote server or locally with `--local`.
+Ship code with a single command. oneshot is an agentic software workflow runtime: repo + task in, isolated agent run out, reviewed PR ready. It runs with one selected fallback provider, or with invisible adaptive routing when `routing.enabled` is true. The router chooses Codex or Claude plus reasoning effort, while each provider stays on its configured frontier model. Works over SSH to a remote server or locally with `--local`.
 
 ## When to use this skill
 
@@ -58,15 +58,19 @@ oneshot <repo> "<task>" --deep-review  # force exhaustive review
 oneshot <repo> "<task>" --model gpt-5.5 # override configured plan/PR model
 oneshot <repo> "<task>" --branch dev   # target a different branch
 oneshot <repo> "<task>" --base-path /srv/workspaces  # override repo root for this run
+oneshot <repo> "<task>" --worktree-root /tmp/agents   # override temp worktree root
 oneshot route "fix failing CI and publish" --json # inspect invisible route
 oneshot <repo> --dry-run               # validate only
 oneshot init                           # configure
 oneshot stats                          # recent runs + timing
 oneshot runs                           # durable run ledger
-oneshot status <run-id> --json         # inspect one run
+oneshot runs --json --limit 10         # list runs for automation
+oneshot status <run-id> --json         # inspect one run or events file
 oneshot eval --json                    # summarize outcomes
 oneshot workflow list                  # inspect workflow presets
+oneshot workflow show fix-ci --json    # inspect one workflow preset
 oneshot policy init                    # create .oneshot/policy.json
+oneshot policy init --path ./repo      # write policy in another directory
 oneshot mcp serve                      # expose MCP tools over stdio
 oneshot doctor                         # package, tool, SSH, and event health
 oneshot doctor --repo zkp2p/pay        # health plus checkout existence
@@ -77,13 +81,13 @@ oneshot doctor --repo zkp2p/pay        # health plus checkout existence
 1. **Validate**: checks the repo exists, fetches latest from origin
 2. **Worktree**: creates a temp git worktree from the target base branch
 3. **Route**: oneshot's adaptive router chooses provider, reasoning effort, context shape, execution style, verification profile, and `fast`/`deep` mode
-4. **Plan**: routed agent reads the codebase and CLAUDE.md conventions, outputs an implementation plan
+4. **Plan**: routed agent reads the codebase plus `AGENTS.md`/`CLAUDE.md` instructions, package scripts, policy packs, and relevant docs, then outputs an implementation plan
 5. **Execute**: routed agent implements the plan. If it times out with partial changes, the pipeline continues
-6. **Draft PR**: configurable agent creates a branch, commits, and writes PR metadata; the runtime opens the draft PR
-7. **Review**: configurable agent reviews the diff. In `deep` mode it runs an exhaustive review across correctness, security, and code quality
-8. **Finalize**: runtime pushes review fixes and marks the PR ready
+6. **Draft PR**: configurable agent creates a branch, commits, and writes PR metadata; the runtime pushes and opens or updates the draft PR
+7. **Review**: configurable agent reviews the diff across correctness, compatibility, runtime contracts, policy, security, docs quality, and simplicity. Confirmed issues are fixed directly
+8. **Finalize**: runtime pushes review fixes and marks the PR ready, or preserves the draft if review fails/times out
 
-Worktree is cleaned up after every run.
+Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl` and mirrors them into `~/.oneshot/runs/<runId>.events.jsonl`. Worktrees are cleaned up after successful runs and preserved on failure for recovery.
 
 ## Configuration
 
@@ -132,6 +136,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `--model` | `-m` | Override configured plan/PR model |
 | `--branch` | `-b` | Base branch (default: main) |
 | `--base-path` | | Override the workspace path used to locate the repo |
+| `--worktree-root` | | Override where temporary git worktrees are created |
 | `--mode` | | Skip classification and force `fast` or `deep` mode |
 | `--workflow` | | Apply a workflow preset: `ship`, `review`, `fix-ci`, `research`, `docs`, or `swarm-review` |
 | `--deep-review` | | Force exhaustive review mode |
@@ -146,7 +151,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 
 ## Customization
 
-- Put a `CLAUDE.md` in any repo root. oneshot passes it to the configured agents for planning and execution
+- Put an `AGENTS.md` or `CLAUDE.md` in any repo root. oneshot passes the instruction snapshot to the configured agents, and the prompts ask agents to inspect relevant local instruction files directly
 - Choose `provider: "codex"` or `provider: "claude"` as the fallback. Set `routing.enabled: true` when oneshot's adaptive router should silently pick Codex or Claude per task
 - Configure `claude.model` and `codex.model` as the frontier models for each provider. Adaptive routing varies effort and provider, not model class
 - Configure `phases.classify`, `phases.plan`, `phases.execute`, `phases.review`, `phases.deepReview`, and `phases.pr` for model and reasoning defaults when routing is disabled
@@ -166,3 +171,4 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 - Durable run events live in `~/.oneshot/runs`; use `oneshot runs`, `oneshot status`, and `oneshot eval` for recovery and feedback loops
 - Repo slugs must be exact `owner/repo` values. Nested paths and `..` are rejected before dispatch
 - `doctor` compares the running CLI version with the npm registry, checks the agent hook runtime, and can verify a specific checkout with `--repo`
+- `oneshot mcp serve` exposes tools for running tasks, listing runs, reading status, initializing policy, listing workflows, and summarizing eval outcomes

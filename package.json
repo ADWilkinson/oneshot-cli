@@ -1,6 +1,6 @@
 {
   "name": "oneshot-ship",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Agentic software workflow runtime: repo + task in, reviewed PR out.",
   "homepage": "https://adwilkinson.github.io/oneshot-cli",
   "type": "module",

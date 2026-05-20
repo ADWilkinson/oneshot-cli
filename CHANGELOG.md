@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1 - 2026-05-20
+
+- Refreshed the packaged `oneshot-ship` skill to match the current workflow runtime, policy packs, MCP surface, run ledger, and repo-instruction handling.
+- Replaced stale router wording with first-class adaptive router language.
+
 ## 1.2.0 - 2026-05-20
 
 - Added a durable run ledger under `~/.oneshot/runs` plus `oneshot runs`, `oneshot status`, and `oneshot eval`.
