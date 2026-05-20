@@ -194,7 +194,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 | `phases.<phase>.reasoningEffort` | No | Reasoning effort for that phase, e.g. `medium`, `high`, `xhigh`. Passed to Codex and to Claude via `--effort` |
 | `stepTimeouts` | No | Per-step timeout overrides in minutes |
 
-`phases` is optional. If it is omitted, every agent phase uses the selected provider and its default model settings. Any stale `phases.<phase>.provider` values from older configs are ignored when adaptive routing is off. With `routing.enabled: true`, the homebrew router can silently choose Codex or Claude per task while preserving each provider's configured frontier model.
+`phases` is optional. If it is omitted, every agent phase uses the selected provider and its default model settings. Any stale `phases.<phase>.provider` values from older configs are ignored when adaptive routing is off. With `routing.enabled: true`, oneshot's adaptive router can silently choose Codex or Claude per task while preserving each provider's configured frontier model.
 
 Adaptive routing is intentionally invisible during normal use. Code edits, tests, refactors, PR work, and ship requests route to Codex by default. Tool-heavy operations, browser/admin/log/service work, and external workflow orchestration can route to Claude. If code will be edited, Codex wins the tie. Use `oneshot route "<task>" --json` only when you want to inspect the decision.
 

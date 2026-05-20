@@ -76,7 +76,7 @@ oneshot doctor --repo zkp2p/pay        # health plus checkout existence
 
 1. **Validate**: checks the repo exists, fetches latest from origin
 2. **Worktree**: creates a temp git worktree from the target base branch
-3. **Route**: homebrew router chooses provider, reasoning effort, context shape, execution style, verification profile, and `fast`/`deep` mode
+3. **Route**: oneshot's adaptive router chooses provider, reasoning effort, context shape, execution style, verification profile, and `fast`/`deep` mode
 4. **Plan**: routed agent reads the codebase and CLAUDE.md conventions, outputs an implementation plan
 5. **Execute**: routed agent implements the plan. If it times out with partial changes, the pipeline continues
 6. **Draft PR**: configurable agent creates a branch, commits, and writes PR metadata; the runtime opens the draft PR
@@ -147,7 +147,7 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 ## Customization
 
 - Put a `CLAUDE.md` in any repo root. oneshot passes it to the configured agents for planning and execution
-- Choose `provider: "codex"` or `provider: "claude"` as the fallback. Set `routing.enabled: true` when the homebrew router should silently pick Codex or Claude per task
+- Choose `provider: "codex"` or `provider: "claude"` as the fallback. Set `routing.enabled: true` when oneshot's adaptive router should silently pick Codex or Claude per task
 - Configure `claude.model` and `codex.model` as the frontier models for each provider. Adaptive routing varies effort and provider, not model class
 - Configure `phases.classify`, `phases.plan`, `phases.execute`, `phases.review`, `phases.deepReview`, and `phases.pr` for model and reasoning defaults when routing is disabled
 - Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipeline behavior
