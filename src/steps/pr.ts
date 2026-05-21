@@ -51,12 +51,29 @@ const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<s
   return `oneshot/${slug}-${Date.now()}`;
 };
 
+const checkoutPrBranch = async (
+  worktreePath: string,
+  branchName: string
+): Promise<void> => {
+  const remoteBranch = await prExec(
+    `cd ${shellEscape(worktreePath)} && git ls-remote --heads origin ${shellEscape(`refs/heads/${branchName}`)}`
+  );
+  if (remoteBranch.stdout.trim()) {
+    await prExecOrThrow(
+      `cd ${shellEscape(worktreePath)} && git fetch origin ${shellEscape(branchName)}`
+    );
+  }
+  await prExecOrThrow(
+    `cd ${shellEscape(worktreePath)} && git checkout -B ${shellEscape(branchName)}`
+  );
+};
+
 /**
  * Best-effort snapshot of current worktree commits to origin on a dedicated
  * salvage branch BEFORE we hand off for PR metadata. Execute-phase
  * work is therefore durable even if the agent, gh, or PR extraction
  * fails. Idempotent; pushes are force-with-lease to the salvage namespace
- * so we don't race with the prompt's own push of the final branch.
+ * so we don't race with the runtime's own push of the final branch.
  */
 const snapshotWorktreeToOrigin = async (
   worktreePath: string,
@@ -175,15 +192,16 @@ const openOrUpdateDraftPr = async (
  *
  * Control flow — the runtime owns push + PR creation, not the agent:
  *
- * 1. Push a salvage snapshot of the execute-phase commits to
+ * 1. Check out the runtime-owned PR branch in the temp worktree.
+ * 2. Push a salvage snapshot of the execute-phase commits to
  *    `oneshot-salvage/<slug>-<runId>` so the work survives even if anything
  *    below this point explodes.
- * 2. Invoke the configured agent with a prompt that says not to push or open a PR;
+ * 3. Invoke the configured agent with a prompt that says not to push or open a PR;
  *    it only commits and writes `.oneshot-pr-title.txt` +
  *    `.oneshot-pr-body.txt` at the worktree root.
- * 3. Read those two files (fall back to task text if either is missing).
- * 4. Push the branch ourselves via `git push --force-with-lease`.
- * 5. Open or update the PR ourselves via `gh pr edit` / `gh pr create --draft`,
+ * 4. Read those two files (fall back to task text if either is missing).
+ * 5. Push the branch ourselves via `git push --force-with-lease`.
+ * 6. Open or update the PR ourselves via `gh pr edit` / `gh pr create --draft`,
  *    capturing the URL directly from `gh` stdout.
  *
  * This replaces the prior flow where the agent did the push + `gh pr create`
@@ -200,6 +218,9 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const branchName = await findOrCreateBranch(worktreePath, branchSlug);
   const baseBranch = options.branch ?? "main";
   const taskSummary = options.taskSummary ?? options.task;
+  ctx.prBranch = branchName;
+
+  await checkoutPrBranch(worktreePath, branchName);
 
   // Belt-and-suspenders: the runtime now owns the push, but keep the salvage
   // branch push too so ANY branching of this flow that fails mid-way (e.g.
@@ -353,6 +374,24 @@ export const finalizeAfterReview = async (
 ): Promise<void> => {
   const { markReady = true, commitMessage = "fix: address review findings" } = opts;
   const { worktreePath, prUrl } = ctx;
+  const branchName = ctx.prBranch;
+  if (!branchName) {
+    throw new OneshotError(
+      "cannot finalize: missing PR branch metadata",
+      "ERR_UNKNOWN"
+    );
+  }
+
+  const branchResult = await prExecOrThrow(
+    `cd ${shellEscape(worktreePath)} && git rev-parse --abbrev-ref HEAD`
+  );
+  const currentBranch = branchResult.trim();
+  if (currentBranch !== branchName) {
+    throw new OneshotError(
+      `cannot finalize: worktree is on ${currentBranch || "unknown"}, expected ${branchName}`,
+      "ERR_UNKNOWN"
+    );
+  }
 
   const diffCheck = await prExec(`cd ${shellEscape(worktreePath)} && git diff --stat`);
   const untracked = await prExec(
@@ -363,17 +402,6 @@ export const finalizeAfterReview = async (
   if (hasChanges) {
     await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
     await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git commit -m ${shellEscape(commitMessage)}`);
-
-    const branchResult = await prExecOrThrow(
-      `cd ${shellEscape(worktreePath)} && git rev-parse --abbrev-ref HEAD`
-    );
-    const branchName = branchResult.trim();
-    if (!branchName || branchName === "HEAD") {
-      throw new OneshotError(
-        `cannot finalize: worktree is in detached-HEAD state, expected to be on a branch`,
-        "ERR_UNKNOWN"
-      );
-    }
 
     await syncAndPushWithRetry(worktreePath, branchName);
   }

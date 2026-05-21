@@ -6,10 +6,11 @@ import { hostname } from "os";
 import { log } from "./log";
 import { formatTime } from "./log";
 import { EventWriter } from "./events";
-import { OneshotError, exec } from "./exec";
+import { OneshotError, exec, execOrThrow } from "./exec";
 import { VERSION } from "./version";
 import { expandHome } from "./path-utils";
 import { resolveRepoPath } from "./repo";
+import { shellEscape } from "./shell";
 import { validate } from "./steps/validate";
 import { createWorktree, removeWorktree } from "./steps/worktree";
 import { classify } from "./steps/classify";
@@ -47,6 +48,42 @@ interface StepTiming {
   elapsed: number;
 }
 
+interface SourceCheckoutSnapshot {
+  path: string;
+  branch: string;
+  head: string;
+}
+
+const getSourceCheckoutSnapshot = async (repoPath: string): Promise<SourceCheckoutSnapshot> => {
+  const branch = await execOrThrow(`cd ${shellEscape(repoPath)} && git rev-parse --abbrev-ref HEAD`);
+  const head = await execOrThrow(`cd ${shellEscape(repoPath)} && git rev-parse HEAD`);
+  return {
+    path: repoPath,
+    branch: branch.trim(),
+    head: head.trim(),
+  };
+};
+
+const formatSourceCheckoutSnapshot = (snapshot: SourceCheckoutSnapshot): string =>
+  `${snapshot.branch}@${snapshot.head}`;
+
+const verifySourceCheckoutUnchanged = async (
+  before: SourceCheckoutSnapshot,
+  originalError?: unknown,
+): Promise<void> => {
+  const after = await getSourceCheckoutSnapshot(before.path);
+  if (after.branch === before.branch && after.head === before.head) return;
+
+  const detail = originalError == null
+    ? undefined
+    : `Original error: ${originalError instanceof Error ? originalError.message : String(originalError)}`;
+  throw new OneshotError(
+    `source checkout mutated at ${before.path}: before ${formatSourceCheckoutSnapshot(before)}, after ${formatSourceCheckoutSnapshot(after)}`,
+    "ERR_SOURCE_CHECKOUT_MUTATED",
+    detail,
+  );
+};
+
 const runStep = async (
   step: number,
   events: EventWriter,
@@ -77,6 +114,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
   const ctx = buildContext(config, options);
   const events = new EventWriter(options.eventsFile ?? null, ctx.runId);
   const stepTimings: StepTiming[] = [];
+  let sourceCheckout: SourceCheckoutSnapshot | undefined;
 
   events.started(options.repo, options.task, undefined, {
       cliVersion: VERSION,
@@ -111,6 +149,8 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       events.completed({ result: "dry-run", elapsed: Date.now() - ctx.startTime, stepTimings: [...stepTimings] });
       return;
     }
+
+    sourceCheckout = await getSourceCheckoutSnapshot(ctx.repoPath);
 
     await runStep(2, events, stepTimings, () => createWorktree(ctx));
     await runStep(3, events, stepTimings, async () => {
@@ -230,6 +270,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     }
 
     const totalElapsed = Date.now() - ctx.startTime;
+    if (sourceCheckout) await verifySourceCheckoutUnchanged(sourceCheckout);
     log.summary(ctx.prUrl, filesChanged, totalElapsed);
     events.completed({ prUrl: ctx.prUrl, filesChanged, elapsed: totalElapsed, diffStats, stepTimings: [...stepTimings] });
 
@@ -248,9 +289,17 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       renameSync(tmpPath, historyPath);
     } catch { /* ignore */ }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const errorCode = err instanceof OneshotError ? err.code : undefined;
-    const errorDetail = err instanceof OneshotError ? err.detail : undefined;
+    let finalErr = err;
+    if (sourceCheckout) {
+      try {
+        await verifySourceCheckoutUnchanged(sourceCheckout, err);
+      } catch (sourceErr) {
+        finalErr = sourceErr;
+      }
+    }
+    const msg = finalErr instanceof Error ? finalErr.message : String(finalErr);
+    const errorCode = finalErr instanceof OneshotError ? finalErr.code : undefined;
+    const errorDetail = finalErr instanceof OneshotError ? finalErr.detail : undefined;
     events.failed(msg, Date.now() - ctx.startTime, errorCode, errorDetail, [...stepTimings]);
     log.warn(
       `pipeline failed; preserving worktree for recovery at ${ctx.worktreePath}`
@@ -258,7 +307,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     log.warn(
       `inspect with: ssh <host> 'cd ${ctx.worktreePath} && git log --oneline -5 && git status'`
     );
-    throw err;
+    throw finalErr;
   } finally {
     // Only clean up the worktree on successful runs (or dry-runs). On failure
     // we keep it on disk so a human can salvage work. createDraftPr also

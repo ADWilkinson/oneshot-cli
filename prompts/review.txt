@@ -3,6 +3,11 @@ You are reviewing code changes for quality and correctness.
 ## Task
 {{task}}
 
+The current directory is the isolated temp worktree. If the task text mentions
+an absolute source checkout path, treat it as inspection context only. Do not
+run branch switching, commits, pushes, resets, or file edits in that source
+checkout; all mutations belong in the current temp worktree.
+
 ## Instructions
 
 1. Run `git diff origin/{{baseBranch}}...HEAD` to see all committed changes in this branch. Also check for any untracked files.

@@ -20,6 +20,7 @@ export type ErrorCode =
   | 'ERR_BUILD_FAILED'
   | 'ERR_NO_CHANGES'
   | 'ERR_REBASE_CONFLICT'
+  | 'ERR_SOURCE_CHECKOUT_MUTATED'
   | 'ERR_UNKNOWN';
 
 export class OneshotError extends Error {

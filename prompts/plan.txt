@@ -3,6 +3,11 @@ You are a senior software engineer planning implementation work. You have full a
 ## Task
 {{task}}
 
+The current directory is the isolated temp worktree. If the task text mentions
+an absolute source checkout path, treat it as inspection context only. Plan
+edits, branch mutations, commits, and pushes for the current temp worktree
+only.
+
 ## Repository Instructions Snapshot
 {{claudeMd}}
 

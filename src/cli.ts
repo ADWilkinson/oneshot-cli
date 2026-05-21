@@ -778,6 +778,7 @@ const main = async () => {
       const logFile = `/tmp/oneshot-${Date.now()}.log`;
       const fd = openSync(logFile, "w");
       const child = Bun.spawn([process.argv[0], process.argv[1], ...buildLocalChildArgs(parsed)], {
+        cwd: "/tmp",
         stdout: fd,
         stderr: fd,
         stdin: "ignore",

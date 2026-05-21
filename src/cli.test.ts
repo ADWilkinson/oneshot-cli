@@ -58,6 +58,138 @@ const runCli = async (
   };
 };
 
+const runCommand = async (
+  args: string[],
+  options: { cwd?: string; env?: Record<string, string> } = {}
+): Promise<string> => {
+  const proc = Bun.spawn(args, {
+    cwd: options.cwd ?? process.cwd(),
+    env: { ...process.env, ...options.env },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stdoutPromise = new Response(proc.stdout).text();
+  const stderrPromise = new Response(proc.stderr).text();
+  const exitCode = await proc.exited;
+  const stdout = await stdoutPromise;
+  const stderr = await stderrPromise;
+  if ((exitCode ?? 1) !== 0) {
+    throw new Error(`${args.join(" ")} failed: ${stderr || stdout}`);
+  }
+  return stdout;
+};
+
+const git = (cwd: string, args: string[]): Promise<string> =>
+  runCommand(["git", ...args], { cwd });
+
+const writeFakeAgents = (binDir: string): void => {
+  mkdirSync(binDir, { recursive: true });
+  const codexPath = join(binDir, "codex");
+  writeFileSync(
+    codexPath,
+    `#!/bin/sh
+args="$*"
+if printf '%s' "$args" | grep -q "senior software engineer planning"; then
+  printf '%s\\n' "Plan the fixture update."
+elif printf '%s' "$args" | grep -q "implementing code changes"; then
+  printf '%s\\n' "execute change" >> oneshot-fixture.txt
+  git add oneshot-fixture.txt
+  git -c user.email=oneshot@local -c user.name=oneshot commit -m "fix: update fixture" >/dev/null
+  if [ -n "$SOURCE_REPO_TO_MUTATE" ]; then
+    git -C "$SOURCE_REPO_TO_MUTATE" checkout side >/dev/null 2>&1
+  fi
+  printf '%s\\n' '{"type":"turn.completed"}'
+elif printf '%s' "$args" | grep -q "reviewing code changes"; then
+  printf '%s\\n' "review change" >> oneshot-fixture.txt
+  printf '%s\\n' '{"type":"turn.completed"}'
+elif printf '%s' "$args" | grep -q "finalizing a commit"; then
+  if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+    git add -A
+    git -c user.email=oneshot@local -c user.name=oneshot commit -m "fix: update fixture" >/dev/null
+  fi
+  printf 'fix: update fixture' > .oneshot-pr-title.txt
+  cat > .oneshot-pr-body.txt <<'BODY'
+## Summary
+- Updates the fixture file.
+
+## Why
+This verifies the oneshot temp-worktree flow.
+
+## Changes
+- Fixture file changed by the fake agent.
+
+## Test plan
+- bun test src/cli.test.ts
+BODY
+else
+  printf '%s\\n' '{"type":"turn.completed"}'
+fi
+`
+  );
+  chmodSync(codexPath, 0o755);
+
+  const ghPath = join(binDir, "gh");
+  writeFileSync(
+    ghPath,
+    `#!/bin/sh
+if [ "$1" = "pr" ] && [ "$2" = "list" ]; then
+  exit 0
+fi
+if [ "$1" = "pr" ] && [ "$2" = "create" ]; then
+  printf '%s\\n' "https://github.com/demo/repo/pull/1"
+  exit 0
+fi
+if [ "$1" = "pr" ] && [ "$2" = "edit" ]; then
+  exit 0
+fi
+if [ "$1" = "pr" ] && [ "$2" = "ready" ]; then
+  exit 0
+fi
+exit 1
+`
+  );
+  chmodSync(ghPath, 0o755);
+};
+
+const createFixtureRepo = async (): Promise<{
+  tempDir: string;
+  home: string;
+  basePath: string;
+  repoPath: string;
+  originPath: string;
+  worktreeRoot: string;
+  binDir: string;
+}> => {
+  const tempDir = makeTempDir();
+  const home = join(tempDir, "home");
+  const basePath = join(tempDir, "projects");
+  const repoPath = join(basePath, "demo", "repo");
+  const originPath = join(tempDir, "origin.git");
+  const worktreeRoot = join(tempDir, "worktrees");
+  const binDir = join(tempDir, "bin");
+
+  mkdirSync(basePath, { recursive: true });
+  mkdirSync(join(basePath, "demo"), { recursive: true });
+  await git(tempDir, ["init", "--bare", originPath]);
+  await git(basePath, ["clone", originPath, repoPath]);
+  await git(repoPath, ["config", "user.email", "test@example.com"]);
+  await git(repoPath, ["config", "user.name", "Test User"]);
+  writeFileSync(join(repoPath, "oneshot-fixture.txt"), "base\n");
+  await git(repoPath, ["add", "oneshot-fixture.txt"]);
+  await git(repoPath, ["commit", "-m", "initial commit"]);
+  await git(repoPath, ["branch", "-M", "main"]);
+  await git(repoPath, ["push", "-u", "origin", "main"]);
+  writeFakeAgents(binDir);
+
+  return { tempDir, home, basePath, repoPath, originPath, worktreeRoot, binDir };
+};
+
+const currentBranch = (repoPath: string): Promise<string> =>
+  git(repoPath, ["rev-parse", "--abbrev-ref", "HEAD"]).then((value) => value.trim());
+
+const currentHead = (repoPath: string): Promise<string> =>
+  git(repoPath, ["rev-parse", "HEAD"]).then((value) => value.trim());
+
 describe("parseArgs", () => {
   test("allows dry-run without a task", () => {
     expect(parseArgs(["my-org/my-repo", "--dry-run"])).toMatchObject({
@@ -412,6 +544,84 @@ describe("CLI integration", () => {
     expect(result.exitCode).toBe(0);
     expect(output).toMatch(new RegExp(`${escapeRegExp(repo)}.*dry run complete`));
     expect(output).not.toMatch(new RegExp(`${escapeRegExp(repo)}.*unknown`));
+  });
+
+  test("local pipeline preserves the source checkout branch and pushes the PR branch", async () => {
+    const fixture = await createFixtureRepo();
+    const beforeBranch = await currentBranch(fixture.repoPath);
+    const beforeHead = await currentHead(fixture.repoPath);
+
+    const result = await runCli([
+      "demo/repo",
+      `update fixture without touching ${fixture.repoPath}`,
+      "--local",
+      "--base-path",
+      fixture.basePath,
+      "--worktree-root",
+      fixture.worktreeRoot,
+      "--mode",
+      "fast",
+    ], {
+      HOME: fixture.home,
+      PATH: `${fixture.binDir}:${process.env.PATH ?? ""}`,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(stripAnsi(result.stdout)).toContain("PR: https://github.com/demo/repo/pull/1");
+    expect(await currentBranch(fixture.repoPath)).toBe(beforeBranch);
+    expect(await currentHead(fixture.repoPath)).toBe(beforeHead);
+
+    const branches = await runCommand([
+      "git",
+      "--git-dir",
+      fixture.originPath,
+      "for-each-ref",
+      "--format=%(refname:short)",
+      "refs/heads/oneshot",
+    ]);
+    const prBranch = branches.trim().split("\n").find(Boolean);
+    if (!prBranch) throw new Error("missing pushed PR branch");
+    expect(prBranch).toMatch(/^oneshot\/update-fixture/);
+
+    const contents = await runCommand([
+      "git",
+      "--git-dir",
+      fixture.originPath,
+      "show",
+      `${prBranch}:oneshot-fixture.txt`,
+    ]);
+    expect(contents).toContain("execute change");
+    expect(contents).toContain("review change");
+  });
+
+  test("local pipeline fails loudly if the source checkout branch changes", async () => {
+    const fixture = await createFixtureRepo();
+    await git(fixture.repoPath, ["checkout", "-b", "side"]);
+    await git(fixture.repoPath, ["checkout", "main"]);
+    const beforeHead = await currentHead(fixture.repoPath);
+
+    const result = await runCli([
+      "demo/repo",
+      `mutate source checkout ${fixture.repoPath}`,
+      "--local",
+      "--base-path",
+      fixture.basePath,
+      "--worktree-root",
+      fixture.worktreeRoot,
+      "--mode",
+      "fast",
+    ], {
+      HOME: fixture.home,
+      PATH: `${fixture.binDir}:${process.env.PATH ?? ""}`,
+      SOURCE_REPO_TO_MUTATE: fixture.repoPath,
+    });
+
+    const output = stripAnsi(`${result.stdout}\n${result.stderr}`);
+    expect(result.exitCode).toBe(1);
+    expect(output).toContain(`source checkout mutated at ${fixture.repoPath}`);
+    expect(output).toContain(`before main@${beforeHead}`);
+    expect(output).toContain(`after side@${beforeHead}`);
+    expect(await currentBranch(fixture.repoPath)).toBe("side");
   });
 
   test("doctor local json reports tool and config state", async () => {
