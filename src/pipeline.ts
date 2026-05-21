@@ -3,6 +3,7 @@ import { CONFIG_DIR } from "./config";
 import { join } from "path";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { hostname } from "os";
+import { createHash } from "crypto";
 import { log } from "./log";
 import { formatTime } from "./log";
 import { EventWriter } from "./events";
@@ -52,27 +53,58 @@ interface SourceCheckoutSnapshot {
   path: string;
   branch: string;
   head: string;
+  status: string;
+  fingerprint: string;
 }
+
+const getSourceCheckoutFingerprint = async (repoPath: string): Promise<string> => {
+  const diff = await execOrThrow(`cd ${shellEscape(repoPath)} && git diff --binary`);
+  const stagedDiff = await execOrThrow(`cd ${shellEscape(repoPath)} && git diff --cached --binary`);
+  const untracked = await execOrThrow(
+    `cd ${shellEscape(repoPath)} && git ls-files --others --exclude-standard -z | while IFS= read -r -d '' path; do printf '%s\\0' "$path"; git hash-object -- "$path"; printf '\\0'; done`
+  );
+  return createHash("sha256")
+    .update(diff)
+    .update("\0")
+    .update(stagedDiff)
+    .update("\0")
+    .update(untracked)
+    .digest("hex");
+};
 
 const getSourceCheckoutSnapshot = async (repoPath: string): Promise<SourceCheckoutSnapshot> => {
   const branch = await execOrThrow(`cd ${shellEscape(repoPath)} && git rev-parse --abbrev-ref HEAD`);
   const head = await execOrThrow(`cd ${shellEscape(repoPath)} && git rev-parse HEAD`);
+  const status = await execOrThrow(`cd ${shellEscape(repoPath)} && git status --porcelain=v1`);
+  const fingerprint = await getSourceCheckoutFingerprint(repoPath);
   return {
     path: repoPath,
     branch: branch.trim(),
     head: head.trim(),
+    status: status.replace(/\n$/, ""),
+    fingerprint,
   };
 };
 
+const formatSourceCheckoutStatus = (status: string): string => {
+  if (!status) return "clean";
+  return `dirty(${status.split("\n").slice(0, 5).join(", ")})`;
+};
+
 const formatSourceCheckoutSnapshot = (snapshot: SourceCheckoutSnapshot): string =>
-  `${snapshot.branch}@${snapshot.head}`;
+  `${snapshot.branch}@${snapshot.head} ${formatSourceCheckoutStatus(snapshot.status)} ${snapshot.fingerprint.slice(0, 12)}`;
 
 const verifySourceCheckoutUnchanged = async (
   before: SourceCheckoutSnapshot,
   originalError?: unknown,
 ): Promise<void> => {
   const after = await getSourceCheckoutSnapshot(before.path);
-  if (after.branch === before.branch && after.head === before.head) return;
+  if (
+    after.branch === before.branch &&
+    after.head === before.head &&
+    after.status === before.status &&
+    after.fingerprint === before.fingerprint
+  ) return;
 
   const detail = originalError == null
     ? undefined
@@ -115,6 +147,10 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
   const events = new EventWriter(options.eventsFile ?? null, ctx.runId);
   const stepTimings: StepTiming[] = [];
   let sourceCheckout: SourceCheckoutSnapshot | undefined;
+  let failed = false;
+  const verifySourceCheckout = async (): Promise<void> => {
+    if (sourceCheckout) await verifySourceCheckoutUnchanged(sourceCheckout);
+  };
 
   events.started(options.repo, options.task, undefined, {
       cliVersion: VERSION,
@@ -169,6 +205,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     events.classified(ctx.mode);
 
     await runStep(4, events, stepTimings, async () => { ctx.plan = await plan(ctx); });
+    await verifySourceCheckout();
 
     // Graceful degradation on timeout: if execute times out but partial changes exist, continue
     try {
@@ -190,6 +227,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
         throw err;
       }
     }
+    await verifySourceCheckout();
 
     const policy = await validatePolicy(ctx);
     for (const warning of policy.warnings) {
@@ -207,7 +245,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
 
     // Create draft PR BEFORE review so work is never lost to timeouts
     await runStep(6, events, stepTimings, async () => {
-      ctx.prUrl = await createDraftPr(ctx);
+      ctx.prUrl = await createDraftPr(ctx, { verifySourceCheckout });
       events.agentAction(6, getStepLabel(6), {
         phase: "completed",
         kind: "pr",
@@ -232,6 +270,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
         log.warn(`review failed — draft PR preserved: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
+    await verifySourceCheckout();
 
     // Push review fixes (if any) and mark PR as ready. On review timeout we
     // still commit+push whatever the agent wrote so the worktree isn't lost, but
@@ -251,12 +290,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       }
     }
 
-    let filesChanged = 0;
-    let diffStats: Array<{ file: string; additions: number; deletions: number }> = [];
-    try {
-      filesChanged = await getFilesChanged(ctx);
-      diffStats = await getDiffStats(ctx);
-    } catch { /* non-fatal */ }
+    await verifySourceCheckout();
 
     if (options.linearIssueId) {
       try {
@@ -269,8 +303,14 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       }
     }
 
+    let filesChanged = 0;
+    let diffStats: Array<{ file: string; additions: number; deletions: number }> = [];
+    try {
+      filesChanged = await getFilesChanged(ctx);
+      diffStats = await getDiffStats(ctx);
+    } catch { /* non-fatal */ }
+
     const totalElapsed = Date.now() - ctx.startTime;
-    if (sourceCheckout) await verifySourceCheckoutUnchanged(sourceCheckout);
     log.summary(ctx.prUrl, filesChanged, totalElapsed);
     events.completed({ prUrl: ctx.prUrl, filesChanged, elapsed: totalElapsed, diffStats, stepTimings: [...stepTimings] });
 
@@ -289,6 +329,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
       renameSync(tmpPath, historyPath);
     } catch { /* ignore */ }
   } catch (err) {
+    failed = true;
     let finalErr = err;
     if (sourceCheckout) {
       try {
@@ -313,7 +354,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     // we keep it on disk so a human can salvage work. createDraftPr also
     // pushes a best-effort snapshot to `oneshot-salvage/<slug>-<runId>` so
     // even without shell access, the commits survive on origin.
-    const succeeded = !!ctx.prUrl || options.dryRun;
+    const succeeded = !failed && (!!ctx.prUrl || options.dryRun);
     if (!options.dryRun && succeeded) {
       try { await removeWorktree(ctx); } catch {
         log.warn(`failed to clean up worktree at ${ctx.worktreePath}`);

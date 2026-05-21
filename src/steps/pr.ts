@@ -51,10 +51,43 @@ const findOrCreateBranch = async (worktreePath: string, slug: string): Promise<s
   return `oneshot/${slug}-${Date.now()}`;
 };
 
+const commitUncommittedChanges = async (
+  worktreePath: string,
+  commitMessage: string
+): Promise<void> => {
+  const diffCheck = await prExec(
+    `cd ${shellEscape(worktreePath)} && git diff --stat`
+  );
+  const stagedCheck = await prExec(
+    `cd ${shellEscape(worktreePath)} && git diff --cached --stat`
+  );
+  const untrackedCheck = await prExec(
+    `cd ${shellEscape(worktreePath)} && git ls-files --others --exclude-standard`
+  );
+  const hasUncommittedChanges = !!(
+    diffCheck.stdout.trim() || stagedCheck.stdout.trim() || untrackedCheck.stdout.trim()
+  );
+
+  if (!hasUncommittedChanges) return;
+
+  try {
+    await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
+    await prExecOrThrow(
+      `cd ${shellEscape(worktreePath)} && git -c user.email=oneshot@local -c user.name=oneshot commit -m ${shellEscape(commitMessage)}`
+    );
+  } catch {
+    // Commit may fail if nothing staged; non-fatal.
+  }
+};
+
 const checkoutPrBranch = async (
   worktreePath: string,
-  branchName: string
+  branchName: string,
+  baseBranch: string
 ): Promise<void> => {
+  const workHead = (
+    await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git rev-parse HEAD`)
+  ).trim();
   const remoteBranch = await prExec(
     `cd ${shellEscape(worktreePath)} && git ls-remote --heads origin ${shellEscape(`refs/heads/${branchName}`)}`
   );
@@ -62,9 +95,26 @@ const checkoutPrBranch = async (
     await prExecOrThrow(
       `cd ${shellEscape(worktreePath)} && git fetch origin ${shellEscape(branchName)}`
     );
+    const commitCount = await prExecOrThrow(
+      `cd ${shellEscape(worktreePath)} && git rev-list --count ${shellEscape(`origin/${baseBranch}..${workHead}`)}`
+    );
+    if (parseInt(commitCount.trim() || "0", 10) > 0) {
+      await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git checkout --detach ${shellEscape(workHead)}`);
+      await prExecOrThrow(
+        `cd ${shellEscape(worktreePath)} && git rebase --onto FETCH_HEAD ${shellEscape(`origin/${baseBranch}`)}`
+      );
+      await prExecOrThrow(
+        `cd ${shellEscape(worktreePath)} && git checkout -B ${shellEscape(branchName)} HEAD`
+      );
+      return;
+    }
+    await prExecOrThrow(
+      `cd ${shellEscape(worktreePath)} && git checkout -B ${shellEscape(branchName)} FETCH_HEAD`
+    );
+    return;
   }
   await prExecOrThrow(
-    `cd ${shellEscape(worktreePath)} && git checkout -B ${shellEscape(branchName)}`
+    `cd ${shellEscape(worktreePath)} && git checkout -B ${shellEscape(branchName)} ${shellEscape(workHead)}`
   );
 };
 
@@ -80,26 +130,7 @@ const snapshotWorktreeToOrigin = async (
   branchSlug: string,
   runId: string
 ): Promise<void> => {
-  const diffCheck = await prExec(
-    `cd ${shellEscape(worktreePath)} && git diff --stat`
-  );
-  const untrackedCheck = await prExec(
-    `cd ${shellEscape(worktreePath)} && git ls-files --others --exclude-standard`
-  );
-  const hasUncommittedChanges = !!(
-    diffCheck.stdout.trim() || untrackedCheck.stdout.trim()
-  );
-
-  if (hasUncommittedChanges) {
-    try {
-      await prExecOrThrow(`cd ${shellEscape(worktreePath)} && git add -A`);
-      await prExecOrThrow(
-        `cd ${shellEscape(worktreePath)} && git -c user.email=oneshot@local -c user.name=oneshot commit -m ${shellEscape("chore: oneshot safety snapshot")}`
-      );
-    } catch {
-      // Commit may fail if nothing staged; non-fatal.
-    }
-  }
+  await commitUncommittedChanges(worktreePath, "chore: oneshot safety snapshot");
 
   const aheadCheck = await prExec(
     `cd ${shellEscape(worktreePath)} && git rev-list --count origin/main..HEAD`
@@ -192,10 +223,10 @@ const openOrUpdateDraftPr = async (
  *
  * Control flow — the runtime owns push + PR creation, not the agent:
  *
- * 1. Check out the runtime-owned PR branch in the temp worktree.
- * 2. Push a salvage snapshot of the execute-phase commits to
+ * 1. Push a salvage snapshot of the execute-phase commits to
  *    `oneshot-salvage/<slug>-<runId>` so the work survives even if anything
  *    below this point explodes.
+ * 2. Check out the runtime-owned PR branch in the temp worktree.
  * 3. Invoke the configured agent with a prompt that says not to push or open a PR;
  *    it only commits and writes `.oneshot-pr-title.txt` +
  *    `.oneshot-pr-body.txt` at the worktree root.
@@ -209,7 +240,10 @@ const openOrUpdateDraftPr = async (
  * broke whenever the output decorated the URL differently than the regex
  * expected, and dropped all execute-phase work on the floor.
  */
-export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
+export const createDraftPr = async (
+  ctx: PipelineContext,
+  opts: { verifySourceCheckout?: () => Promise<void> } = {}
+): Promise<string> => {
   const { config, options, worktreePath, runId } = ctx;
 
   const branchSlug = options.linearIssueId
@@ -220,18 +254,13 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
   const taskSummary = options.taskSummary ?? options.task;
   ctx.prBranch = branchName;
 
-  await checkoutPrBranch(worktreePath, branchName);
-
-  // Belt-and-suspenders: the runtime now owns the push, but keep the salvage
-  // branch push too so ANY branching of this flow that fails mid-way (e.g.
-  // the agent times out before writing the title/body files) still leaves
-  // recoverable work on origin.
   await snapshotWorktreeToOrigin(worktreePath, branchSlug, runId);
+  await checkoutPrBranch(worktreePath, branchName, baseBranch);
 
   const agent = getRoutedPhaseAgent(config, "pr", ctx.route, options.model);
   const prompt = loadPromptTemplate()
     .replace("{{task}}", taskSummary)
-    .replace("{{branchName}}", branchName)
+    .replace(/\{\{branchName\}\}/g, branchName)
     .replace(/\{\{baseBranch\}\}/g, baseBranch);
 
   const timeoutMs = getStepTimeout(config, "prMinutes");
@@ -244,6 +273,8 @@ export const createDraftPr = async (ctx: PipelineContext): Promise<string> => {
     includeClaudePlugins: true,
     allowClaudeWrites: true,
   });
+
+  await opts.verifySourceCheckout?.();
 
   const title =
     readPrMetadataFile(worktreePath, PR_TITLE_FILE) ??

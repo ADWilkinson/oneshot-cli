@@ -1,0 +1,1 @@
+fix: preserve local source checkout for GAL-2041
