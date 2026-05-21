@@ -7,6 +7,7 @@ import { log } from "./log";
 import { isLinearUrl, extractIssueId, fetchIssue, formatIssueAsTask } from "./linear";
 import { runStats } from "./stats";
 import { existsSync, openSync, closeSync } from "fs";
+import { isAbsolute, resolve } from "path";
 import { shellEscape } from "./shell";
 import { VERSION } from "./version";
 import type { ComplexityMode } from "./config";
@@ -387,6 +388,35 @@ export const buildLocalChildArgs = (parsed: ParsedArgs): string[] => {
   if (parsed.deepReview) args.push("--deep-review");
   return args;
 };
+
+export const resolveLocalChildEntrypoint = (entrypoint: string, cwd: string): string =>
+  isAbsolute(entrypoint) ? entrypoint : resolve(cwd, entrypoint);
+
+export const resolveLocalChildPath = (path: string, cwd: string): string =>
+  isAbsolute(path) || path === "~" || path.startsWith("~/") ? path : resolve(cwd, path);
+
+export const buildLocalBackgroundChildEnv = (
+  env: Record<string, string | undefined>,
+  cwd: string
+): Record<string, string | undefined> => {
+  const configPath = env.ONESHOT_CONFIG_PATH;
+  if (!configPath) return env;
+  return {
+    ...env,
+    ONESHOT_CONFIG_PATH: resolveLocalChildPath(configPath, cwd),
+  };
+};
+
+export const buildLocalBackgroundChildArgs = (
+  parsed: ParsedArgs,
+  config: OneshotConfig,
+  cwd: string
+): string[] => buildLocalChildArgs({
+  ...parsed,
+  basePath: resolveLocalChildPath(parsed.basePath ?? config.basePath, cwd),
+  worktreeRoot: resolveLocalChildPath(parsed.worktreeRoot ?? config.worktreeRoot ?? "/tmp", cwd),
+  eventsFile: parsed.eventsFile ? resolveLocalChildPath(parsed.eventsFile, cwd) : undefined,
+});
 
 const printUsage = () => {
   console.log(`
@@ -777,7 +807,11 @@ const main = async () => {
     if (parsed.bg) {
       const logFile = `/tmp/oneshot-${Date.now()}.log`;
       const fd = openSync(logFile, "w");
-      const child = Bun.spawn([process.argv[0], process.argv[1], ...buildLocalChildArgs(parsed)], {
+      const childEntrypoint = resolveLocalChildEntrypoint(process.argv[1], process.cwd());
+      const childArgs = buildLocalBackgroundChildArgs(parsed, config, process.cwd());
+      const child = Bun.spawn([process.argv[0], childEntrypoint, ...childArgs], {
+        cwd: "/tmp",
+        env: buildLocalBackgroundChildEnv(process.env, process.cwd()),
         stdout: fd,
         stderr: fd,
         stdin: "ignore",

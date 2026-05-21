@@ -71,6 +71,7 @@ export interface PipelineContext {
   worktreeRoot: string;
   plan: string;
   prUrl: string;
+  prBranch?: string;
   startTime: number;
   mode: ComplexityMode;
   route?: import("./routing").RouteDecision;

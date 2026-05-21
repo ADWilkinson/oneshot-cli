@@ -3,6 +3,11 @@ You are implementing code changes in a repository based on a plan.
 ## Task
 {{task}}
 
+The current directory is the isolated temp worktree. If the task text mentions
+an absolute source checkout path, treat it as inspection context only. Do not
+run branch switching, commits, pushes, resets, or file edits in that source
+checkout; all mutations belong in the current temp worktree.
+
 ## Implementation Plan
 {{plan}}
 
