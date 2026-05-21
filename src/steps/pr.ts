@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, rmSync } from "fs";
 import { join } from "path";
 import type { PipelineContext } from "../config";
 import { execOrThrow, exec, OneshotError } from "../exec";
@@ -26,6 +26,15 @@ const readPrMetadataFile = (worktreePath: string, filename: string): string | nu
     return content || null;
   } catch {
     return null;
+  }
+};
+
+const cleanupPrMetadataFiles = async (worktreePath: string): Promise<void> => {
+  await prExec(
+    `cd ${shellEscape(worktreePath)} && git reset -q -- ${shellEscape(PR_TITLE_FILE)} ${shellEscape(PR_BODY_FILE)}`
+  );
+  for (const filename of [PR_TITLE_FILE, PR_BODY_FILE]) {
+    rmSync(join(worktreePath, filename), { force: true });
   }
 };
 
@@ -283,6 +292,8 @@ export const createDraftPr = async (
     readPrMetadataFile(worktreePath, PR_BODY_FILE) ??
     `## Summary\n\n${taskSummary}\n\n## Test plan\n\nNot run (PR metadata file missing; fallback to task text).\n`;
 
+  await cleanupPrMetadataFiles(worktreePath);
+
   await pushBranchToOrigin(worktreePath, branchName);
   return openOrUpdateDraftPr(worktreePath, branchName, baseBranch, title, body);
 };
@@ -423,6 +434,8 @@ export const finalizeAfterReview = async (
       "ERR_UNKNOWN"
     );
   }
+
+  await cleanupPrMetadataFiles(worktreePath);
 
   const diffCheck = await prExec(`cd ${shellEscape(worktreePath)} && git diff --stat`);
   const untracked = await prExec(
