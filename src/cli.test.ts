@@ -684,6 +684,18 @@ describe("CLI integration", () => {
     ]);
     expect(contents).toContain("execute change");
     expect(contents).toContain("review change");
+
+    const branchFiles = await runCommand([
+      "git",
+      "--git-dir",
+      fixture.originPath,
+      "ls-tree",
+      "-r",
+      "--name-only",
+      prBranch,
+    ]);
+    expect(branchFiles.split("\n")).not.toContain(".oneshot-pr-title.txt");
+    expect(branchFiles.split("\n")).not.toContain(".oneshot-pr-body.txt");
   });
 
   test("local pipeline preserves existing PR branch commits on rerun", async () => {
