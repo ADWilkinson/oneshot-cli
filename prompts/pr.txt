@@ -1,8 +1,11 @@
 You are finalizing a commit and preparing pull-request metadata for changes
 already made in this repository. **You are NOT pushing or creating a PR.**
-The oneshot-cli runtime handles the push and `gh pr create` itself, using the
-metadata you write to disk. Your job is only: inspect, branch, commit, and
+The oneshot-cli runtime handles the branch, push, and `gh pr create` itself,
+using the metadata you write to disk. Your job is only: inspect, commit, and
 write the title + body files.
+You are already in the isolated temp worktree on branch `{{branchName}}`.
+Do not switch branches, fetch source checkouts, or run git commands in any
+absolute source checkout path mentioned by the task.
 
 ## Task
 {{task}}
@@ -11,20 +14,14 @@ write the title + body files.
 
 1. Inspect the actual shipped changes before writing anything:
    - `git status --short`
+   - `git rev-parse --abbrev-ref HEAD` must print `{{branchName}}`; if it
+     does not, stop and report the mismatch.
    - `git diff --stat origin/{{baseBranch}}...HEAD`
    - `git diff --name-only origin/{{baseBranch}}...HEAD`
    - `git diff origin/{{baseBranch}}...HEAD` (read the diff; don't paste it).
    - If `.oneshot/policy.json` exists, note any protected-path, required-check, or approval-sensitive implications for the PR body.
 
-2. Prepare the branch named `{{branchName}}`:
-   - Check if it already exists on origin with
-     `git ls-remote --heads origin {{branchName}}`.
-   - If it exists: `git fetch origin {{branchName}} && git checkout -B {{branchName}} FETCH_HEAD`,
-     then copy any uncommitted changes from the previous HEAD onto it as
-     needed.
-   - If it does NOT exist: `git checkout -b {{branchName}}`.
-
-3. Stage all changes and create exactly ONE commit (amend or squash as
+2. Stage all changes and create exactly ONE commit (amend or squash as
    needed so the branch carries exactly one new commit on top of its
    previous origin state):
    - Run `git add -A`.
@@ -34,12 +31,12 @@ write the title + body files.
        `test:` as appropriate.
      - Under 72 chars.
 
-4. Write the PR title to `.oneshot-pr-title.txt` at the worktree root.
+3. Write the PR title to `.oneshot-pr-title.txt` at the worktree root.
    - Single line, no trailing newline.
    - Under 70 chars.
    - Describes the change, not the ticket.
 
-5. Write the PR body to `.oneshot-pr-body.txt` at the worktree root.
+4. Write the PR body to `.oneshot-pr-body.txt` at the worktree root.
    - Markdown.
    - Keep these sections in this order for compatibility:
      - `## Summary` — 2-4 bullets covering the user-visible outcome and
@@ -63,17 +60,17 @@ write the title + body files.
      behavior changes. Do not paste raw diff output or exhaustive file
      inventories. Prefer concrete language over generic PR filler.
 
-6. Verify the two files were written:
+5. Verify the two files were written:
    - `test -s .oneshot-pr-title.txt && test -s .oneshot-pr-body.txt`
      — they must be non-empty.
 
-7. **Do NOT push. Do NOT run `gh pr create`. Do NOT print `PR_URL:`.**
+6. **Do NOT push. Do NOT run `gh pr create`. Do NOT print `PR_URL:`.**
    The oneshot-cli runtime pushes the branch and creates / updates the PR
    itself using the title + body files you just wrote. Trying to push or
    open the PR yourself races with the runtime and is explicitly forbidden.
 
-8. When you are done, exit cleanly. Your final stdout may summarize what
+7. When you are done, exit cleanly. Your final stdout may summarize what
    you did but is not parsed for URLs or state.
 
-Do NOT modify any code. Only create the branch, make the one commit, and
+Do NOT modify any code. Only make the one commit on the current branch and
 write the two PR-metadata files.
