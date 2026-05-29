@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { exec } from "./exec";
+import { shellEscape } from "./shell";
 import type { PipelineContext } from "./config";
 
 export interface OneshotPolicy {
@@ -39,7 +40,13 @@ export const POLICY_PATH = ".oneshot/policy.json";
 export const loadPolicy = (repoPath: string): OneshotPolicy | null => {
   const path = join(repoPath, POLICY_PATH);
   if (!existsSync(path)) return null;
-  const raw = JSON.parse(readFileSync(path, "utf-8")) as Partial<OneshotPolicy>;
+  let raw: Partial<OneshotPolicy>;
+  try {
+    raw = JSON.parse(readFileSync(path, "utf-8")) as Partial<OneshotPolicy>;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`invalid policy JSON in ${path}: ${msg}`);
+  }
   return {
     version: 1,
     protectedPaths: Array.isArray(raw.protectedPaths) ? raw.protectedPaths.filter(Boolean) : DEFAULT_POLICY.protectedPaths,
@@ -81,7 +88,7 @@ export const validatePolicy = async (ctx: PipelineContext): Promise<PolicyValida
 
   const warnings: string[] = [];
   const failures: string[] = [];
-  const changed = await exec(`cd "${ctx.worktreePath}" && git diff --name-only --cached && git diff --name-only && git ls-files --others --exclude-standard`, {
+  const changed = await exec(`cd ${shellEscape(ctx.worktreePath)} && git diff --name-only --cached && git diff --name-only && git ls-files --others --exclude-standard`, {
     timeoutMs: 60_000,
   });
   const changedFiles = Array.from(new Set(changed.stdout.split("\n").map((line) => line.trim()).filter(Boolean)));
@@ -92,7 +99,7 @@ export const validatePolicy = async (ctx: PipelineContext): Promise<PolicyValida
   }
 
   if (policy.secretPatterns.length > 0) {
-    const diff = await exec(`cd "${ctx.worktreePath}" && git diff --cached --unified=0 && git diff --unified=0`, {
+    const diff = await exec(`cd ${shellEscape(ctx.worktreePath)} && git diff --cached --unified=0 && git diff --unified=0`, {
       timeoutMs: 60_000,
     });
     for (const pattern of policy.secretPatterns) {
@@ -109,7 +116,7 @@ export const validatePolicy = async (ctx: PipelineContext): Promise<PolicyValida
   }
 
   for (const command of policy.requiredChecks) {
-    const result = await exec(`cd "${ctx.worktreePath}" && ${command}`, {
+    const result = await exec(`cd ${shellEscape(ctx.worktreePath)} && ${command}`, {
       timeoutMs: 30 * 60 * 1000,
     });
     if (result.exitCode !== 0) failures.push(`required check failed: ${command}`);

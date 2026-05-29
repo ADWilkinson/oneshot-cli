@@ -138,12 +138,13 @@ const checkoutPrBranch = async (
 const snapshotWorktreeToOrigin = async (
   worktreePath: string,
   branchSlug: string,
-  runId: string
+  runId: string,
+  baseBranch: string
 ): Promise<void> => {
   await commitUncommittedChanges(worktreePath, "chore: oneshot safety snapshot");
 
   const aheadCheck = await prExec(
-    `cd ${shellEscape(worktreePath)} && git rev-list --count origin/main..HEAD`
+    `cd ${shellEscape(worktreePath)} && git rev-list --count ${shellEscape(`origin/${baseBranch}..HEAD`)}`
   );
   if (parseInt(aheadCheck.stdout.trim() || "0", 10) === 0) return;
 
@@ -264,7 +265,7 @@ export const createDraftPr = async (
   const taskSummary = options.taskSummary ?? options.task;
   ctx.prBranch = branchName;
 
-  await snapshotWorktreeToOrigin(worktreePath, branchSlug, runId);
+  await snapshotWorktreeToOrigin(worktreePath, branchSlug, runId, baseBranch);
   await checkoutPrBranch(worktreePath, branchName, baseBranch);
 
   const agent = getRoutedPhaseAgent(config, "pr", ctx.route, options.model);
