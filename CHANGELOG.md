@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.3 - 2026-05-29
+
+- Fixed prompt placeholder substitution so task descriptions, CLAUDE.md content, and plan output containing `$$`, `$&`, `$'`, or backtick-dollar are inserted literally instead of corrupting the prompt; every `{{placeholder}}` occurrence is now filled.
+- Killed the full agent process tree on step timeout: the command now runs in its own process group so a timed-out `claude`/`codex` grandchild is signaled too, instead of orphaning and burning CPU after the parent exits.
+- Honored the configured base branch when counting commits for the salvage snapshot, so runs on a non-`main` base no longer skip the safety push.
+- Escaped the worktree path in the pipeline timeout probe and policy checks for consistency with every other git invocation.
+- Added a 2-minute "still working" heartbeat around long, silent agent steps and raised the default plan timeout to 90 minutes for deep-mode runs on large monorepos.
+
 ## 1.2.2 - 2026-05-20
 
 - Swept README, docs, and the packaged skill for stale pipeline phrasing and missing runtime command variants.
