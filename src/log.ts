@@ -58,6 +58,23 @@ export const log = {
   },
 };
 
+/**
+ * Print a periodic "still working" line so a long, silent agent step (e.g.
+ * `claude -p` on a large repo, which emits nothing until it finishes) reads as
+ * alive rather than wedged. Returns a stop function to clear it; the timer is
+ * unref'd so it never keeps the process alive on its own.
+ */
+export const startHeartbeat = (limitMs: number, intervalMs = 120_000): (() => void) => {
+  const start = Date.now();
+  const timer = setInterval(() => {
+    const elapsedMin = Math.round((Date.now() - start) / 60_000);
+    const limitMin = Math.round(limitMs / 60_000);
+    log.info(`still working after ${elapsedMin}m (limit ${limitMin}m)`);
+  }, intervalMs);
+  timer.unref();
+  return () => clearInterval(timer);
+};
+
 export const formatTime = (ms: number): string => {
   if (ms < 1000) return `${ms}ms`;
   const seconds = ms / 1000;
