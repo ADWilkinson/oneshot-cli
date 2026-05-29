@@ -30,8 +30,6 @@ const TOOL_OPS_RE = /\b(?:browser|click|screenshot|slack|gmail|email|calendar|no
 const DEEP_RE = /\b(?:prod|production|release|deploy|restart|systemd|logs?|promote|migrate|migration|auth|wallet|funds?|money|payment|onboarding|architecture|refactor|review|audit|deep|study|investigate|root cause|timeout|flaky|incident|outage|multi[- ]?file|sibling surfaces?)\b/i;
 const SHIP_RE = /\b(?:ship|land|open a pr|make a pr|merge|publish|release|deploy|push)\b/i;
 
-const clampEffortForClaude = (effort: RoutingReasoning): RoutingReasoning => effort;
-
 export function routeTask(task: string, opts: RouteTaskOptions): RouteDecision {
   const text = task.trim();
   const length = text.length;
@@ -66,7 +64,6 @@ export function routeTask(task: string, opts: RouteTaskOptions): RouteDecision {
       : simple
         ? "medium"
         : "high";
-  const effort = provider === "claude" ? clampEffortForClaude(reasoningEffort) : reasoningEffort;
   const reason = !enabled
     ? `adaptive routing disabled; using configured ${opts.defaultProvider} provider`
     : provider === "claude"
@@ -77,15 +74,15 @@ export function routeTask(task: string, opts: RouteTaskOptions): RouteDecision {
     enabled,
     provider,
     mode,
-    reasoningEffort: effort,
+    reasoningEffort,
     contextShape,
     executionStyle,
     verification,
     reason,
     phaseReasoning: {
       classify: simple ? "low" : "medium",
-      plan: effort,
-      execute: effort,
+      plan: reasoningEffort,
+      execute: reasoningEffort,
       review: mode === "deep" ? "xhigh" : "high",
       deepReview: "xhigh",
       pr: ships ? "high" : "medium",

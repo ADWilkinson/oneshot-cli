@@ -10,14 +10,6 @@ const pluginFlag = CLAUDE_PLUGIN_DIR
   ? `--plugin-dir ${shellEscape(CLAUDE_PLUGIN_DIR)} `
   : "";
 
-export const withModelOverride = (
-  agent: PhaseAgentConfig,
-  modelOverride: string | undefined,
-): PhaseAgentConfig => {
-  if (!modelOverride) return agent;
-  return { ...agent, model: modelOverride };
-};
-
 export const runAgentText = async (opts: {
   worktreePath: string;
   prompt: string;
