@@ -44,23 +44,25 @@ const classifyError = (stderr: string, stdout: string): ErrorCode => {
 };
 
 const killProcessTree = (pid: number): void => {
-  // Bun.spawn does not setpgid the child, so signaling -pid would either
-  // ESRCH or hit the parent group. Signal the child directly; if it has
-  // descendants they will be reaped when the shell exits.
-  try {
-    process.kill(pid, "SIGTERM");
-  } catch {
-    // Already dead
-  }
-
-  // Follow up with SIGKILL after 5s in case SIGTERM is ignored
-  setTimeout(() => {
+  // The child is spawned detached (its own process group), so signal the whole
+  // group via the negated PID to reach the agent grandchild (claude/codex), not
+  // just the bash wrapper. Also signal the bare PID in case the group is empty.
+  const signal = (sig: "SIGTERM" | "SIGKILL"): void => {
     try {
-      process.kill(pid, "SIGKILL");
+      process.kill(-pid, sig);
     } catch {
-      // Already dead
+      // group already empty
     }
-  }, 5_000).unref();
+    try {
+      process.kill(pid, sig);
+    } catch {
+      // already dead
+    }
+  };
+
+  signal("SIGTERM");
+  // Follow up with SIGKILL after 5s in case SIGTERM is ignored
+  setTimeout(() => signal("SIGKILL"), 5_000).unref();
 };
 
 export const exec = async (
@@ -72,10 +74,13 @@ export const exec = async (
   const proc = Bun.spawn(["bash", "-c", command], {
     stdout: "pipe",
     stderr: "pipe",
+    // Own process group so killProcessTree can signal the agent grandchild too.
+    detached: true,
   });
 
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
+  const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
 
   const readStream = async (
     reader: ReadableStream<Uint8Array>,
@@ -84,6 +89,7 @@ export const exec = async (
     onLine?: (line: string) => void,
   ) => {
     const r = reader.getReader();
+    readers.push(r);
     const decoder = new TextDecoder();
     let lineBuffer = "";
     const noteText = (text: string) => {
@@ -117,6 +123,8 @@ export const exec = async (
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       killProcessTree(proc.pid);
+      // Unblock the stream readers so they don't outlive the timed-out call.
+      for (const r of readers) void r.cancel().catch(() => {});
       reject(new OneshotError(`command timed out after ${timeoutMs / 1000}s`, 'ERR_TIMEOUT'));
     }, timeoutMs);
   });
