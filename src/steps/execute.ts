@@ -9,6 +9,7 @@ import type { EventWriter } from "../events";
 import { runCodexJson } from "../codex-runner";
 import { runAgentText } from "../phase-runner";
 import { getRoutedPhaseAgent } from "../routing";
+import { fillTemplate } from "../template";
 
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "execute.txt"), "utf-8");
@@ -19,10 +20,11 @@ export const execute = async (ctx: PipelineContext, events: EventWriter): Promis
 
   const claudeMd = await exec(`cat ${shellEscape(`${worktreePath}/CLAUDE.md`)} 2>/dev/null || echo "No CLAUDE.md found"`);
 
-  const prompt = loadPromptTemplate()
-    .replace("{{task}}", options.task)
-    .replace("{{plan}}", ctx.plan)
-    .replace("{{claudeMd}}", claudeMd.stdout.trim());
+  const prompt = fillTemplate(loadPromptTemplate(), {
+    task: options.task,
+    plan: ctx.plan,
+    claudeMd: claudeMd.stdout.trim(),
+  });
 
   const timeoutMs = getStepTimeout(config, "executeMinutes");
   const agent = getRoutedPhaseAgent(config, "execute", ctx.route);

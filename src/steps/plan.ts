@@ -7,6 +7,7 @@ import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
 import { runAgentText } from "../phase-runner";
 import { getRoutedPhaseAgent } from "../routing";
+import { fillTemplate } from "../template";
 
 const loadPromptTemplate = (): string => {
   return readFileSync(join(PROMPTS_DIR, "plan.txt"), "utf-8");
@@ -17,9 +18,10 @@ export const plan = async (ctx: PipelineContext): Promise<string> => {
 
   const claudeMd = await exec(`cat ${shellEscape(`${worktreePath}/CLAUDE.md`)} 2>/dev/null || echo "No CLAUDE.md found"`);
 
-  const prompt = loadPromptTemplate()
-    .replace("{{task}}", options.task)
-    .replace("{{claudeMd}}", claudeMd.stdout.trim());
+  const prompt = fillTemplate(loadPromptTemplate(), {
+    task: options.task,
+    claudeMd: claudeMd.stdout.trim(),
+  });
 
   const agent = getRoutedPhaseAgent(config, "plan", ctx.route, options.model);
   const timeoutMs = getStepTimeout(config, "planMinutes");

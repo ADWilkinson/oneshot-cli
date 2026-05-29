@@ -7,6 +7,7 @@ import { shellEscape } from "../shell";
 import { PROMPTS_DIR } from "../paths";
 import { runAgentText } from "../phase-runner";
 import { getRoutedPhaseAgent } from "../routing";
+import { fillTemplate } from "../template";
 
 const PR_TITLE_FILE = ".oneshot-pr-title.txt";
 const PR_BODY_FILE = ".oneshot-pr-body.txt";
@@ -267,10 +268,11 @@ export const createDraftPr = async (
   await checkoutPrBranch(worktreePath, branchName, baseBranch);
 
   const agent = getRoutedPhaseAgent(config, "pr", ctx.route, options.model);
-  const prompt = loadPromptTemplate()
-    .replace("{{task}}", taskSummary)
-    .replace(/\{\{branchName\}\}/g, branchName)
-    .replace(/\{\{baseBranch\}\}/g, baseBranch);
+  const prompt = fillTemplate(loadPromptTemplate(), {
+    task: taskSummary,
+    branchName,
+    baseBranch,
+  });
 
   const timeoutMs = getStepTimeout(config, "prMinutes");
 
