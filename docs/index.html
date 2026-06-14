@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>oneshot | Agentic software workflow runtime</title>
-  <meta name="description" content="Repo + task in, reviewed PR out. Run Codex or Claude in isolated worktrees with durable events, policy gates, workflow presets, and MCP tools.">
-  <meta property="og:title" content="oneshot | Agentic software workflow runtime">
-  <meta property="og:description" content="Repo + task in, reviewed PR out. Run Codex or Claude in isolated worktrees with durable events, policy gates, workflow presets, and MCP tools.">
+  <title>oneshot | Fire-and-forget agentic software runtime</title>
+  <meta name="description" content="Fire and forget: detach a task, get a reviewed PR plus a proof-of-work receipt. Run Codex or Claude in isolated worktrees, locally, over SSH, or in GitHub Actions.">
+  <meta property="og:title" content="oneshot | Fire-and-forget agentic software runtime">
+  <meta property="og:description" content="Fire and forget: detach a task, get a reviewed PR plus a proof-of-work receipt. Run Codex or Claude in isolated worktrees, locally, over SSH, or in GitHub Actions.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://adwilkinson.github.io/oneshot-cli">
   <meta name="twitter:card" content="summary_large_image">
@@ -85,7 +85,7 @@
           <div class="hero-badge">open-source agent runtime</div>
           <h1 class="hero-title">oneshot</h1>
           <p class="hero-subtitle">
-            Repo + task in, reviewed PR out. Run Codex or Claude in isolated worktrees with durable events, policy gates, workflow presets, and MCP tools.
+            Fire and forget. Detach a task, walk away, come back to a reviewed PR plus a proof-of-work receipt. Codex or Claude in isolated worktrees, run on your machine, a dev box, or GitHub Actions.
           </p>
 
           <div class="hero-install">
@@ -103,9 +103,9 @@
           </div>
 
           <div class="hero-metrics" aria-label="Core capabilities">
-            <span>isolated worktrees</span>
-            <span>JSONL events</span>
-            <span>MCP server</span>
+            <span>fire and forget</span>
+            <span>proof-of-work receipts</span>
+            <span>local / SSH / Actions</span>
           </div>
         </div>
 
@@ -125,7 +125,8 @@ repo acme/api
 [5/8] execute         tests patched
 [6/8] draft PR        github.com/acme/api/pull/142
 [7/8] review          no major findings
-[8/8] finalize        ready for review</code></pre>
+[8/8] finalize        ready for review
+receipt               shipped | confidence: high</code></pre>
         </div>
       </div>
 
@@ -165,27 +166,27 @@ repo acme/api
 
     <section id="why" class="section">
       <h2 class="section-title">Why Try It</h2>
-      <p class="section-desc">Most coding agents can edit files. oneshot gives them a repeatable operating loop that is observable, resumable, and safe enough to run while you do something else.</p>
+      <p class="section-desc">Most coding agents can edit files. The hard part is trusting work you did not watch. oneshot gives a detached run a quality contract and a receipt that proves it ran, so you can fire it and walk away.</p>
       <div class="feature-grid">
         <article class="feature-card">
           <span class="feature-code">01</span>
-          <h3>Real isolation</h3>
-          <p>Every task starts in a fresh git worktree from the target branch. Your checkout stays clean, and parallel runs do not collide.</p>
+          <h3>Fire and forget</h3>
+          <p>Detach with <code>--bg</code>, in CI, or over SSH to a dev box. Close your laptop; the run keeps going and pings you when the receipt is ready.</p>
         </article>
         <article class="feature-card">
           <span class="feature-code">02</span>
-          <h3>Agent work you can inspect</h3>
-          <p>Runs emit structured JSONL events, durable ledger entries, changed-file summaries, step timings, and recoverable failure state.</p>
+          <h3>Proof-of-work receipts</h3>
+          <p>Every run writes a receipt: plan, contract steps, review outcome, policy verdict, the defaults it had to assume, and a confidence rating. Trust the result without re-reading the diff.</p>
         </article>
         <article class="feature-card">
           <span class="feature-code">03</span>
-          <h3>Workflow presets</h3>
-          <p>Use <code>ship</code>, <code>review</code>, <code>fix-ci</code>, <code>research</code>, <code>docs</code>, or <code>swarm-review</code> instead of rewriting the same prompt every time.</p>
+          <h3>Durable anywhere</h3>
+          <p>Run locally, over SSH to your own box, or in GitHub Actions for zero-infra detached runs that survive your machine. Same contract, same receipt.</p>
         </article>
         <article class="feature-card">
           <span class="feature-code">04</span>
-          <h3>Tool protocol ready</h3>
-          <p><code>oneshot mcp serve</code> exposes the same runtime to other agents as tools: run, status, policy, workflows, and eval summary.</p>
+          <h3>Isolated and inspectable</h3>
+          <p>Fresh git worktree per run, durable JSONL ledger, policy gates, workflow presets, and an MCP server that exposes run, receipt, status, policy, and eval as tools.</p>
         </article>
       </div>
     </section>
@@ -287,13 +288,13 @@ repo acme/api
           </div>
           <h3 class="step-title">Finalize</h3>
           <span class="step-engine">git/gh</span>
-          <p class="step-desc">Pushes review fixes and marks the PR ready</p>
+          <p class="step-desc">Pushes review fixes, marks the PR ready, and writes the receipt</p>
         </div>
       </div>
 
       <div class="pipeline-note">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        Worktrees are cleaned up after every run. Parallel runs are safe.
+        Every run writes a proof-of-work receipt; worktrees are cleaned up after success and preserved on failure. Parallel runs are safe.
       </div>
     </section>
 
@@ -414,6 +415,8 @@ oneshot stats                            # recent runs + timing
 oneshot runs                             # durable run ledger
 oneshot runs --json --limit 10           # list runs for automation
 oneshot status &lt;run-id|events-file&gt; --json
+oneshot receipt &lt;run-id&gt;                  # proof-of-work receipt (text)
+oneshot receipt &lt;run-id&gt; --html &gt; r.html  # receipt as an HTML artifact
 oneshot eval --json                      # summarize outcomes
 oneshot doctor                           # setup and remote health checks
 oneshot doctor --repo acme/api           # setup + checkout health
@@ -422,6 +425,7 @@ oneshot workflow list                    # inspect workflow presets
 oneshot workflow show fix-ci --json      # inspect one workflow preset
 oneshot policy init                      # create .oneshot/policy.json
 oneshot policy init --path ./repo        # write policy elsewhere
+oneshot gha init                         # scaffold a GitHub Actions workflow
 oneshot mcp serve                        # expose MCP tools</code></pre>
         <button class="copy-btn" data-copy='oneshot <repo> "<task>"' aria-label="Copy usage examples">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -490,9 +494,19 @@ oneshot mcp serve                        # expose MCP tools</code></pre>
               <td>Mirror JSONL events to an additional file for machine consumption</td>
             </tr>
             <tr>
+              <td><code>--json</code></td>
+              <td></td>
+              <td>With <code>receipt</code>, <code>runs</code>, <code>status</code>, or <code>eval</code>, emit JSON</td>
+            </tr>
+            <tr>
+              <td><code>--html</code></td>
+              <td></td>
+              <td>With <code>receipt</code>, emit a self-contained HTML proof-of-work artifact</td>
+            </tr>
+            <tr>
               <td><code>--repo</code></td>
               <td></td>
-              <td>With <code>doctor</code>, verify a specific <code>owner/repo</code> checkout exists</td>
+              <td>With <code>doctor</code>, verify a specific <code>owner/repo</code> checkout exists (nested or flat)</td>
             </tr>
             <tr>
               <td><code>--provider</code></td>
@@ -553,21 +567,46 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
             </button>
           </div>
         </div>
+        <div class="example-card">
+          <h4>Read the receipt</h4>
+          <div class="code-block compact">
+            <pre><code>oneshot receipt 1779090434-rxw89j --html &gt; receipt.html</code></pre>
+            <button class="copy-btn" data-copy="oneshot receipt 1779090434-rxw89j --html > receipt.html" aria-label="Copy">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="example-card">
+          <h4>Detach to GitHub Actions</h4>
+          <div class="code-block compact">
+            <pre><code>oneshot gha init
+gh workflow run oneshot.yml -f task="fix the login timeout"</code></pre>
+            <button class="copy-btn" data-copy='oneshot gha init
+gh workflow run oneshot.yml -f task="fix the login timeout"' aria-label="Copy">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+        </div>
       </div>
     </section>
 
     <!-- Configuration -->
     <section id="configuration" class="section">
       <h2 class="section-title">Configuration</h2>
-      <p class="section-desc"><code>~/.oneshot/config.json</code>, created by <code>oneshot init</code>. Only <code>host</code> is required for SSH. Local mode works without a config file.</p>
+      <p class="section-desc"><code>~/.oneshot/config.json</code>, created by <code>oneshot init</code>. Only <code>host</code> is required for SSH. Set <code>host</code> to <code>local</code> to run on this machine without SSH and without passing <code>--local</code> every time. Repos may be laid out as <code>basePath/owner/repo</code> (nested) or <code>basePath/repo</code> (flat); oneshot prefers whichever exists.</p>
 
       <div class="code-block">
         <pre><code>{
   "host": "user@100.x.x.x",
+  "backend": "ssh",
   "basePath": "~/projects",
   "worktreeRoot": "/tmp",
   "provider": "codex",
   "routing": { "enabled": true },
+  "notify": {
+    "webhook": "https://hooks.example.com/oneshot",
+    "onFailure": true
+  },
   "linearApiKey": "lin_api_...",
   "claude": {
     "model": "opus",
@@ -623,12 +662,17 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
             <tr>
               <td><code>host</code></td>
               <td>SSH only</td>
-              <td>SSH target (e.g. <code>user@192.168.1.10</code>)</td>
+              <td>SSH target (e.g. <code>user@192.168.1.10</code>), or <code>local</code> to run on this machine</td>
+            </tr>
+            <tr>
+              <td><code>backend</code></td>
+              <td>No</td>
+              <td>Executor hint: <code>ssh</code>, <code>local</code>, or <code>gha</code></td>
             </tr>
             <tr>
               <td><code>basePath</code></td>
               <td>No</td>
-              <td>Root directory containing your repos. Default: <code>~/projects</code></td>
+              <td>Root directory containing your repos (nested or flat layout). Default: <code>~/projects</code></td>
             </tr>
             <tr>
               <td><code>worktreeRoot</code></td>
@@ -649,6 +693,16 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
               <td><code>anthropicApiKey</code></td>
               <td>Claude only</td>
               <td>Falls back to <code>ANTHROPIC_API_KEY</code> env var</td>
+            </tr>
+            <tr>
+              <td><code>notify.webhook</code></td>
+              <td>No</td>
+              <td>POST the receipt summary as JSON when a run finishes</td>
+            </tr>
+            <tr>
+              <td><code>notify.command</code></td>
+              <td>No</td>
+              <td>Run a command with the payload on stdin and in <code>ONESHOT_NOTIFY_*</code> env. Pair with <code>onSuccess</code> / <code>onFailure</code> to filter</td>
             </tr>
             <tr>
               <td><code>linearApiKey</code></td>
@@ -702,13 +756,25 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
 
     <section id="runtime" class="section">
       <h2 class="section-title">Runtime Controls</h2>
-      <p class="section-desc">Recent runs are mirrored into a durable ledger under <code>~/.oneshot/runs</code>. Workflow presets, policy packs, eval summaries, and the MCP server make oneshot usable as an agent workflow engine instead of a one-off shell command.</p>
+      <p class="section-desc">Every run is mirrored into a durable ledger under <code>~/.oneshot/runs</code> and writes a proof-of-work receipt. Receipts, notifications, the GitHub Actions backend, workflow presets, policy packs, and the MCP server make oneshot a detached workflow engine instead of a one-off shell command.</p>
       <div class="runtime-grid">
+        <article class="runtime-card">
+          <h3>Prove</h3>
+          <p>Read a run's receipt: plan, contract steps, review, policy, confidence.</p>
+          <code>oneshot receipt &lt;run-id&gt;</code>
+          <code>oneshot receipt &lt;run-id&gt; --html</code>
+        </article>
         <article class="runtime-card">
           <h3>Observe</h3>
           <p>Inspect recent work and read one run or event file as JSON.</p>
           <code>oneshot runs</code>
           <code>oneshot status &lt;run-id|events-file&gt; --json</code>
+        </article>
+        <article class="runtime-card">
+          <h3>Detach</h3>
+          <p>Run durably without a dev box. Scaffolds a CI workflow that uploads the receipt.</p>
+          <code>oneshot gha init</code>
+          <code>oneshot &lt;repo&gt; "&lt;task&gt;" --bg</code>
         </article>
         <article class="runtime-card">
           <h3>Shape</h3>
@@ -726,10 +792,12 @@ oneshot acme/web "add dark mode" --bg' aria-label="Copy">
       <div class="code-block">
         <pre><code>oneshot runs
 oneshot status &lt;run-id|events-file&gt; --json
+oneshot receipt &lt;run-id&gt; --html
 oneshot eval --json
 oneshot workflow list
 oneshot workflow show fix-ci --json
 oneshot policy init
+oneshot gha init
 oneshot mcp serve</code></pre>
       </div>
     </section>
