@@ -4,7 +4,7 @@ description: Fire-and-forget code shipping with oneshot CLI. One command that pl
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "2.0.0"
+  version: "2.0.1"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
 compatibility: Requires Bun, GitHub CLI, and either Codex CLI or Claude Code CLI. SSH access to a server optional (can run locally with --local or detached in GitHub Actions)
 ---

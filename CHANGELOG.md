@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1 - 2026-06-14
+
+- Repo resolution now accepts both `basePath/owner/repo` (nested) and `basePath/repo` (flat) layouts, preferring whichever checkout actually exists. Repos are still addressed as `owner/repo`, but real working trees no longer have to be nested that way. `oneshot doctor --repo` checks both layouts on local and remote hosts.
+
 ## 2.0.0 - 2026-06-14
 
 Reimagined around fire-and-forget: detach a task, walk away, come back to a reviewed PR and a receipt that proves the contract ran.

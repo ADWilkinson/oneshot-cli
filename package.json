@@ -1,6 +1,6 @@
 {
   "name": "oneshot-ship",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Fire-and-forget agentic software runtime: detach a task, get a reviewed PR plus a proof-of-work receipt.",
   "homepage": "https://adwilkinson.github.io/oneshot-cli",
   "type": "module",

@@ -843,7 +843,11 @@ const main = async () => {
 
     const config = parsed.local ? await loadLocalConfig() : await loadConfig();
 
-    if (!parsed.local) {
+    // A config with host "local" runs on this machine without SSH, so the user
+    // does not have to pass --local on every invocation.
+    const useLocal = parsed.local || config.host === "local";
+
+    if (!useLocal) {
       const parts = buildRemoteCommandParts({
         ...parsed,
         basePath: parsed.basePath ?? config.basePath,

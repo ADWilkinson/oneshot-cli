@@ -106,18 +106,23 @@ const remoteRepoCheck = async (host: string, config: OneshotConfig, repo: string
     return check("remote:repo", "fail", err instanceof Error ? err.message : String(err));
   }
 
+  // Mirror resolveRepoPath's nested-then-flat fallback on the remote host.
   const probe = [
     `base=${shellEscape(config.basePath)}`,
     `repo=${shellEscape(repo)}`,
-    'path="$base/$repo"',
-    'case "$path" in "~/"*) path="$HOME/${path#~/}" ;; esac',
-    'test -d "$path/.git" || test -f "$path/.git"',
+    'name="${repo#*/}"',
+    'found=1',
+    'for path in "$base/$repo" "$base/$name"; do',
+    '  case "$path" in "~/"*) path="$HOME/${path#~/}" ;; esac',
+    '  if test -d "$path/.git" || test -f "$path/.git"; then found=0; break; fi',
+    'done',
+    'exit $found',
   ].join("; ");
   const result = await exec(`ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new ${shellEscape(host)} ${shellEscape(probe)}`, {
     timeoutMs: 20_000,
   });
   if (result.exitCode !== 0) {
-    return check("remote:repo", "fail", `${repo} not found under ${config.basePath}`);
+    return check("remote:repo", "fail", `${repo} not found under ${config.basePath} (nested or flat)`);
   }
   return check("remote:repo", "ok", `${repo} found under ${config.basePath}`);
 };
