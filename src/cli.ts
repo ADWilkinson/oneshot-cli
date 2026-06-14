@@ -17,6 +17,8 @@ import { initPolicy } from "./policy";
 import { listRunSnapshots, printRuns, resolveRunEventsFile, snapshotFromEvents, summarizeEval } from "./runs";
 import { applyWorkflow, getWorkflow, WORKFLOWS } from "./workflows";
 import { runMcpServer } from "./mcp";
+import { loadReceipt, renderReceiptHtml, renderReceiptText } from "./receipt";
+import { initGhaWorkflow } from "./gha";
 
 export interface ParsedArgs extends OneshotOptions {
   local: boolean;
@@ -28,6 +30,7 @@ export interface ParsedArgs extends OneshotOptions {
   routeProvider?: AgentProvider;
   limit?: number;
   runRef?: string;
+  receiptHtml?: boolean;
   policyAction?: string;
   policyPath?: string;
   workflowCommand?: string;
@@ -111,6 +114,43 @@ export const parseArgs = (args: string[]): ParsedArgs => {
     }
     if (positional.length !== 1) throw new Error("status requires a run id or events file");
     return { command: "status", repo: "", task: "", local, bg: false, deepReview: false, json, runRef: positional[0] };
+  }
+
+  if (args[0] === "receipt") {
+    let local = false;
+    let json = false;
+    let html = false;
+    const positional: string[] = [];
+    for (let i = 1; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === "--local") local = true;
+      else if (arg === "--json") json = true;
+      else if (arg === "--html") html = true;
+      else if (!arg.startsWith("-")) positional.push(arg);
+      else throw new Error(`receipt only accepts --local, --json, and --html; unknown option: ${arg}`);
+    }
+    if (positional.length !== 1) throw new Error("receipt requires a run id or events file");
+    if (json && html) throw new Error("receipt --json and --html are mutually exclusive");
+    return { command: "receipt", repo: "", task: "", local, bg: false, deepReview: false, json, runRef: positional[0], receiptHtml: html };
+  }
+
+  if (args[0] === "gha") {
+    if (args[1] !== "init") throw new Error("gha currently supports: gha init");
+    let policyPath: string | undefined;
+    let routeProvider: AgentProvider | undefined;
+    for (let i = 2; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === "--path") {
+        policyPath = getFlagValue(args, i, arg);
+        i++;
+      } else if (arg === "--provider") {
+        routeProvider = asProvider(getFlagValue(args, i, arg), "codex");
+        i++;
+      } else {
+        throw new Error(`gha init only accepts --path and --provider; unknown option: ${arg}`);
+      }
+    }
+    return { command: "gha", policyAction: "init", policyPath, routeProvider, repo: "", task: "", local: true, bg: false, deepReview: false, json: false };
   }
 
   if (args[0] === "eval") {
@@ -425,12 +465,14 @@ Usage: oneshot <repo> "<task or linear url>" [options]
        oneshot stats
        oneshot runs
        oneshot status <run-id|events-file>
+       oneshot receipt <run-id|events-file>
        oneshot eval
        oneshot doctor
        oneshot doctor --repo <owner/repo>
        oneshot route "<task>"
        oneshot workflow list
        oneshot policy init
+       oneshot gha init
        oneshot mcp serve
 
 Commands:
@@ -438,11 +480,13 @@ Commands:
   stats                   Show recent runs, success rates, per-repo averages
   runs                    List durable run ledger entries
   status                  Show one run snapshot from a run id or event file
+  receipt                 Show a run's proof-of-work receipt (text/--json/--html)
   eval                    Summarize run outcomes for workflow improvement
   doctor                  Check local and remote oneshot prerequisites
   route                   Show the invisible provider/reasoning route for a task
   workflow                List or inspect built-in workflow presets
   policy                  Create or enforce repo policy packs
+  gha init                Scaffold a GitHub Actions workflow for detached runs
   mcp serve               Expose oneshot as MCP tools over stdio
 
 Options:
@@ -459,6 +503,8 @@ Options:
   --repo <owner/repo>     With doctor, verify a specific checkout exists
   --provider <provider>   With route, choose the fallback provider (codex/claude)
   --bg                    Run detached in background (returns PID + log path)
+  --json                  With receipt/runs/status/eval, emit JSON
+  --html                  With receipt, emit a self-contained HTML proof-of-work
   --help, -h              Show this help
   --version, -v           Show version
 
@@ -472,12 +518,15 @@ Examples:
   oneshot stats
   oneshot runs
   oneshot status 1779090434729-rxw89j --json
+  oneshot receipt 1779090434729-rxw89j
+  oneshot receipt 1779090434729-rxw89j --html > receipt.html
   oneshot eval --json
   oneshot doctor
   oneshot doctor --repo my-org/my-repo
   oneshot route "fix failing CI and publish"
   oneshot workflow list
   oneshot policy init
+  oneshot gha init
 `);
 };
 
@@ -673,6 +722,37 @@ const main = async () => {
         if (snapshot.error) console.log(`error: ${snapshot.error}`);
         console.log(`events: ${snapshot.eventsFile}`);
       }
+      return;
+    }
+
+    if (parsed.command === "receipt") {
+      if (!parsed.runRef) throw new Error("receipt requires a run id or events file");
+      if (!parsed.local) {
+        try {
+          const config = await loadConfig();
+          if (config.host !== "local") {
+            const parts = ["receipt", parsed.runRef];
+            if (parsed.json) parts.push("--json");
+            if (parsed.receiptHtml) parts.push("--html");
+            return await runRemoteReadOnlyCommand(config, parts);
+          }
+        } catch {
+          // local fallback
+        }
+      }
+      const receipt = loadReceipt(parsed.runRef);
+      if (parsed.json) console.log(JSON.stringify(receipt, null, 2));
+      else if (parsed.receiptHtml) console.log(renderReceiptHtml(receipt));
+      else console.log(renderReceiptText(receipt));
+      return;
+    }
+
+    if (parsed.command === "gha") {
+      const result = initGhaWorkflow(parsed.policyPath ?? process.cwd(), { provider: parsed.routeProvider });
+      console.log(result.created ? `workflow written: ${result.path}` : `workflow already exists: ${result.path}`);
+      console.log(`\nnext: add ${result.secretName} to the repo's Actions secrets (Settings -> Secrets and variables -> Actions),`);
+      console.log(`then fire a detached run with:`);
+      console.log(`  gh workflow run oneshot.yml -f task="your task here"`);
       return;
     }
 

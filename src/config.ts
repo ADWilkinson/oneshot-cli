@@ -1,12 +1,17 @@
 import { existsSync, mkdirSync, writeFileSync, renameSync } from "fs";
 import { homedir } from "os";
 import { dirname, join } from "path";
+import type { NotifyConfig } from "./notify";
+
+export type ExecutorBackend = "ssh" | "local" | "gha";
 
 export interface OneshotConfig {
   host: string;
   basePath: string;
   worktreeRoot?: string;
   provider: AgentProvider;
+  backend?: ExecutorBackend;
+  notify?: NotifyConfig;
   linearApiKey?: string;
   anthropicApiKey?: string;
   claude: {
@@ -111,6 +116,24 @@ const asOptionalBoolean = (value: unknown): boolean | undefined => {
   return typeof value === "boolean" ? value : undefined;
 };
 
+const asBackend = (value: unknown): ExecutorBackend | undefined => {
+  return value === "ssh" || value === "local" || value === "gha" ? value : undefined;
+};
+
+const normalizeNotify = (raw: unknown): NotifyConfig | undefined => {
+  if (!raw || typeof raw !== "object") return undefined;
+  const value = raw as Record<string, unknown>;
+  const webhook = asOptionalString(value.webhook);
+  const command = asOptionalString(value.command);
+  if (!webhook && !command) return undefined;
+  return {
+    webhook,
+    command,
+    onSuccess: asOptionalBoolean(value.onSuccess),
+    onFailure: asOptionalBoolean(value.onFailure),
+  };
+};
+
 const inferProvider = (raw: Partial<OneshotConfig>): AgentProvider => {
   if (raw.provider === "claude" || raw.provider === "codex") return raw.provider;
 
@@ -158,6 +181,8 @@ export const normalizeConfig = (
     basePath: asOptionalString(raw.basePath) ?? DEFAULT_CONFIG.basePath,
     worktreeRoot: asOptionalString(raw.worktreeRoot) ?? DEFAULT_CONFIG.worktreeRoot,
     provider,
+    backend: asBackend(raw.backend),
+    notify: normalizeNotify(raw.notify),
     linearApiKey: asOptionalString(raw.linearApiKey),
     anthropicApiKey: asOptionalString(raw.anthropicApiKey),
     claude: {

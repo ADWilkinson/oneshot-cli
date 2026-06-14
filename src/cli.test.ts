@@ -962,3 +962,50 @@ describe("CLI integration", () => {
     expect(report.checks.some((item: { name: string; status: string }) => item.name === "repo" && item.status === "ok")).toBe(true);
   });
 });
+
+describe("parseArgs receipt + gha", () => {
+  test("parses receipt with a run id", () => {
+    expect(parseArgs(["receipt", "1779090434729-rxw89j"])).toMatchObject({
+      command: "receipt",
+      runRef: "1779090434729-rxw89j",
+      json: false,
+      receiptHtml: false,
+    });
+  });
+
+  test("parses receipt --html", () => {
+    expect(parseArgs(["receipt", "abc", "--html"])).toMatchObject({
+      command: "receipt",
+      runRef: "abc",
+      receiptHtml: true,
+    });
+  });
+
+  test("rejects receipt --json --html together", () => {
+    expect(() => parseArgs(["receipt", "abc", "--json", "--html"])).toThrow(
+      "mutually exclusive"
+    );
+  });
+
+  test("rejects receipt without a run id", () => {
+    expect(() => parseArgs(["receipt"])).toThrow("receipt requires a run id");
+  });
+
+  test("parses gha init", () => {
+    expect(parseArgs(["gha", "init"])).toMatchObject({
+      command: "gha",
+      policyAction: "init",
+    });
+  });
+
+  test("parses gha init --provider claude", () => {
+    expect(parseArgs(["gha", "init", "--provider", "claude"])).toMatchObject({
+      command: "gha",
+      routeProvider: "claude",
+    });
+  });
+
+  test("rejects unknown gha subcommands", () => {
+    expect(() => parseArgs(["gha", "deploy"])).toThrow("gha currently supports");
+  });
+});

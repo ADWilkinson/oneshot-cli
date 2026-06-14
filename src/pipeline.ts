@@ -23,6 +23,10 @@ import { createDraftPr, finalizeAfterReview, getFilesChanged, getDiffStats } fro
 import { moveToInReview, addPrComment } from "./linear";
 import { getStepLabel } from "./pipeline-steps";
 import { validatePolicy } from "./policy";
+import type { PolicyValidationResult } from "./policy";
+import { buildReceipt, writeReceipt } from "./receipt";
+import type { ReceiptReview, ReceiptStatus, ReceiptStep } from "./receipt";
+import { buildNotifyPayload, sendNotification } from "./notify";
 
 const buildContext = (config: OneshotConfig, options: OneshotOptions): PipelineContext => {
   const basePath = expandHome(options.basePath ?? config.basePath);
@@ -152,6 +156,81 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     if (sourceCheckout) await verifySourceCheckoutUnchanged(sourceCheckout);
   };
 
+  // Receipt + notification state, accumulated through the run so the proof-of-work
+  // object can be built whether the pipeline succeeds, drafts, or fails.
+  let policyResult: PolicyValidationResult | undefined;
+  let reviewAttempted = false;
+  let reviewMode: "standard" | "deep" = "standard";
+  let reviewOutcome: ReceiptReview["outcome"] = "skipped";
+  let prState: "ready" | "draft" | undefined;
+  const assumptions: string[] = [];
+
+  const emitReceipt = async (
+    status: ReceiptStatus,
+    extra: {
+      filesChanged?: number;
+      diffStats?: Array<{ file: string; additions: number; deletions: number }>;
+      error?: string;
+      errorCode?: string;
+    } = {},
+  ): Promise<void> => {
+    const steps: ReceiptStep[] = stepTimings.map((timing) => ({
+      step: timing.step,
+      label: timing.label,
+      status: "done",
+      elapsedMs: timing.elapsed,
+    }));
+    const review: ReceiptReview = {
+      ran: reviewAttempted,
+      mode: reviewAttempted ? reviewMode : "skipped",
+      outcome: reviewOutcome,
+    };
+    const policy = policyResult
+      ? {
+          evaluated: policyResult.evaluated,
+          ok: policyResult.ok,
+          warnings: policyResult.warnings,
+          failures: policyResult.failures,
+        }
+      : { evaluated: false, ok: status !== "failed", warnings: [], failures: [] };
+
+    const receipt = buildReceipt({
+      runId: ctx.runId,
+      repo: options.repo,
+      task: options.taskSummary ?? options.task,
+      status,
+      prUrl: ctx.prUrl,
+      prState,
+      mode: ctx.mode,
+      route: ctx.route ? renderRouteDecision(ctx.route) : undefined,
+      plan: ctx.plan,
+      steps,
+      filesChanged: extra.filesChanged ?? 0,
+      diffStats: extra.diffStats,
+      policy,
+      review,
+      assumptions,
+      error: extra.error,
+      errorCode: extra.errorCode,
+      elapsedMs: Date.now() - ctx.startTime,
+      startedAt: ctx.startTime,
+      host: hostname(),
+    });
+
+    const receiptPath = writeReceipt(receipt);
+    if (receiptPath) log.info(`receipt: ${receiptPath}`);
+    try {
+      const { delivered, errors } = await sendNotification(
+        config.notify,
+        buildNotifyPayload(receipt, receiptPath),
+      );
+      for (const err of errors) log.warn(`notify ${err}`);
+      if (delivered.length) log.info(`notified via ${delivered.join(", ")}`);
+    } catch {
+      // A failed notification must never change the run's outcome.
+    }
+  };
+
   events.started(options.repo, options.task, undefined, {
       cliVersion: VERSION,
       host: hostname(),
@@ -183,6 +262,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     if (options.dryRun) {
       log.dryRunSummary(ctx.repoPath);
       events.completed({ result: "dry-run", elapsed: Date.now() - ctx.startTime, stepTimings: [...stepTimings] });
+      await emitReceipt("dry-run");
       return;
     }
 
@@ -203,6 +283,17 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     log.info(`route: ${renderRouteDecision(route)}`);
     log.info(`route reason: ${route.reason}`);
     events.classified(ctx.mode);
+
+    // Record the defaults a detached run applied without confirming with the
+    // operator, so the receipt can surface them for audit.
+    if (!options.branch) assumptions.push("base branch defaulted to main");
+    assumptions.push(
+      options.mode
+        ? `review mode forced to ${ctx.mode}`
+        : `review mode auto-classified as ${ctx.mode}`,
+    );
+    if (options.workflow) assumptions.push(`workflow preset applied: ${options.workflow}`);
+    reviewMode = options.deepReview || ctx.mode === "deep" ? "deep" : "standard";
 
     await runStep(4, events, stepTimings, async () => { ctx.plan = await plan(ctx); });
     await verifySourceCheckout();
@@ -230,6 +321,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     await verifySourceCheckout();
 
     const policy = await validatePolicy(ctx);
+    policyResult = policy;
     for (const warning of policy.warnings) {
       log.warn(`policy: ${warning}`);
       events.agentAction(5, getStepLabel(5), {
@@ -259,14 +351,18 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     // If review fails or times out, the draft PR still has all the execution work.
     let shouldFinalizePr = false;
     let reviewTimedOut = false;
+    reviewAttempted = true;
     try {
       await runStep(7, events, stepTimings, () => review(ctx, events));
       shouldFinalizePr = true;
+      reviewOutcome = "passed";
     } catch (err) {
       if (err instanceof OneshotError && err.code === 'ERR_TIMEOUT') {
         reviewTimedOut = true;
+        reviewOutcome = "timed-out";
         log.warn("review timed out — salvaging partial changes before finalize");
       } else {
+        reviewOutcome = "failed";
         log.warn(`review failed — draft PR preserved: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
@@ -314,6 +410,12 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     log.summary(ctx.prUrl, filesChanged, totalElapsed);
     events.completed({ prUrl: ctx.prUrl, filesChanged, elapsed: totalElapsed, diffStats, stepTimings: [...stepTimings] });
 
+    // A run that reached finalize-and-mark-ready is a shipped success; a run
+    // whose review failed or timed out leaves the PR as a draft to be inspected.
+    prState = shouldFinalizePr ? "ready" : "draft";
+    const receiptStatus: ReceiptStatus = shouldFinalizePr ? "success" : "draft";
+    await emitReceipt(receiptStatus, { filesChanged, diffStats });
+
     try {
       const historyPath = join(CONFIG_DIR, 'history.json');
       let history: Record<string, number[]> = {};
@@ -342,6 +444,7 @@ export const runPipeline = async (config: OneshotConfig, options: OneshotOptions
     const errorCode = finalErr instanceof OneshotError ? finalErr.code : undefined;
     const errorDetail = finalErr instanceof OneshotError ? finalErr.detail : undefined;
     events.failed(msg, Date.now() - ctx.startTime, errorCode, errorDetail, [...stepTimings]);
+    await emitReceipt("failed", { error: msg, errorCode });
     log.warn(
       `pipeline failed; preserving worktree for recovery at ${ctx.worktreePath}`
     );

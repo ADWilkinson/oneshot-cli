@@ -2,6 +2,7 @@ import { loadLocalConfig, type OneshotOptions } from "./config";
 import { runPipeline } from "./pipeline";
 import { initPolicy } from "./policy";
 import { listRunSnapshots, resolveRunEventsFile, snapshotFromEvents, summarizeEval } from "./runs";
+import { loadReceipt } from "./receipt";
 import { VERSION } from "./version";
 import { WORKFLOWS } from "./workflows";
 
@@ -53,6 +54,16 @@ const tools: Json[] = [
     },
   },
   {
+    name: "oneshot_receipt",
+    description: "Read a run's proof-of-work receipt (plan, review, policy, confidence) by run id or events file.",
+    inputSchema: {
+      type: "object",
+      properties: { run: { type: "string" } },
+      required: ["run"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "oneshot_policy_init",
     description: "Create a default .oneshot/policy.json in a repo or directory.",
     inputSchema: {
@@ -93,6 +104,9 @@ const callTool = async (name: string, args: Record<string, unknown> = {}): Promi
   if (name === "oneshot_run_status") {
     const eventsFile = resolveRunEventsFile(asString(args.run, "run"));
     return snapshotFromEvents(eventsFile, typeof args.recentActions === "number" ? args.recentActions : 8);
+  }
+  if (name === "oneshot_receipt") {
+    return loadReceipt(asString(args.run, "run"));
   }
   if (name === "oneshot_policy_init") {
     return { path: initPolicy(typeof args.targetDir === "string" ? args.targetDir : process.cwd()) };

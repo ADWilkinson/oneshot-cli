@@ -1,17 +1,17 @@
 ---
 name: oneshot-ship
-description: Ship code with oneshot CLI. One command that plans, executes, reviews, and opens a PR. Runs over SSH or locally. Use when the user wants to ship code changes, automate PRs, or run a coding pipeline with Codex or Claude.
+description: Fire-and-forget code shipping with oneshot CLI. One command that plans, executes, reviews, opens a PR, and writes a proof-of-work receipt. Runs over SSH, locally, or in GitHub Actions. Use when the user wants to ship code changes, automate PRs, or run a detached coding pipeline with Codex or Claude.
 license: MIT
 metadata:
   author: ADWilkinson
-  version: "1.2.3"
+  version: "2.0.0"
   repository: "https://github.com/ADWilkinson/oneshot-cli"
-compatibility: Requires Bun, GitHub CLI, and either Codex CLI or Claude Code CLI. SSH access to a server optional (can run locally with --local)
+compatibility: Requires Bun, GitHub CLI, and either Codex CLI or Claude Code CLI. SSH access to a server optional (can run locally with --local or detached in GitHub Actions)
 ---
 
 # oneshot CLI
 
-Ship code with a single command. oneshot is an agentic software workflow runtime: repo + task in, isolated agent run out, reviewed PR ready. It runs with one selected fallback provider, or with invisible adaptive routing when `routing.enabled` is true. The router chooses Codex or Claude plus reasoning effort, while each provider stays on its configured frontier model. Works over SSH to a remote server or locally with `--local`.
+Ship code with a single command, then walk away. oneshot is a fire-and-forget agentic software runtime: repo + task in, detached agent run out, reviewed PR plus a proof-of-work receipt ready. It runs with one selected fallback provider, or with invisible adaptive routing when `routing.enabled` is true. The router chooses Codex or Claude plus reasoning effort, while each provider stays on its configured frontier model. Works over SSH to a remote server, locally with `--local`, or detached in CI with `oneshot gha init`.
 
 ## When to use this skill
 
@@ -66,11 +66,13 @@ oneshot stats                          # recent runs + timing
 oneshot runs                           # durable run ledger
 oneshot runs --json --limit 10         # list runs for automation
 oneshot status <run-id|events-file> --json  # inspect one run
+oneshot receipt <run-id>               # proof-of-work receipt (text/--json/--html)
 oneshot eval --json                    # summarize outcomes
 oneshot workflow list                  # inspect workflow presets
 oneshot workflow show fix-ci --json    # inspect one workflow preset
 oneshot policy init                    # create .oneshot/policy.json
 oneshot policy init --path ./repo      # write policy in another directory
+oneshot gha init                       # scaffold a GitHub Actions workflow for detached runs
 oneshot mcp serve                      # expose MCP tools over stdio
 oneshot doctor                         # package, tool, SSH, and event health
 oneshot doctor --repo zkp2p/pay        # health plus checkout existence
@@ -100,6 +102,7 @@ Every run writes JSONL events to `/tmp/oneshot-<runId>.events.jsonl` and mirrors
   "provider": "codex",
   "routing": { "enabled": true },
   "linearApiKey": "lin_api_...",
+  "notify": { "webhook": "https://hooks.example.com/oneshot", "onFailure": true },
   "claude": { "model": "opus", "timeoutMinutes": 180 },
   "codex": {
     "model": "gpt-5.5",
@@ -157,6 +160,9 @@ Remote SSH runs stream the active oneshot config to the server for that run, so 
 - Configure `phases.classify`, `phases.plan`, `phases.execute`, `phases.review`, `phases.deepReview`, and `phases.pr` for model and reasoning defaults when routing is disabled
 - Edit `prompts/plan.txt`, `execute.txt`, `review.txt`, `pr.txt` to change pipeline behavior
 - Use `oneshot policy init` to add `.oneshot/policy.json` with protected paths, required checks, approval-sensitive keywords, and secret-pattern gates
+- Every run writes a proof-of-work receipt to `~/.oneshot/runs/<runId>.receipt.json` (plan, contract steps, review outcome, policy verdict, assumptions, confidence). Read it with `oneshot receipt <run-id>`, `--json`, or `--html` for a self-contained artifact
+- Add a `notify` block (`webhook` and/or `command`) so a detached run pings you when its receipt is ready; it is best effort and never fails a run
+- Use `oneshot gha init` to scaffold a GitHub Actions workflow that runs the same contract in CI and uploads the receipt as an artifact, for durable detached runs without a dev box (needs one provider API key in repo secrets)
 - Use `oneshot mcp serve` when another agent should call oneshot through tools instead of shelling out ad hoc
 - For dense specs, explainers, review maps, incident reports, design sheets, or one-off editors, oneshot can create a self-contained HTML artifact instead of a long markdown wall. Durable artifacts belong in `docs/artifacts/`; throwaway local artifacts belong in `/tmp/oneshot-html-artifacts/`.
 

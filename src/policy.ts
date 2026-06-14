@@ -77,6 +77,7 @@ const matchesAny = (path: string, patterns: string[]): string | undefined => {
 };
 
 export interface PolicyValidationResult {
+  evaluated: boolean;
   ok: boolean;
   warnings: string[];
   failures: string[];
@@ -84,7 +85,7 @@ export interface PolicyValidationResult {
 
 export const validatePolicy = async (ctx: PipelineContext): Promise<PolicyValidationResult> => {
   const policy = loadPolicy(ctx.worktreePath);
-  if (!policy) return { ok: true, warnings: [], failures: [] };
+  if (!policy) return { evaluated: false, ok: true, warnings: [], failures: [] };
 
   const warnings: string[] = [];
   const failures: string[] = [];
@@ -122,5 +123,5 @@ export const validatePolicy = async (ctx: PipelineContext): Promise<PolicyValida
     if (result.exitCode !== 0) failures.push(`required check failed: ${command}`);
   }
 
-  return { ok: failures.length === 0, warnings, failures };
+  return { evaluated: true, ok: failures.length === 0, warnings, failures };
 };

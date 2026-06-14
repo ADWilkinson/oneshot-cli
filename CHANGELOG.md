@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.0 - 2026-06-14
+
+Reimagined around fire-and-forget: detach a task, walk away, come back to a reviewed PR and a receipt that proves the contract ran.
+
+- Added the proof-of-work **receipt**: every run (success, draft, or failure) writes `~/.oneshot/runs/<id>.receipt.json` capturing plan, contract steps, review outcome, policy verdict, the defaults the run had to assume, and a derived confidence rating. Inspect it with `oneshot receipt <run-id>` (text), `--json`, or `--html` for a self-contained artifact. Exposed over MCP as `oneshot_receipt`.
+- Added a config-driven **notifier** so a detached run pings you when the receipt is ready. Backend-agnostic: set `notify.webhook` (POST the payload) and/or `notify.command` (run it with the payload on stdin and in `ONESHOT_NOTIFY_*` env). Best effort, never fails a run, gated by `onSuccess`/`onFailure`.
+- Added a **GitHub Actions backend** via `oneshot gha init`: scaffolds a `workflow_dispatch` workflow that runs the same contract in CI and uploads the receipt as an artifact, giving durable detached runs to anyone without a dev box. Requires one provider API key in repo secrets (surfaced by the command).
+- No existing flags changed. `--bg`, `--local`, SSH dispatch, the run ledger, policy packs, and workflow presets all behave as before.
+
 ## 1.2.3 - 2026-05-29
 
 - Fixed prompt placeholder substitution so task descriptions, CLAUDE.md content, and plan output containing `$$`, `$&`, `$'`, or backtick-dollar are inserted literally instead of corrupting the prompt; every `{{placeholder}}` occurrence is now filled.

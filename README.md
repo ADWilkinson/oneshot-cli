@@ -4,21 +4,23 @@
 [![license](https://img.shields.io/github/license/ADWilkinson/oneshot-cli?color=black)](LICENSE)
 [![docs](https://img.shields.io/badge/docs-adwilkinson.github.io-black)](https://adwilkinson.github.io/oneshot-cli)
 
-Ship code in one command. Repo + task in, isolated agent run out, reviewed PR ready.
+Fire-and-forget agentic software work. Repo + task in, detached agent run out, reviewed PR plus a proof-of-work receipt ready.
 
 ```
-laptop -> server or local worktree -> Codex/Claude -> reviewed PR
+laptop -> server, local worktree, or GitHub Actions -> Codex/Claude -> reviewed PR + receipt
 ```
 
-`oneshot` is a tiny public workflow runtime for agentic software work. It gives coding agents the boring-but-crucial rails they need in the real world: clean worktrees, provider routing, durable logs, policy gates, review loops, and PR creation.
+`oneshot` is a tiny public workflow runtime for agentic software work. It gives coding agents the boring-but-crucial rails they need in the real world: clean worktrees, provider routing, durable logs, policy gates, review loops, PR creation, and a receipt that proves the whole contract actually ran.
 
-It runs over SSH to a dev box by default, or entirely locally with `--local`.
+It runs over SSH to a dev box, entirely locally with `--local`, or detached in CI with `oneshot gha init`.
 
 ## Why try it
 
-- **Repo + task in, PR out**: one command runs plan, execute, draft PR, review, fixes, and finalize.
+- **Fire and forget**: detach a task with `--bg` (or in CI), close your laptop, get pinged when the receipt is ready.
+- **Proof of work**: every run writes a receipt (plan, contract steps, review outcome, policy verdict, assumptions, confidence) so you can trust a detached result without re-reading the whole diff. `oneshot receipt <run-id> --html`.
 - **No dirty main branch**: every run gets an isolated git worktree, so parallel work is safe.
 - **Bring your agent**: Codex-first by default, Claude-compatible, with adaptive routing when enabled.
+- **Durable anywhere**: SSH to your own box, a local detached process, or GitHub Actions for zero-infra runs that survive your machine.
 - **Observable by design**: every run writes JSONL events plus a durable ledger you can inspect later.
 - **Workflow-shaped**: use presets like `ship`, `review`, `fix-ci`, `research`, `docs`, and `swarm-review`.
 - **Policy-aware**: add `.oneshot/policy.json` for protected paths, secret checks, and required repo gates.
@@ -89,6 +91,8 @@ oneshot stats                          # recent runs + timing
 oneshot runs                           # durable run ledger
 oneshot runs --json --limit 10         # list runs for automation
 oneshot status <run-id|events-file> --json  # inspect one run
+oneshot receipt <run-id>               # proof-of-work receipt (text)
+oneshot receipt <run-id> --html        # receipt as a self-contained HTML artifact
 oneshot eval --json                    # summarize run outcomes
 oneshot doctor                         # setup and remote health checks
 oneshot doctor --repo my-org/my-app    # setup + checkout health
@@ -97,6 +101,7 @@ oneshot workflow list                  # inspect workflow presets
 oneshot workflow show fix-ci --json    # inspect one workflow preset
 oneshot policy init                    # create .oneshot/policy.json
 oneshot policy init --path ./repo      # write policy in another directory
+oneshot gha init                       # scaffold a GitHub Actions workflow for detached runs
 oneshot mcp serve                      # expose oneshot as MCP tools
 ```
 
@@ -273,7 +278,48 @@ Policy packs live at `.oneshot/policy.json`. The default pack protects secret-li
 oneshot policy init
 ```
 
-`oneshot mcp serve` exposes the public engine as MCP tools for agent clients. The server supports running a task, listing runs, reading run status, initializing policy, listing workflows, and summarizing eval outcomes.
+`oneshot mcp serve` exposes the public engine as MCP tools for agent clients. The server supports running a task, listing runs, reading run status, reading a run receipt, initializing policy, listing workflows, and summarizing eval outcomes.
+
+## Receipts
+
+Every run writes a proof-of-work receipt to `~/.oneshot/runs/<runId>.receipt.json`. The receipt is the thing that makes fire-and-forget trustworthy: it records what was planned, which contract steps ran and how long they took, the review outcome (passed / timed-out / failed), the policy verdict, the defaults the run had to assume because a detached run cannot ask you, and a derived confidence rating (`high` only when the run shipped with a clean review and a clean policy gate).
+
+```bash
+oneshot receipt <run-id>            # human-readable sitrep
+oneshot receipt <run-id> --json     # machine-readable
+oneshot receipt <run-id> --html > receipt.html   # self-contained artifact
+```
+
+Runs without a receipt file (older or remote-only runs) reconstruct a thinner receipt from the event stream; reconstructed successes are capped at `medium` confidence since the contract verdict cannot be re-derived.
+
+## Notifications
+
+So a detached run can ping you when its receipt is ready, add a `notify` block to `~/.oneshot/config.json`. It is backend-agnostic on purpose: wire Slack, Discord, a desktop toast, or anything else yourself. Notification is best effort and never fails a run.
+
+```json
+{
+  "notify": {
+    "webhook": "https://hooks.example.com/oneshot",
+    "command": "my-notify-script.sh",
+    "onSuccess": true,
+    "onFailure": true
+  }
+}
+```
+
+The webhook receives the receipt summary as a JSON POST. The command runs with the same payload on stdin and in `ONESHOT_NOTIFY_STATUS`, `ONESHOT_NOTIFY_REPO`, `ONESHOT_NOTIFY_HEADLINE`, `ONESHOT_NOTIFY_PR_URL`, `ONESHOT_NOTIFY_RECEIPT`, and `ONESHOT_NOTIFY_JSON`.
+
+## GitHub Actions backend
+
+Not everyone has a 24/7 dev box, but every repo has Actions: a durable executor that survives your laptop closing, with a secrets vault, that can open PRs natively. `oneshot gha init` scaffolds a `workflow_dispatch` workflow that runs the same contract in CI and uploads the receipt as an artifact.
+
+```bash
+oneshot gha init                       # writes .github/workflows/oneshot.yml
+oneshot gha init --provider claude     # wire the Anthropic key instead of OpenAI
+gh workflow run oneshot.yml -f task="fix the login timeout"
+```
+
+It requires one provider API key in the repo's Actions secrets (`OPENAI_API_KEY` for Codex, `ANTHROPIC_API_KEY` for Claude); `GITHUB_TOKEN` is provided automatically and opens the PR. The command prints exactly which secret to add.
 
 ## Doctor and recovery
 
