@@ -18,898 +18,231 @@
 </head>
 <body>
 
-  <a href="#mainContent" class="skip-link">Skip to content</a>
+  <a href="#start" class="skip-link">Skip to quick start</a>
 
-  <!-- Sidebar Navigation -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <a href="#" class="logo-link">
-        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
-        </svg>
-        <span class="logo-text">oneshot</span>
-      </a>
+  <header class="topbar">
+    <a href="#top" class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor"/></svg>
+      <span class="brand-name">oneshot</span>
       <span class="version-badge">v2.0.1</span>
-    </div>
-
-    <nav class="sidebar-nav" aria-label="Primary">
-      <a href="#hero" class="nav-link active">Overview</a>
-      <a href="#quick-start" class="nav-link">Quick Start</a>
-      <a href="#why" class="nav-link">Why Try It</a>
-      <a href="#pipeline" class="nav-link">Pipeline</a>
-      <a href="#usage" class="nav-link">Usage</a>
-      <a href="#configuration" class="nav-link">Configuration</a>
-      <a href="#runtime" class="nav-link">Runtime</a>
-      <a href="#linear" class="nav-link">Linear Integration</a>
-      <a href="#customization" class="nav-link">Customization</a>
-      <a href="#agent-skill" class="nav-link">Agent Skill</a>
-    </nav>
-
-    <div class="sidebar-footer">
-      <a href="https://github.com/ADWilkinson/oneshot-cli" class="footer-link" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-        GitHub
-      </a>
-      <a href="https://www.npmjs.com/package/oneshot-ship" class="footer-link" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.332h-2.669v-.001zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331zM10.665 10H12v2.667h-1.335V10z"/></svg>
-        npm
-      </a>
-    </div>
-  </aside>
-
-  <!-- Mobile Header -->
-  <header class="mobile-header">
-    <button class="menu-toggle" id="menuToggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">
-      <span></span>
-      <span></span>
-      <span></span>
-    </button>
-    <a href="#" class="mobile-logo">
-      <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
-      </svg>
-      <span>oneshot</span>
     </a>
+    <nav class="topbar-links" aria-label="Primary">
+      <a href="#how">How</a>
+      <a href="#start">Start</a>
+      <a href="#commands">Commands</a>
+      <a href="https://github.com/ADWilkinson/oneshot-cli" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.npmjs.com/package/oneshot-ship" target="_blank" rel="noopener">npm</a>
+    </nav>
   </header>
 
-  <!-- Overlay for mobile menu -->
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-  <!-- Main Content -->
-  <main class="content" id="mainContent">
+  <main id="top">
 
     <!-- Hero -->
-    <section id="hero" class="hero">
-      <div class="hero-layout">
-        <div class="hero-copy">
-          <div class="hero-badge">open-source agent runtime</div>
-          <h1 class="hero-title">oneshot</h1>
-          <p class="hero-subtitle">
-            Fire and forget. Detach a task, walk away, come back to a reviewed PR plus a proof-of-work receipt. Codex or Claude in isolated worktrees, run on your machine, a dev box, or GitHub Actions.
-          </p>
+    <section class="hero reveal">
+      <p class="eyebrow">open-source agent runtime</p>
+      <h1 class="hero-title">Fire it.<br>Then forget it.</h1>
+      <p class="hero-lead">
+        Hand oneshot a repo and a task. It plans, writes, reviews, and opens a PR in an isolated worktree, then hands you a <strong>receipt</strong> that proves the work held up. Detach it and walk away.
+      </p>
 
-          <div class="hero-install">
-            <div class="install-block">
-              <code>bun install -g oneshot-ship</code>
-              <button class="copy-btn" data-copy="bun install -g oneshot-ship" aria-label="Copy install command">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
-            </div>
-          </div>
-
-          <div class="hero-actions">
-            <a href="#quick-start" class="btn btn-primary">Get Started</a>
-            <a href="https://github.com/ADWilkinson/oneshot-cli" class="btn btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
-          </div>
-
-          <div class="hero-metrics" aria-label="Core capabilities">
-            <span>fire and forget</span>
-            <span>proof-of-work receipts</span>
-            <span>local / SSH / Actions</span>
-          </div>
+      <div class="install-row">
+        <div class="install-block">
+          <span class="prompt">$</span>
+          <code>bun install -g oneshot-ship</code>
+          <button class="copy-btn" data-copy="bun install -g oneshot-ship" aria-label="Copy install command">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
         </div>
-
-        <div class="hero-terminal" aria-label="oneshot terminal preview">
-          <div class="terminal-topline">
-            <span></span><span></span><span></span>
-            <strong>agent run</strong>
-          </div>
-          <pre><code>$ oneshot acme/api "fix failing CI" --workflow fix-ci
-run 1779090434-rxw89j
-repo acme/api
-
-[1/8] validate        ok
-[2/8] worktree        /tmp/oneshot-1779090434
-[3/8] route           codex / deep / full
-[4/8] plan            3 files implicated
-[5/8] execute         tests patched
-[6/8] draft PR        github.com/acme/api/pull/142
-[7/8] review          no major findings
-[8/8] finalize        ready for review
-receipt               shipped | confidence: high</code></pre>
-        </div>
+        <a href="#start" class="btn btn-primary">Quick start</a>
       </div>
 
-      <div class="hero-quick-grid" aria-label="Popular commands">
-        <article class="quick-command-card">
-          <p class="quick-command-kicker">Dry-run setup</p>
-          <div class="code-block compact">
-            <pre><code>oneshot acme/api --dry-run</code></pre>
-            <button class="copy-btn" data-copy="oneshot acme/api --dry-run" aria-label="Copy dry-run command">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
+      <div class="hero-stage">
+        <div class="terminal" aria-label="oneshot run preview">
+          <div class="terminal-bar"><span></span><span></span><span></span><strong>agent run</strong></div>
+          <pre><code><span class="c-prompt">$</span> oneshot acme/api <span class="c-str">"fix auth timeout"</span> --bg
+
+<span class="c-dim">run</span> 1779090434-rxw89j  <span class="c-dim">·</span> detached
+<span class="c-ok">[1/8]</span> validate     ok
+<span class="c-ok">[2/8]</span> worktree     /tmp/oneshot-1779
+<span class="c-ok">[3/8]</span> route        codex · deep
+<span class="c-ok">[4/8]</span> plan         3 files
+<span class="c-ok">[5/8]</span> execute      patched + tested
+<span class="c-ok">[6/8]</span> draft PR     #142
+<span class="c-ok">[7/8]</span> review       no major findings
+<span class="c-ok">[8/8]</span> finalize     ready for review</code></pre>
+        </div>
+
+        <div class="receipt" aria-label="oneshot receipt preview">
+          <div class="receipt-perf" aria-hidden="true"></div>
+          <p class="receipt-head">ONESHOT RECEIPT</p>
+          <p class="receipt-run">run 1779090434-rxw89j</p>
+          <div class="receipt-status">
+            <span class="badge-shipped">shipped</span>
+            <span class="badge-conf">confidence: high</span>
           </div>
-          <p class="quick-command-desc">Check repo access and remote setup first.</p>
-        </article>
-        <article class="quick-command-card">
-          <p class="quick-command-kicker">Ship one task</p>
-          <div class="code-block compact">
-            <pre><code>oneshot acme/api "fix auth timeout"</code></pre>
-            <button class="copy-btn" data-copy='oneshot acme/api "fix auth timeout"' aria-label="Copy ship command">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-          <p class="quick-command-desc">Full pipeline, one command.</p>
-        </article>
-        <article class="quick-command-card">
-          <p class="quick-command-kicker">Fire and forget</p>
-          <div class="code-block compact">
-            <pre><code>oneshot acme/api "add caching" --bg</code></pre>
-            <button class="copy-btn" data-copy='oneshot acme/api "add caching" --bg' aria-label="Copy background command">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-          <p class="quick-command-desc">Detaches immediately, returns PID + log path.</p>
-        </article>
+          <dl class="receipt-meta">
+            <div><dt>repo</dt><dd>acme/api</dd></div>
+            <div><dt>task</dt><dd>fix auth timeout</dd></div>
+            <div><dt>time</dt><dd>4m 12s · 3 files</dd></div>
+            <div><dt>pr</dt><dd>#142 (ready)</dd></div>
+          </dl>
+          <ul class="receipt-checks">
+            <li><span class="tick">✓</span> plan read the codebase</li>
+            <li><span class="tick">✓</span> review passed, deep mode</li>
+            <li><span class="tick">✓</span> policy gate clean</li>
+            <li><span class="tick">✓</span> base branch defaulted to main</li>
+          </ul>
+          <div class="receipt-perf bottom" aria-hidden="true"></div>
+        </div>
       </div>
     </section>
 
-    <section id="why" class="section">
-      <h2 class="section-title">Why Try It</h2>
-      <p class="section-desc">Most coding agents can edit files. The hard part is trusting work you did not watch. oneshot gives a detached run a quality contract and a receipt that proves it ran, so you can fire it and walk away.</p>
-      <div class="feature-grid">
-        <article class="feature-card">
-          <span class="feature-code">01</span>
-          <h3>Fire and forget</h3>
-          <p>Detach with <code>--bg</code>, in CI, or over SSH to a dev box. Close your laptop; the run keeps going and pings you when the receipt is ready.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-code">02</span>
-          <h3>Proof-of-work receipts</h3>
-          <p>Every run writes a receipt: plan, contract steps, review outcome, policy verdict, the defaults it had to assume, and a confidence rating. Trust the result without re-reading the diff.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-code">03</span>
-          <h3>Durable anywhere</h3>
-          <p>Run locally, over SSH to your own box, or in GitHub Actions for zero-infra detached runs that survive your machine. Same contract, same receipt.</p>
-        </article>
-        <article class="feature-card">
-          <span class="feature-code">04</span>
-          <h3>Isolated and inspectable</h3>
-          <p>Fresh git worktree per run, durable JSONL ledger, policy gates, workflow presets, and an MCP server that exposes run, receipt, status, policy, and eval as tools.</p>
-        </article>
+    <!-- How / concepts -->
+    <section id="how" class="band">
+      <div class="band-inner">
+        <p class="section-kicker">Why it is different</p>
+        <h2 class="section-h">Most agents can edit files. The hard part is trusting work you didn't watch.</h2>
+        <div class="concepts">
+          <article class="concept">
+            <span class="concept-no">01</span>
+            <h3>Fire and forget</h3>
+            <p>Detach with <code>--bg</code>, over SSH to a dev box, or in GitHub Actions. Close your laptop; it keeps going and pings you when it lands.</p>
+          </article>
+          <article class="concept">
+            <span class="concept-no">02</span>
+            <h3>Proof-of-work receipts</h3>
+            <p>Every run records its plan, review outcome, policy verdict, the defaults it assumed, and a confidence rating. Trust the result without re-reading the diff.</p>
+          </article>
+          <article class="concept">
+            <span class="concept-no">03</span>
+            <h3>Durable anywhere</h3>
+            <p>Run locally, over SSH, or in CI. Fresh git worktree per run, durable ledger, policy gates, and an MCP server. Same contract, same receipt.</p>
+          </article>
+        </div>
       </div>
     </section>
 
-    <!-- Pipeline -->
-    <section id="pipeline" class="section">
-      <h2 class="section-title">The Pipeline</h2>
-      <p class="section-desc">Eight steps. Each run gets its own git worktree, so your main branch stays clean.</p>
-
-      <div class="pipeline">
-        <div class="pipeline-step">
-          <div class="step-number">1</div>
-          <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          </div>
-          <h3 class="step-title">Validate</h3>
-          <span class="step-engine">git</span>
-          <p class="step-desc">Checks the repo exists and fetches latest from origin</p>
-        </div>
-
-        <div class="pipeline-connector"></div>
-
-        <div class="pipeline-step">
-          <div class="step-number">2</div>
-          <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          </div>
-          <h3 class="step-title">Worktree</h3>
-          <span class="step-engine">git</span>
-          <p class="step-desc">Creates an isolated <code>/tmp</code> worktree from <code>origin/main</code></p>
-        </div>
-
-        <div class="pipeline-connector"></div>
-
-        <div class="pipeline-step">
-          <div class="step-number">3</div>
-          <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <h3 class="step-title">Route</h3>
-          <span class="step-engine engine-claude">Adaptive</span>
-          <p class="step-desc">Chooses provider, reasoning, context, verification, and fast/deep mode</p>
-        </div>
-
-        <div class="pipeline-connector"></div>
-
-        <div class="pipeline-step">
-          <div class="step-number">4</div>
-          <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          </div>
-          <h3 class="step-title">Plan</h3>
-          <span class="step-engine engine-claude">Config</span>
-          <p class="step-desc">Reads the codebase, outputs an implementation plan</p>
-        </div>
-
-        <div class="pipeline-connector"></div>
-
-        <div class="pipeline-step">
-          <div class="step-number">5</div>
-          <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          </div>
-          <h3 class="step-title">Execute</h3>
-          <span class="step-engine engine-codex">Config</span>
-          <p class="step-desc">Implements the plan following repo conventions</p>
-        </div>
-
-        <div class="pipeline-connector"></div>
-
-        <div class="pipeline-step">
-          <div class="step-number">6</div>
-          <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
-          </div>
-          <h3 class="step-title">Draft PR</h3>
-          <span class="step-engine engine-claude">Config</span>
-          <p class="step-desc">Creates branch, commits, and writes PR metadata; runtime opens or updates the draft PR</p>
-        </div>
-
-        <div class="pipeline-connector"></div>
-
-        <div class="pipeline-step">
-          <div class="step-number">7</div>
-          <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </div>
-          <h3 class="step-title">Review</h3>
-          <span class="step-engine engine-codex">Config</span>
-          <p class="step-desc">Reviews the diff for bugs, types, and security. Fixes issues directly.</p>
-        </div>
-
-        <div class="pipeline-connector"></div>
-
-        <div class="pipeline-step">
-          <div class="step-number">8</div>
-          <div class="step-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <h3 class="step-title">Finalize</h3>
-          <span class="step-engine">git/gh</span>
-          <p class="step-desc">Pushes review fixes, marks the PR ready, and writes the receipt</p>
-        </div>
-      </div>
-
-      <div class="pipeline-note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        Every run writes a proof-of-work receipt; worktrees are cleaned up after success and preserved on failure. Parallel runs are safe.
-      </div>
-    </section>
-
-    <!-- Quick Start -->
-    <section id="quick-start" class="section">
-      <h2 class="section-title">Quick Start</h2>
-
-      <div class="steps-list">
-        <div class="numbered-step">
-          <div class="numbered-step-header">
-            <span class="numbered-step-num">1</span>
-            <h3>Prerequisites</h3>
-          </div>
-          <div class="numbered-step-body">
-            <div class="prereq-grid">
-              <div class="prereq-col">
-                <h4>On your laptop</h4>
-                <ul>
-                  <li><a href="https://bun.sh" target="_blank" rel="noopener">Bun</a></li>
-                  <li>SSH access to your server</li>
-                </ul>
-              </div>
-              <div class="prereq-col">
-                <h4>On your server</h4>
-                <ul>
-                  <li><a href="https://bun.sh" target="_blank" rel="noopener">Bun</a></li>
-                  <li><a href="https://github.com/openai/codex" target="_blank" rel="noopener">Codex CLI</a> or <a href="https://docs.anthropic.com/en/docs/claude-code" target="_blank" rel="noopener">Claude Code CLI</a></li>
-                  <li><a href="https://cli.github.com" target="_blank" rel="noopener">GitHub CLI</a> (authenticated)</li>
-                  <li><code>OPENAI_API_KEY</code> for Codex mode or <code>ANTHROPIC_API_KEY</code> for Claude mode</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="numbered-step">
-          <div class="numbered-step-header">
-            <span class="numbered-step-num">2</span>
+    <!-- Quick start -->
+    <section id="start" class="wrap">
+      <p class="section-kicker">Quick start</p>
+      <h2 class="section-h">Three commands.</h2>
+      <ol class="steps">
+        <li class="step">
+          <span class="step-no">1</span>
+          <div class="step-body">
             <h3>Install</h3>
+            <p>Needs <a href="https://bun.sh" target="_blank" rel="noopener">Bun</a>, the GitHub CLI, and Codex or Claude Code.</p>
+            <div class="code"><pre><code>bun install -g oneshot-ship</code></pre><button class="copy-btn" data-copy="bun install -g oneshot-ship" aria-label="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
           </div>
-          <div class="numbered-step-body">
-            <p>Install globally on both your laptop and server:</p>
-            <div class="code-block">
-              <pre><code>bun install -g oneshot-ship</code></pre>
-              <button class="copy-btn" data-copy="bun install -g oneshot-ship" aria-label="Copy">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
-            </div>
-            <p class="text-muted">Or from source:</p>
-            <div class="code-block">
-              <pre><code>git clone https://github.com/ADWilkinson/oneshot-cli.git
-cd oneshot-cli && bun install && bun link</code></pre>
-              <button class="copy-btn" data-copy="git clone https://github.com/ADWilkinson/oneshot-cli.git && cd oneshot-cli && bun install && bun link" aria-label="Copy">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="numbered-step">
-          <div class="numbered-step-header">
-            <span class="numbered-step-num">3</span>
+        </li>
+        <li class="step">
+          <span class="step-no">2</span>
+          <div class="step-body">
             <h3>Configure</h3>
+            <p>Pick a backend: this machine, SSH to a box, or GitHub Actions. Run <code>oneshot doctor</code> to check it.</p>
+            <div class="code"><pre><code>oneshot init</code></pre><button class="copy-btn" data-copy="oneshot init" aria-label="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
           </div>
-          <div class="numbered-step-body">
-            <div class="code-block">
-              <pre><code>oneshot init</code></pre>
-              <button class="copy-btn" data-copy="oneshot init" aria-label="Copy">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
-            </div>
-            <p>Sets up SSH host, workspace path, provider, API keys, and per-phase model preferences. Saves to <code>~/.oneshot/config.json</code>.</p>
-            <p>Then run <code>oneshot doctor</code> to verify package freshness, local binaries, SSH reachability, remote binaries, and recent event streams.</p>
-            <p>Repos should live as <code>&lt;org&gt;/&lt;repo&gt;</code> under your workspace path. Repo slugs are strict <code>owner/repo</code> values; nested paths and <code>..</code> are rejected before filesystem access.</p>
-            <div class="code-block">
-              <pre><code>~/projects/
-  acme/api/
-  acme/web/</code></pre>
-            </div>
-          </div>
-        </div>
-
-        <div class="numbered-step">
-          <div class="numbered-step-header">
-            <span class="numbered-step-num">4</span>
+        </li>
+        <li class="step">
+          <span class="step-no">3</span>
+          <div class="step-body">
             <h3>Ship</h3>
+            <p>Repo and task in. Add <code>--bg</code> to detach. Read the receipt when it lands.</p>
+            <div class="code"><pre><code>oneshot acme/api "fix the login timeout" --bg</code></pre><button class="copy-btn" data-copy='oneshot acme/api "fix the login timeout" --bg' aria-label="Copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div>
           </div>
-          <div class="numbered-step-body">
-            <div class="code-block">
-              <pre><code>oneshot acme/api "fix the login timeout bug"</code></pre>
-              <button class="copy-btn" data-copy='oneshot acme/api "fix the login timeout bug"' aria-label="Copy">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
-            </div>
-            <p class="text-muted">That's it. oneshot handles the rest.</p>
-          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Run it anywhere -->
+    <section class="band">
+      <div class="band-inner">
+        <p class="section-kicker">Run it anywhere</p>
+        <h2 class="section-h">One contract, three executors.</h2>
+        <div class="backends">
+          <article class="backend">
+            <h3>Local</h3>
+            <p>Runs on this machine. Detaches with <code>--bg</code> and survives a closed terminal.</p>
+            <code>oneshot acme/api "task" --bg</code>
+          </article>
+          <article class="backend">
+            <h3>SSH</h3>
+            <p>Ship to a 24/7 dev box over SSH so runs survive your laptop entirely.</p>
+            <code>host: "user@your-box"</code>
+          </article>
+          <article class="backend">
+            <h3>GitHub Actions</h3>
+            <p>Zero-infra durable runs. Scaffolds a workflow that uploads the receipt.</p>
+            <code>oneshot gha init</code>
+          </article>
         </div>
       </div>
     </section>
 
-    <!-- Usage -->
-    <section id="usage" class="section">
-      <h2 class="section-title">Usage</h2>
-
-      <div class="code-block">
-        <pre><code>oneshot &lt;repo&gt; "&lt;task&gt;"                 # ship a task
-oneshot &lt;repo&gt; &lt;linear-url&gt;              # ship from a Linear ticket
-oneshot &lt;repo&gt; "&lt;task&gt;" --bg             # fire and forget
-oneshot &lt;repo&gt; "&lt;task&gt;" --local          # run locally, no SSH
-oneshot &lt;repo&gt; "&lt;task&gt;" --workflow ship  # apply a workflow preset
-oneshot &lt;repo&gt; "&lt;task&gt;" --model gpt-5.5  # override configured plan/PR model
-oneshot &lt;repo&gt; "&lt;task&gt;" --deep-review    # force exhaustive review
-oneshot &lt;repo&gt; "&lt;task&gt;" --branch staging # target a different branch
-oneshot &lt;repo&gt; "&lt;task&gt;" --worktree-root /tmp/agents
-oneshot &lt;repo&gt; --dry-run                 # validate only
-oneshot init                             # configure
-oneshot stats                            # recent runs + timing
-oneshot runs                             # durable run ledger
-oneshot runs --json --limit 10           # list runs for automation
-oneshot status &lt;run-id|events-file&gt; --json
-oneshot receipt &lt;run-id&gt;                  # proof-of-work receipt (text)
-oneshot receipt &lt;run-id&gt; --html &gt; r.html  # receipt as an HTML artifact
-oneshot eval --json                      # summarize outcomes
-oneshot doctor                           # setup and remote health checks
-oneshot doctor --repo acme/api           # setup + checkout health
-oneshot route "fix failing CI" --json    # inspect hidden route
-oneshot workflow list                    # inspect workflow presets
-oneshot workflow show fix-ci --json      # inspect one workflow preset
-oneshot policy init                      # create .oneshot/policy.json
-oneshot policy init --path ./repo        # write policy elsewhere
-oneshot gha init                         # scaffold a GitHub Actions workflow
-oneshot mcp serve                        # expose MCP tools</code></pre>
-        <button class="copy-btn" data-copy='oneshot <repo> "<task>"' aria-label="Copy usage examples">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        </button>
-      </div>
-
-      <h3 class="subsection-title">Flags</h3>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Flag</th>
-              <th>Short</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>--model</code></td>
-              <td><code>-m</code></td>
-              <td>Override the configured plan/PR model for this run</td>
-            </tr>
-            <tr>
-              <td><code>--branch</code></td>
-              <td><code>-b</code></td>
-              <td>Base branch (default: <code>main</code>)</td>
-            </tr>
-            <tr>
-              <td><code>--base-path</code></td>
-              <td></td>
-              <td>Override the workspace path used to locate the repo</td>
-            </tr>
-            <tr>
-              <td><code>--worktree-root</code></td>
-              <td></td>
-              <td>Override where temporary git worktrees are created</td>
-            </tr>
-            <tr>
-              <td><code>--workflow</code></td>
-              <td></td>
-              <td>Apply a workflow preset such as <code>ship</code>, <code>review</code>, <code>fix-ci</code>, <code>research</code>, <code>docs</code>, or <code>swarm-review</code></td>
-            </tr>
-            <tr>
-              <td><code>--deep-review</code></td>
-              <td></td>
-              <td>Force exhaustive review mode (bypasses auto-classification)</td>
-            </tr>
-            <tr>
-              <td><code>--local</code></td>
-              <td></td>
-              <td>Run locally instead of over SSH</td>
-            </tr>
-            <tr>
-              <td><code>--bg</code></td>
-              <td></td>
-              <td>Run detached in background (returns PID + log path)</td>
-            </tr>
-            <tr>
-              <td><code>--dry-run</code></td>
-              <td><code>-d</code></td>
-              <td>Validate repo exists without running the pipeline</td>
-            </tr>
-            <tr>
-              <td><code>--events-file</code></td>
-              <td></td>
-              <td>Mirror JSONL events to an additional file for machine consumption</td>
-            </tr>
-            <tr>
-              <td><code>--json</code></td>
-              <td></td>
-              <td>With <code>receipt</code>, <code>runs</code>, <code>status</code>, or <code>eval</code>, emit JSON</td>
-            </tr>
-            <tr>
-              <td><code>--html</code></td>
-              <td></td>
-              <td>With <code>receipt</code>, emit a self-contained HTML proof-of-work artifact</td>
-            </tr>
-            <tr>
-              <td><code>--repo</code></td>
-              <td></td>
-              <td>With <code>doctor</code>, verify a specific <code>owner/repo</code> checkout exists (nested or flat)</td>
-            </tr>
-            <tr>
-              <td><code>--provider</code></td>
-              <td></td>
-              <td>With <code>route</code>, choose the fallback provider (<code>codex</code> or <code>claude</code>)</td>
-            </tr>
-            <tr>
-              <td><code>--help</code></td>
-              <td><code>-h</code></td>
-              <td>Show help</td>
-            </tr>
-            <tr>
-              <td><code>--version</code></td>
-              <td><code>-v</code></td>
-              <td>Show version</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 class="subsection-title">Examples</h3>
-      <div class="examples-grid">
-        <div class="example-card">
-          <h4>Ship a feature</h4>
-          <div class="code-block compact">
-            <pre><code>oneshot acme/api "add rate limiting to /auth endpoints"</code></pre>
-            <button class="copy-btn" data-copy='oneshot acme/api "add rate limiting to /auth endpoints"' aria-label="Copy">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="example-card">
-          <h4>From a Linear ticket</h4>
-          <div class="code-block compact">
-            <pre><code>oneshot acme/api https://linear.app/acme/issue/ENG-142</code></pre>
-            <button class="copy-btn" data-copy="oneshot acme/api https://linear.app/acme/issue/ENG-142" aria-label="Copy">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="example-card">
-          <h4>Parallel background runs</h4>
-          <div class="code-block compact">
-            <pre><code>oneshot acme/api "fix auth bug" --bg
-oneshot acme/web "add dark mode" --bg</code></pre>
-            <button class="copy-btn" data-copy='oneshot acme/api "fix auth bug" --bg
-oneshot acme/web "add dark mode" --bg' aria-label="Copy">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="example-card">
-          <h4>Local execution</h4>
-          <div class="code-block compact">
-            <pre><code>oneshot acme/api "fix typo in README" --local</code></pre>
-            <button class="copy-btn" data-copy='oneshot acme/api "fix typo in README" --local' aria-label="Copy">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="example-card">
-          <h4>Read the receipt</h4>
-          <div class="code-block compact">
-            <pre><code>oneshot receipt 1779090434-rxw89j --html &gt; receipt.html</code></pre>
-            <button class="copy-btn" data-copy="oneshot receipt 1779090434-rxw89j --html > receipt.html" aria-label="Copy">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="example-card">
-          <h4>Detach to GitHub Actions</h4>
-          <div class="code-block compact">
-            <pre><code>oneshot gha init
-gh workflow run oneshot.yml -f task="fix the login timeout"</code></pre>
-            <button class="copy-btn" data-copy='oneshot gha init
-gh workflow run oneshot.yml -f task="fix the login timeout"' aria-label="Copy">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
+    <!-- Commands -->
+    <section id="commands" class="wrap">
+      <p class="section-kicker">Commands</p>
+      <h2 class="section-h">The ones you'll reach for.</h2>
+      <dl class="cmds">
+        <div><dt>oneshot &lt;repo&gt; "&lt;task&gt;"</dt><dd>Ship a task. Add <code>--bg</code> to detach, <code>--workflow</code> for a preset.</dd></div>
+        <div><dt>oneshot receipt &lt;run-id&gt;</dt><dd>Read a run's proof-of-work. Add <code>--json</code> or <code>--html</code>.</dd></div>
+        <div><dt>oneshot runs</dt><dd>The durable ledger of every run, newest first.</dd></div>
+        <div><dt>oneshot eval</dt><dd>Success rate and timing across recent runs.</dd></div>
+        <div><dt>oneshot doctor</dt><dd>Check tools, config, SSH, and a specific checkout with <code>--repo</code>.</dd></div>
+        <div><dt>oneshot policy init</dt><dd>Add <code>.oneshot/policy.json</code>: protected paths, secret and gate checks.</dd></div>
+        <div><dt>oneshot gha init</dt><dd>Scaffold a GitHub Actions workflow for detached CI runs.</dd></div>
+        <div><dt>oneshot mcp serve</dt><dd>Expose run, receipt, status, policy, and eval as MCP tools.</dd></div>
+      </dl>
+      <p class="ref-note">Full flags, configuration, and workflow presets live in the <a href="https://github.com/ADWilkinson/oneshot-cli#readme" target="_blank" rel="noopener">README</a>.</p>
     </section>
 
-    <!-- Configuration -->
-    <section id="configuration" class="section">
-      <h2 class="section-title">Configuration</h2>
-      <p class="section-desc"><code>~/.oneshot/config.json</code>, created by <code>oneshot init</code>. Only <code>host</code> is required for SSH. Set <code>host</code> to <code>local</code> to run on this machine without SSH and without passing <code>--local</code> every time. Repos may be laid out as <code>basePath/owner/repo</code> (nested) or <code>basePath/repo</code> (flat); oneshot prefers whichever exists.</p>
-
-      <div class="code-block">
-        <pre><code>{
-  "host": "user@100.x.x.x",
-  "backend": "ssh",
-  "basePath": "~/projects",
-  "worktreeRoot": "/tmp",
-  "provider": "codex",
-  "routing": { "enabled": true },
-  "notify": {
-    "webhook": "https://hooks.example.com/oneshot",
-    "onFailure": true
+    <!-- Config -->
+    <section class="band">
+      <div class="band-inner config-grid">
+        <div>
+          <p class="section-kicker">Configuration</p>
+          <h2 class="section-h">A small file in <code>~/.oneshot/config.json</code>.</h2>
+          <p class="config-copy">Set <code>host</code> to <code>local</code> to run here, an SSH target to use a box, or scaffold Actions with <code>oneshot gha init</code>. Repos resolve as <code>owner/repo</code> in either a nested or flat layout. Codex and Claude each stay on their configured frontier model; routing only varies effort.</p>
+          <p class="config-copy">Add a <code>notify</code> webhook or command and a detached run will ping you the moment its receipt is ready.</p>
+        </div>
+        <div class="code code-tall">
+          <pre><code>{
+  <span class="c-key">"host"</span>: <span class="c-str">"local"</span>,
+  <span class="c-key">"basePath"</span>: <span class="c-str">"~/projects"</span>,
+  <span class="c-key">"provider"</span>: <span class="c-str">"codex"</span>,
+  <span class="c-key">"routing"</span>: { <span class="c-key">"enabled"</span>: true },
+  <span class="c-key">"notify"</span>: {
+    <span class="c-key">"webhook"</span>: <span class="c-str">"https://..."</span>
   },
-  "linearApiKey": "lin_api_...",
-  "claude": {
-    "model": "opus",
-    "timeoutMinutes": 180
-  },
-  "codex": {
-    "model": "gpt-5.5",
-    "reasoningEffort": "xhigh",
-    "reviewModel": "gpt-5.5",
-    "reviewReasoningEffort": "xhigh",
-    "timeoutMinutes": 180
-  },
-  "phases": {
-    "classify": { "model": "gpt-5.5", "reasoningEffort": "medium" },
-    "plan": { "model": "gpt-5.5", "reasoningEffort": "xhigh" },
-    "execute": {
-      "model": "gpt-5.5",
-      "reasoningEffort": "xhigh"
-    },
-    "review": {
-      "model": "gpt-5.5",
-      "reasoningEffort": "xhigh"
-    },
-    "deepReview": {
-      "model": "gpt-5.5",
-      "reasoningEffort": "xhigh"
-    },
-    "pr": { "model": "gpt-5.5", "reasoningEffort": "high" }
-  },
-  "stepTimeouts": {
-    "planMinutes": 20,
-    "executeMinutes": 60,
-    "reviewMinutes": 20,
-    "deepReviewMinutes": 20,
-    "prMinutes": 20
+  <span class="c-key">"codex"</span>: {
+    <span class="c-key">"model"</span>: <span class="c-str">"gpt-5.5"</span>,
+    <span class="c-key">"reviewModel"</span>: <span class="c-str">"gpt-5.5"</span>,
+    <span class="c-key">"reasoningEffort"</span>: <span class="c-str">"xhigh"</span>
   }
 }</code></pre>
-      </div>
-
-      <p class="section-desc"><code>phases</code> is optional. If omitted, every agent phase uses the selected provider and its default model settings. Stale per-phase provider values from older configs are ignored when adaptive routing is off. With <code>routing.enabled</code>, oneshot's adaptive router can silently choose Codex or Claude per task while preserving each provider's configured frontier model.</p>
-
-      <h3 class="subsection-title">Options</h3>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Required</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>host</code></td>
-              <td>SSH only</td>
-              <td>SSH target (e.g. <code>user@192.168.1.10</code>), or <code>local</code> to run on this machine</td>
-            </tr>
-            <tr>
-              <td><code>backend</code></td>
-              <td>No</td>
-              <td>Executor hint: <code>ssh</code>, <code>local</code>, or <code>gha</code></td>
-            </tr>
-            <tr>
-              <td><code>basePath</code></td>
-              <td>No</td>
-              <td>Root directory containing your repos (nested or flat layout). Default: <code>~/projects</code></td>
-            </tr>
-            <tr>
-              <td><code>worktreeRoot</code></td>
-              <td>No</td>
-              <td>Scratch directory for temporary git worktrees. Default: <code>/tmp</code></td>
-            </tr>
-            <tr>
-              <td><code>provider</code></td>
-              <td>No</td>
-              <td>Fallback agent provider when adaptive routing is off or no route rule wins. Default: <code>codex</code></td>
-            </tr>
-            <tr>
-              <td><code>routing.enabled</code></td>
-              <td>No</td>
-              <td>Enables invisible provider and reasoning routing. Codex and Claude still use their configured frontier model</td>
-            </tr>
-            <tr>
-              <td><code>anthropicApiKey</code></td>
-              <td>Claude only</td>
-              <td>Falls back to <code>ANTHROPIC_API_KEY</code> env var</td>
-            </tr>
-            <tr>
-              <td><code>notify.webhook</code></td>
-              <td>No</td>
-              <td>POST the receipt summary as JSON when a run finishes</td>
-            </tr>
-            <tr>
-              <td><code>notify.command</code></td>
-              <td>No</td>
-              <td>Run a command with the payload on stdin and in <code>ONESHOT_NOTIFY_*</code> env. Pair with <code>onSuccess</code> / <code>onFailure</code> to filter</td>
-            </tr>
-            <tr>
-              <td><code>linearApiKey</code></td>
-              <td>No</td>
-              <td>Enables Linear ticket integration</td>
-            </tr>
-            <tr>
-              <td><code>claude.model</code></td>
-              <td>Claude only</td>
-              <td>Default Claude model. Default: <code>opus</code></td>
-            </tr>
-            <tr>
-              <td><code>codex.model</code></td>
-              <td>Codex only</td>
-              <td>Default Codex model. Default: <code>gpt-5.5</code></td>
-            </tr>
-            <tr>
-              <td><code>codex.reasoningEffort</code></td>
-              <td>Codex only</td>
-              <td>Default Codex reasoning effort. Default: <code>xhigh</code></td>
-            </tr>
-            <tr>
-              <td><code>codex.reviewModel</code></td>
-              <td>Codex only</td>
-              <td>Default for review phases. Default: same as <code>codex.model</code></td>
-            </tr>
-            <tr>
-              <td><code>codex.reviewReasoningEffort</code></td>
-              <td>Codex only</td>
-              <td>Default review reasoning effort. Default: same as <code>codex.reasoningEffort</code></td>
-            </tr>
-            <tr>
-              <td><code>phases.&lt;phase&gt;.model</code></td>
-              <td>No</td>
-              <td>Exact model for that phase under the selected provider</td>
-            </tr>
-            <tr>
-              <td><code>phases.&lt;phase&gt;.reasoningEffort</code></td>
-              <td>No</td>
-              <td>Reasoning effort for that phase, e.g. <code>medium</code>, <code>high</code>, <code>xhigh</code>. Passed to Codex and to Claude via <code>--effort</code></td>
-            </tr>
-            <tr>
-              <td><code>stepTimeouts</code></td>
-              <td>No</td>
-              <td>Per-step timeout overrides in minutes</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section id="runtime" class="section">
-      <h2 class="section-title">Runtime Controls</h2>
-      <p class="section-desc">Every run is mirrored into a durable ledger under <code>~/.oneshot/runs</code> and writes a proof-of-work receipt. Receipts, notifications, the GitHub Actions backend, workflow presets, policy packs, and the MCP server make oneshot a detached workflow engine instead of a one-off shell command.</p>
-      <div class="runtime-grid">
-        <article class="runtime-card">
-          <h3>Prove</h3>
-          <p>Read a run's receipt: plan, contract steps, review, policy, confidence.</p>
-          <code>oneshot receipt &lt;run-id&gt;</code>
-          <code>oneshot receipt &lt;run-id&gt; --html</code>
-        </article>
-        <article class="runtime-card">
-          <h3>Observe</h3>
-          <p>Inspect recent work and read one run or event file as JSON.</p>
-          <code>oneshot runs</code>
-          <code>oneshot status &lt;run-id|events-file&gt; --json</code>
-        </article>
-        <article class="runtime-card">
-          <h3>Detach</h3>
-          <p>Run durably without a dev box. Scaffolds a CI workflow that uploads the receipt.</p>
-          <code>oneshot gha init</code>
-          <code>oneshot &lt;repo&gt; "&lt;task&gt;" --bg</code>
-        </article>
-        <article class="runtime-card">
-          <h3>Shape</h3>
-          <p>Pick a workflow preset or add repo policy.</p>
-          <code>oneshot workflow list</code>
-          <code>oneshot policy init</code>
-        </article>
-        <article class="runtime-card">
-          <h3>Integrate</h3>
-          <p>Expose the public runtime to any MCP-capable agent.</p>
-          <code>oneshot mcp serve</code>
-          <code>oneshot eval --json</code>
-        </article>
-      </div>
-      <div class="code-block">
-        <pre><code>oneshot runs
-oneshot status &lt;run-id|events-file&gt; --json
-oneshot receipt &lt;run-id&gt; --html
-oneshot eval --json
-oneshot workflow list
-oneshot workflow show fix-ci --json
-oneshot policy init
-oneshot gha init
-oneshot mcp serve</code></pre>
-      </div>
-    </section>
-
-    <!-- Linear Integration -->
-    <section id="linear" class="section">
-      <h2 class="section-title">Linear Integration</h2>
-      <p class="section-desc">Pass a Linear URL instead of a task string. oneshot fetches the ticket and uses it as context.</p>
-
-      <div class="code-block">
-        <pre><code>oneshot acme/api https://linear.app/acme/issue/ENG-142</code></pre>
-      </div>
-
-      <div class="linear-flow">
-        <div class="linear-step">
-          <span class="linear-num">1</span>
-          <p>Fetches issue title, description, and comments via GraphQL</p>
-        </div>
-        <div class="linear-step">
-          <span class="linear-num">2</span>
-          <p>Formats ticket as context for the planning step</p>
-        </div>
-        <div class="linear-step">
-          <span class="linear-num">3</span>
-          <p>Uses the issue ID in the PR branch name (e.g. <code>oneshot/eng-142-1712345678901</code>)</p>
-        </div>
-        <div class="linear-step">
-          <span class="linear-num">4</span>
-          <p>After PR creation, moves the ticket to "In Review" and comments the PR URL</p>
-        </div>
-      </div>
-
-      <p class="text-muted">Requires <code>linearApiKey</code> in your config.</p>
-    </section>
-
-    <!-- Customization -->
-    <section id="customization" class="section">
-      <h2 class="section-title">Customization</h2>
-
-      <div class="custom-grid">
-        <div class="custom-card">
-          <h3>Repo Instructions</h3>
-          <p>Put a <code>CLAUDE.md</code> or <code>AGENTS.md</code> in any repo root. oneshot passes repo instructions to the configured agents for planning and execution.</p>
-          <p class="text-muted">Coding standards, architecture decisions, test requirements, whatever.</p>
-        </div>
-
-        <div class="custom-card">
-          <h3>Prompt Templates</h3>
-          <p>Edit the prompt files to change pipeline behavior:</p>
-          <div class="file-list">
-            <div class="file-item">
-              <code>prompts/plan.txt</code>
-              <span>How the plan agent explores and plans</span>
-            </div>
-            <div class="file-item">
-              <code>prompts/execute.txt</code>
-              <span>How the execute agent implements changes</span>
-            </div>
-            <div class="file-item">
-              <code>prompts/review.txt</code>
-              <span>How the review agent reviews the diff</span>
-            </div>
-            <div class="file-item">
-              <code>prompts/pr.txt</code>
-              <span>How the PR agent writes branch/commit/PR metadata</span>
-            </div>
-          </div>
-          <p class="text-muted">Templates use <code>{{variable}}</code> placeholders replaced at runtime.</p>
         </div>
       </div>
     </section>
 
-    <!-- Agent Skill -->
-    <section id="agent-skill" class="section">
-      <h2 class="section-title">Agent Skill</h2>
-      <p class="section-desc">Works as an <a href="https://agentskills.io" target="_blank" rel="noopener">Agent Skill</a> in Claude Code, Codex CLI, Cursor, and other compatible agents.</p>
-
-      <h3 class="subsection-title">Install</h3>
-      <div class="code-block">
-        <pre><code>npx skills add ADWilkinson/oneshot-cli</code></pre>
-        <button class="copy-btn" data-copy="npx skills add ADWilkinson/oneshot-cli" aria-label="Copy">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        </button>
-      </div>
-
-      <p>Or via <a href="https://clawhub.ai" target="_blank" rel="noopener">ClawHub</a>:</p>
-      <div class="code-block">
-        <pre><code>clawhub install oneshot-ship</code></pre>
-        <button class="copy-btn" data-copy="clawhub install oneshot-ship" aria-label="Copy">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        </button>
-      </div>
-
-      <p>Agents pick it up automatically, or call <code>/oneshot-ship</code> directly.</p>
-    </section>
-
-    <!-- Footer -->
     <footer class="footer">
-      <div class="footer-content">
-        <div class="footer-brand">
-          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
-          </svg>
-          <span>oneshot</span>
-        </div>
-        <p class="footer-tagline">MIT License.</p>
+      <div class="footer-inner">
+        <a href="#top" class="brand">
+          <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor"/></svg>
+          <span class="brand-name">oneshot</span>
+        </a>
+        <p class="footer-tag">Repo + task in. Reviewed PR and a receipt out.</p>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="https://github.com/ADWilkinson/oneshot-cli" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://www.npmjs.com/package/oneshot-ship" target="_blank" rel="noopener">npm</a>
+          <a href="https://github.com/ADWilkinson/oneshot-cli/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+          <a href="https://github.com/ADWilkinson/oneshot-cli/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
+        </nav>
       </div>
     </footer>
 
   </main>
 
+  <div id="copyStatus" class="copy-status" role="status" aria-live="polite"></div>
   <script src="assets/script.js"></script>
-  <div class="copy-status" id="copyStatus" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

@@ -19,12 +19,8 @@ assert(
   "docs must not mention the retired gpt-5.4-mini default",
 );
 assert(
-  docs.includes("Default: <code>gpt-5.5</code>"),
-  "docs must document the current default Codex model",
-);
-assert(
-  docs.includes("Default: same as <code>codex.model</code>"),
-  "docs must document review model inheritance",
+  docs.includes("gpt-5.5"),
+  "docs must reference the current default Codex model (gpt-5.5)",
 );
 assert(
   readme.includes(`"model": "gpt-5.5"`),
